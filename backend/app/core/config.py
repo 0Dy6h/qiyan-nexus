@@ -1,0 +1,17 @@
+import os
+from dataclasses import dataclass
+from functools import lru_cache
+
+
+@dataclass(frozen=True)
+class Settings:
+    app_name: str = "Tcm Tech API"
+    environment: str = "dev"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings(
+        app_name=os.getenv("APP_NAME", "Tcm Tech API"),
+        environment=os.getenv("ENVIRONMENT", "dev"),
+    )
