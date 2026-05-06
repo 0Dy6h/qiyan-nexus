@@ -1,4 +1,4 @@
-# AGENTS.md — 中医药精准诊疗与科研一体化平台
+# AGENTS.md — 岐研枢（Qiyan Nexus）
 
 > 本文件是项目地图层。详细知识存放在 `docs/`、`CONTEXT.md` 和历史规划目录中。
 

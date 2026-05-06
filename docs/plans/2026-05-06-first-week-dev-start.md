@@ -1,8 +1,8 @@
-# Tcm_tech 第一周开发启动计划
+# 岐研枢 第一周开发启动计划
 
 > For Hermes: use TDD for behavior code. This plan intentionally starts small: create runnable skeletons, health checks, and a local dev baseline before implementing domain features.
 
-Goal: 将 Tcm_tech 从纯规划仓库切换为可运行的前后端工程骨架，并完成第一周最小开发闭环。
+Goal: 将项目从纯规划仓库切换为可运行的前后端工程骨架，并完成第一周最小开发闭环。
 
 Architecture: 采用 monorepo。前端放在 `frontend/`，后端放在 `backend/`，基础设施放在 `infra/`。第一周只建立可运行骨架、健康检查、配置样例和最小测试，不实现 RAG、Embedding、Neo4j、Celery 业务逻辑。
 
@@ -58,7 +58,7 @@ Files:
 - Create: `backend/tests/test_config.py`
 
 Steps:
-1. 写测试：默认配置中 `app_name == "Tcm Tech API"`，`environment == "dev"`。
+1. 写测试：默认配置中 `app_name == "Qiyan Nexus API"`，`environment == "dev"`。
 2. 运行单测，预期失败。
 3. 用 Pydantic Settings 或简单 dataclass 实现最小配置。为避免额外依赖，第一版用 dataclass + os.getenv。
 4. 写 `.env.example`，只列变量名，不写任何 secret。
