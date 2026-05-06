@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-OUT = Path(__file__).resolve().parent / "tcm_tech_plan_v2.1_schedule.xlsx"
+OUT = Path(__file__).resolve().parent / "qiyan_nexus_plan_v2.1_schedule.xlsx"
 
 # WBS: phase, task name, description/deliverable, estimated hours (inferred from doc scope)
 ROWS = [
@@ -143,7 +143,7 @@ def main():
     ws2["A1"] = "生成说明"
     ws2["A1"].font = Font(bold=True, size=12)
     notes = [
-        "来源文档：tcm_tech_plan_v2.1.docx（中医药精准诊疗与科研一体化平台技术架构方案 V2.1）。",
+        "来源文档：qiyan_nexus_plan_v2.1.docx（Qiyan Nexus技术架构方案 V2.1）。",
         "工时：文档未给出详细工时的部分，按章节范围与「九、产品路线图」「十二、第一周快速启动清单」推断。",
         "排期规则：总日历天数 = ceil(预估工时 ÷ 2)；同一任务连续占用从「开始日序号」到「结束日序号」。",
         "「开始日序号」第 1 天 = 项目启动第 1 个日历日；未扣节假日（可按需后续压缩/拉长）。",

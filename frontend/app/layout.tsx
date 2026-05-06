@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "antd/dist/reset.css";
 
 export const metadata: Metadata = {
-  title: "岐研枢 Qiyan Nexus",
+  title: "Qiyan Nexus",
   description: "面向特应性皮炎的中医药证据与科研工作台",
 };
 

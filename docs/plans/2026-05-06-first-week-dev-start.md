@@ -1,4 +1,4 @@
-# 岐研枢 第一周开发启动计划
+# Qiyan Nexus 第一周开发启动计划
 
 > For Hermes: use TDD for behavior code. This plan intentionally starts small: create runnable skeletons, health checks, and a local dev baseline before implementing domain features.
 
@@ -37,7 +37,7 @@ Files:
 - Create: `backend/pyproject.toml`
 
 Steps:
-1. 写测试 `backend/tests/test_health.py`：请求 `/health` 应返回 200 和 `{"status":"ok","service":"tcm-tech-api"}`。
+1. 写测试 `backend/tests/test_health.py`：请求 `/health` 应返回 200 和 `{"status":"ok","service":"qiyan-nexus-api"}`。
 2. 运行 `cd backend && python3 -m pytest tests/test_health.py -v`，预期失败，因为 app 不存在。
 3. 创建 `backend/app/main.py`，实现最小 FastAPI app 和 health endpoint。
 4. 运行 `cd backend && python3 -m pytest tests/test_health.py -v`，预期通过。
@@ -82,7 +82,7 @@ Files:
 
 Steps:
 1. 创建最小 Next.js 项目结构。
-2. 首页显示：`中医药精准诊疗与科研一体化平台`。
+2. 首页显示：`Qiyan Nexus`。
 3. 首页显示免责声明：`非诊断结论、需结合临床`。
 4. 安装或声明依赖：Next.js 15、React、React DOM、Ant Design。
 5. 运行 `cd frontend && pnpm next --version` 或 `pnpm build` 做基础验证。

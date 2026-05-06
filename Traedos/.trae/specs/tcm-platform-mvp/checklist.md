@@ -1,4 +1,4 @@
-# 中医药精准诊疗与科研一体化平台 - MVP 验证清单
+# Qiyan Nexus - MVP 验证清单
 
 ## 基础设施验证
 - [ ] Docker Compose 启动所有服务（PostgreSQL、PgBouncer、Redis、Nginx、Celery、Flower）

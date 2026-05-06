@@ -1,10 +1,10 @@
-# 岐研枢（Qiyan Nexus）
+# Qiyan Nexus
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
 当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有第一个文献检索端到端切片：后端 mock API + 前端浏览器端 API 调用页面。
 
-正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `Tcm_tech`，避免破坏已有路径和脚本。
+正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
 ## 目录
 

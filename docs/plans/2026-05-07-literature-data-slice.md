@@ -1,10 +1,10 @@
-# 岐研枢明日续接计划
+# Qiyan Nexus 明日续接计划
 
 > For Hermes: 明天继续时，先读 `AGENTS.md`、`CONTEXT.md`、本文件、`docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`、`docs/adr/0009-前端实际版本基线与AntDesign使用策略.md`。
 
-Goal: 按“岐研枢 / Qiyan Nexus”新方案继续，把项目从命名与评估收口推进到“真实文献样本库 + repository 抽取”的下一条纵向切片。
+Goal: 按“Qiyan Nexus”新方案继续，把项目从命名与评估收口推进到“真实文献样本库 + repository 抽取”的下一条纵向切片。
 
-Architecture: 保持 monorepo。短期仓库目录仍叫 `Tcm_tech`，产品展示名使用“岐研枢”。下一步只替换文献 mock 数据的数据来源与代码结构，不接 PostgreSQL、pgvector、Neo4j、Celery、真实 LLM 或 embedding 模型。
+Architecture: 保持 monorepo。产品名统一使用 “Qiyan Nexus”。短期本地仓库路径仍是 `/home/dyh2026/projects/Tcm_tech`，本次不改目录名，避免破坏已有脚本与上下文指针。下一步只替换文献 mock 数据的数据来源与代码结构，不接 PostgreSQL、pgvector、Neo4j、Celery、真实 LLM 或 embedding 模型。
 
 Tech Stack: FastAPI + pytest；Next.js 16 + React 19 + Ant Design 6（实际基线）；node:test；Markdown docs。
 
@@ -18,21 +18,20 @@ Tech Stack: FastAPI + pytest；Next.js 16 + React 19 + Ant Design 6（实际基�
 - `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`
 
 推荐产品名：
-- 中文名：岐研枢
-- 英文名：Qiyan Nexus
+- 产品名：Qiyan Nexus
 - MVP 副标题：AD 中医药证据与科研工作台
 
-核心定位从“中医药精准诊疗与科研一体化平台”收敛为：
+核心定位已收敛为：
 - 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台
 - 少说诊疗，多说证据、科研、辅助、工作台
 
 ### 已应用的小改动
 
 已修改：
-- `README.md`：标题与定位改为“岐研枢（Qiyan Nexus）”
-- `AGENTS.md`：标题改为“岐研枢（Qiyan Nexus）”
-- `frontend/app/page.tsx`：首页展示名改为“岐研枢 · AD 专病科研工作台”
-- `frontend/app/layout.tsx`：metadata 改为“岐研枢 Qiyan Nexus”
+- `README.md`：标题与定位改为“Qiyan Nexus”
+- `AGENTS.md`：标题改为“Qiyan Nexus”
+- `frontend/app/page.tsx`：首页展示名改为“Qiyan Nexus · AD 专病科研工作台”
+- `frontend/app/layout.tsx`：metadata 改为“Qiyan Nexus”
 - `backend/app/main.py`：FastAPI title 改为 “Qiyan Nexus API”
 - `backend/app/core/config.py`：默认 app_name 改为 “Qiyan Nexus API”
 - `backend/.env.example`：APP_NAME 改为 “Qiyan Nexus API”
@@ -112,7 +111,7 @@ Suggested commit:
 
 ```bash
 git add AGENTS.md README.md backend/.env.example backend/app/core/config.py backend/app/main.py backend/pyproject.toml backend/tests/test_config.py docs/adr/0009-前端实际版本基线与AntDesign使用策略.md docs/evaluations/2026-05-06-project-evaluation-and-optimization.md docs/plans/2026-05-06-first-week-dev-start.md docs/quality-score.md frontend/app/layout.tsx frontend/app/page.tsx
-git commit -m "docs: rename project to qiyan nexus and record evaluation"
+git commit -m "docs: standardize project name as qiyan nexus"
 ```
 
 Do not commit if tests fail.
@@ -257,8 +256,8 @@ Objective: 完成文献数据切片后，把事实源更新到 README/wiki，方
 
 Files:
 - Modify: `README.md`
-- Modify: `~/.hermes/wiki/projects/Tcm_tech.md`
-- Modify or create: `~/.hermes/wiki/notes/2026-05-07-Tcm_tech-文献数据切片记录.md`
+- Modify: `~/.hermes/wiki/projects/Qiyan Nexus.md`
+- Modify or create: `~/.hermes/wiki/notes/2026-05-07-Qiyan Nexus-文献数据切片记录.md`
 
 Content should include:
 - 新增 sample JSON 路径
@@ -283,6 +282,6 @@ python3 ~/.hermes/wiki/wiki_tool.py index
 - wiki 已更新。
 
 建议提交顺序：
-1. `docs: rename project to qiyan nexus and record evaluation`
+1. `docs: standardize project name as qiyan nexus`
 2. `feat: load literature samples through repository`
 3. `docs: record literature data slice handoff`

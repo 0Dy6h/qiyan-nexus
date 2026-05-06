@@ -11,7 +11,7 @@ export default function HomePage() {
           padding: 40,
         }}
       >
-        <p style={{ color: "#0d9488", fontWeight: 700 }}>岐研枢 · AD 专病科研工作台</p>
+        <p style={{ color: "#0d9488", fontWeight: 700 }}>Qiyan Nexus · AD 专病科研工作台</p>
         <h1 style={{ color: "#1e293b", fontSize: 40, lineHeight: 1.2 }}>
           面向特应性皮炎的中医药证据与科研工作台
         </h1>

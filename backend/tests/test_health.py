@@ -11,5 +11,5 @@ def test_health_returns_service_status():
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
-        "service": "tcm-tech-api",
+        "service": "qiyan-nexus-api",
     }

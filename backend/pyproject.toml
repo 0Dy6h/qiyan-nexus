@@ -1,5 +1,5 @@
 [project]
-name = "tcm-tech-backend"
+name = "qiyan-nexus-backend"
 version = "0.1.0"
 description = "FastAPI backend for Qiyan Nexus"
 requires-python = ">=3.11"

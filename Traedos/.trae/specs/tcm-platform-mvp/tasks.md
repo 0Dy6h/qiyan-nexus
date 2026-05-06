@@ -1,4 +1,4 @@
-# 中医药精准诊疗与科研一体化平台 - MVP 实现计划
+# Qiyan Nexus - MVP 实现计划
 
 ## [ ] Task 1: 基础设施环境搭建
 - **Priority**: P0

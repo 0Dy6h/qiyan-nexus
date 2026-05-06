@@ -1,4 +1,4 @@
-# AGENTS.md — 岐研枢（Qiyan Nexus）
+# AGENTS.md — Qiyan Nexus
 
 > 本文件是项目地图层。详细知识存放在 `docs/`、`CONTEXT.md` 和历史规划目录中。
 

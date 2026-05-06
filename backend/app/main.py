@@ -17,5 +17,5 @@ app.include_router(literature_router)
 def health() -> dict[str, str]:
     return {
         "status": "ok",
-        "service": "tcm-tech-api",
+        "service": "qiyan-nexus-api",
     }
