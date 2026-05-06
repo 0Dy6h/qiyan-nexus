@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildLiteratureSearchUrl } from "../lib/api/literature.mjs";
+import { buildLiteratureSearchUrl, getLiteratureSourceLabel } from "../lib/api/literature.mjs";
 
 test("buildLiteratureSearchUrl encodes query with default backend base URL", () => {
   const url = buildLiteratureSearchUrl("特应性皮炎");
@@ -18,8 +18,8 @@ test("buildLiteratureSearchUrl trims query", () => {
   assert.equal(url, "http://127.0.0.1:8000/api/literature/search?q=AD");
 });
 
-test("buildLiteratureSearchUrl appends source when provided", () => {
-  const url = buildLiteratureSearchUrl("AD", "pubmed");
-
-  assert.equal(url, "http://127.0.0.1:8000/api/literature/search?q=AD&source=pubmed");
+test("getLiteratureSourceLabel returns display text", () => {
+  assert.equal(getLiteratureSourceLabel("all"), "全部");
+  assert.equal(getLiteratureSourceLabel("cn_literature"), "中文文献");
+  assert.equal(getLiteratureSourceLabel("pubmed"), "PubMed");
 });
