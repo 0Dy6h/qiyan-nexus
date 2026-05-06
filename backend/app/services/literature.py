@@ -31,8 +31,14 @@ def detect_query_language(query: str) -> str:
 
 def search_literature(query: str) -> LiteratureSearchResponse:
     normalized_query = query.strip()
+    query_language = detect_query_language(normalized_query)
+    preferred_source_type = "cn_literature" if query_language == "zh" else "pubmed"
+    items = sorted(
+        _SAMPLE_ITEMS,
+        key=lambda item: item["source_type"] != preferred_source_type,
+    )
     return LiteratureSearchResponse(
         query=normalized_query,
-        total=len(_SAMPLE_ITEMS),
-        items=_SAMPLE_ITEMS,
+        total=len(items),
+        items=items,
     )

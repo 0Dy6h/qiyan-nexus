@@ -35,6 +35,15 @@ def test_literature_search_returns_mock_results_for_keyword():
     }
 
 
+def test_literature_search_prioritizes_pubmed_results_for_english_keyword():
+    client = TestClient(app)
+
+    response = client.get("/api/literature/search", params={"q": "atopic dermatitis"})
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["items"]] == ["en-ad-barrier-001", "cn-ad-gbs-001"]
+
+
 def test_literature_search_requires_non_empty_query():
     client = TestClient(app)
 
