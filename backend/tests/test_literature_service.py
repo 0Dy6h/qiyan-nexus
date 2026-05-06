@@ -25,6 +25,20 @@ def test_search_literature_prioritizes_pubmed_items_for_english_query():
     assert [item.id for item in result.items] == ["en-ad-barrier-001", "cn-ad-gbs-001"]
 
 
+def test_search_literature_filters_cn_literature_source():
+    result = search_literature("atopic dermatitis", source="cn_literature")
+
+    assert result.total == 1
+    assert [item.source_type for item in result.items] == ["cn_literature"]
+
+
+def test_search_literature_filters_pubmed_source():
+    result = search_literature("特应性皮炎", source="pubmed")
+
+    assert result.total == 1
+    assert [item.source_type for item in result.items] == ["pubmed"]
+
+
 def test_search_literature_trims_query():
     result = search_literature("  atopic dermatitis  ")
 

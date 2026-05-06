@@ -44,6 +44,30 @@ def test_literature_search_prioritizes_pubmed_results_for_english_keyword():
     assert [item["id"] for item in response.json()["items"]] == ["en-ad-barrier-001", "cn-ad-gbs-001"]
 
 
+def test_literature_search_filters_source():
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/literature/search",
+        params={"q": "特应性皮炎", "source": "pubmed"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert [item["source_type"] for item in response.json()["items"]] == ["pubmed"]
+
+
+def test_literature_search_rejects_invalid_source():
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/literature/search",
+        params={"q": "特应性皮炎", "source": "unknown"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_literature_search_requires_non_empty_query():
     client = TestClient(app)
 

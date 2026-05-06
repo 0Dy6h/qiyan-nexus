@@ -17,3 +17,9 @@ test("buildLiteratureSearchUrl trims query", () => {
 
   assert.equal(url, "http://127.0.0.1:8000/api/literature/search?q=AD");
 });
+
+test("buildLiteratureSearchUrl appends source when provided", () => {
+  const url = buildLiteratureSearchUrl("AD", "pubmed");
+
+  assert.equal(url, "http://127.0.0.1:8000/api/literature/search?q=AD&source=pubmed");
+});
