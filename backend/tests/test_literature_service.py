@@ -1,4 +1,12 @@
-from app.services.literature import search_literature
+from app.services.literature import detect_query_language, search_literature
+
+
+def test_detect_query_language_returns_zh_for_chinese_query():
+    assert detect_query_language("特应性皮炎") == "zh"
+
+
+def test_detect_query_language_returns_en_for_english_query():
+    assert detect_query_language("atopic dermatitis") == "en"
 
 
 def test_search_literature_returns_sample_items_for_query():

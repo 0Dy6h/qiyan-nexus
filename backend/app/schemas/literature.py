@@ -5,6 +5,7 @@ class LiteratureItem(BaseModel):
     id: str
     title: str
     language: str
+    source_type: str
     source: str
     year: int
     snippet: str

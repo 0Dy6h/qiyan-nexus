@@ -86,7 +86,7 @@ export default function LiteratureSearchClient() {
               }}
             >
               <p style={{ color: "#64748b", margin: 0 }}>
-                {item.language === "zh" ? "中文" : "英文"} · {item.source} · {item.year}
+                {item.language === "zh" ? "中文" : "英文"} · {item.source_type === "pubmed" ? "PubMed" : "中文文献"} · {item.source} · {item.year}
               </p>
               <h2 style={{ color: "#1e293b", fontSize: 22 }}>{item.title}</h2>
               <p style={{ color: "#475569" }}>{item.snippet}</p>

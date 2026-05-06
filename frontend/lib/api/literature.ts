@@ -2,6 +2,7 @@ export type LiteratureItem = {
   id: string;
   title: string;
   language: "zh" | "en";
+  source_type: "cn_literature" | "pubmed";
   source: string;
   year: number;
   snippet: string;
