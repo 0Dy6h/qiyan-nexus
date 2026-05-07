@@ -27,3 +27,17 @@ def test_answer_question_prioritizes_pubmed_citation_for_english_question():
     response = answer_question("atopic dermatitis barrier")
 
     assert response.citations[0].literature_id == "en-ad-barrier-001"
+
+
+def test_answer_question_limits_citations_by_top_k():
+    response = answer_question("特应性皮炎", top_k=1)
+
+    assert len(response.citations) == 1
+    assert response.citations[0].literature_id == "cn-ad-gbs-001"
+
+
+def test_answer_question_filters_citations_by_source():
+    response = answer_question("特应性皮炎", source="pubmed")
+
+    assert len(response.citations) == 1
+    assert response.citations[0].literature_id == "en-ad-barrier-001"

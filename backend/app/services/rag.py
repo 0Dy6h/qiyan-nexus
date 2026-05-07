@@ -14,13 +14,16 @@ _CONFIDENCE_BY_SOURCE_TYPE = {
 }
 
 
-def answer_question(question: str) -> RagAnswerResponse:
+def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAnswerResponse:
     normalized_question = question.strip()
     preferred_source_type = "cn_literature" if detect_query_language(normalized_question) == "zh" else "pubmed"
     items = sorted(
         _REPOSITORY.list_items(),
         key=lambda item: item.source_type != preferred_source_type,
     )
+    if source != "all":
+        items = [item for item in items if item.source_type == source]
+    items = items[:top_k]
     citations = [
         CitationCard(
             literature_id=item.id,

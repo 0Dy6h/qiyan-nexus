@@ -44,3 +44,52 @@ def test_rag_answer_endpoint_rejects_empty_question():
     response = client.post("/api/rag/answer", json={"question": ""})
 
     assert response.status_code == 422
+
+
+def test_rag_answer_endpoint_limits_citations_by_top_k():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": "特应性皮炎", "top_k": 1},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["citations"]) == 1
+    assert response.json()["citations"][0]["literature_id"] == "cn-ad-gbs-001"
+
+
+def test_rag_answer_endpoint_filters_citations_by_source():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": "特应性皮炎", "source": "pubmed"},
+    )
+
+    assert response.status_code == 200
+    citations = response.json()["citations"]
+    assert len(citations) == 1
+    assert citations[0]["literature_id"] == "en-ad-barrier-001"
+
+
+def test_rag_answer_endpoint_rejects_invalid_source():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": "特应性皮炎", "source": "invalid"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_rag_answer_endpoint_rejects_zero_top_k():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": "特应性皮炎", "top_k": 0},
+    )
+
+    assert response.status_code == 422

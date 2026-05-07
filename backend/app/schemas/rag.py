@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -11,6 +13,8 @@ class CitationCard(BaseModel):
 
 class RagAnswerRequest(BaseModel):
     question: str = Field(min_length=1)
+    source: Literal["all", "cn_literature", "pubmed"] = "all"
+    top_k: int = Field(default=2, ge=1)
 
 
 class RagAnswerResponse(BaseModel):

@@ -10,4 +10,4 @@ router = APIRouter(prefix="/api/rag", tags=["rag"])
 def answer_question_endpoint(
     request: RagAnswerRequest = Body(),
 ) -> RagAnswerResponse:
-    return answer_question(request.question)
+    return answer_question(request.question, source=request.source, top_k=request.top_k)
