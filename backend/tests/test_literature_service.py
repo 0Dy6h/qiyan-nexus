@@ -1,4 +1,4 @@
-from app.services.literature import detect_query_language, search_literature
+from app.services.literature import detect_query_language, get_literature_item, search_literature
 
 
 def test_detect_query_language_returns_zh_for_chinese_query():
@@ -43,3 +43,15 @@ def test_search_literature_trims_query():
     result = search_literature("  atopic dermatitis  ")
 
     assert result.query == "atopic dermatitis"
+
+
+def test_get_literature_item_returns_item_by_id():
+    item = get_literature_item("cn-ad-gbs-001")
+
+    assert item is not None
+    assert item.id == "cn-ad-gbs-001"
+    assert item.source_type == "cn_literature"
+
+
+def test_get_literature_item_returns_none_for_unknown_id():
+    assert get_literature_item("unknown") is None

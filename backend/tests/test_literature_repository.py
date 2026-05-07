@@ -56,6 +56,26 @@ def test_repository_exposes_required_fields(tmp_path: Path):
     assert item.snippet == "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。"
 
 
+def test_repository_get_item_by_id_returns_matching_item(tmp_path: Path):
+    data_path = tmp_path / "sample_ad_literature.json"
+    write_sample_data(data_path, SAMPLE_ITEMS)
+
+    item = InMemoryLiteratureRepository(data_path).get_item_by_id("en-ad-barrier-001")
+
+    assert item is not None
+    assert item.id == "en-ad-barrier-001"
+    assert item.title == "Atopic dermatitis, skin barrier dysfunction, and immune pathways"
+
+
+def test_repository_get_item_by_id_returns_none_for_unknown_id(tmp_path: Path):
+    data_path = tmp_path / "sample_ad_literature.json"
+    write_sample_data(data_path, SAMPLE_ITEMS)
+
+    item = InMemoryLiteratureRepository(data_path).get_item_by_id("unknown")
+
+    assert item is None
+
+
 def test_repository_raises_validation_error_for_missing_required_fields(tmp_path: Path):
     data_path = tmp_path / "sample_ad_literature.json"
     write_sample_data(data_path, [{"id": "missing-fields"}])

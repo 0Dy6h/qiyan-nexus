@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.schemas.literature import LiteratureSearchResponse
+from app.schemas.literature import LiteratureItem, LiteratureSearchResponse
 
 _SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
 _REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
@@ -29,3 +29,7 @@ def search_literature(query: str, source: str = "all") -> LiteratureSearchRespon
         total=len(items),
         items=items,
     )
+
+
+def get_literature_item(item_id: str) -> LiteratureItem | None:
+    return _REPOSITORY.get_item_by_id(item_id)
