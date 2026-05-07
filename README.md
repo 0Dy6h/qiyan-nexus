@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有第一个文献检索端到端切片：后端 mock API + 前端浏览器端 API 调用页面。
+当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有第一个文献检索端到端切片：后端本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口，前端 `/literature` 页面通过浏览器端 API client 调用后端。
 
 正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -44,6 +44,12 @@ cd backend
 ```bash
 curl http://127.0.0.1:8000/health
 ```
+
+文献检索 API 数据来源：
+
+- 样本文献 JSON：`backend/data/literature/sample_ad_literature.json`
+- repository 层：`backend/app/repositories/literature.py`
+- service 层：`backend/app/services/literature.py`
 
 文献检索 mock API：
 

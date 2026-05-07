@@ -1,25 +1,10 @@
+from pathlib import Path
+
+from app.repositories.literature import InMemoryLiteratureRepository
 from app.schemas.literature import LiteratureSearchResponse
 
-_SAMPLE_ITEMS = [
-    {
-        "id": "cn-ad-gbs-001",
-        "title": "肠-脑-皮肤轴与特应性皮炎中医证候研究",
-        "language": "zh",
-        "source_type": "cn_literature",
-        "source": "中文本地样本文献库",
-        "year": 2025,
-        "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。",
-    },
-    {
-        "id": "en-ad-barrier-001",
-        "title": "Atopic dermatitis, skin barrier dysfunction, and immune pathways",
-        "language": "en",
-        "source_type": "pubmed",
-        "source": "PubMed sample",
-        "year": 2024,
-        "snippet": "A sample English literature record for AD barrier and immune pathway retrieval.",
-    },
-]
+_SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+_REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
 
 
 def detect_query_language(query: str) -> str:
@@ -34,11 +19,11 @@ def search_literature(query: str, source: str = "all") -> LiteratureSearchRespon
     query_language = detect_query_language(normalized_query)
     preferred_source_type = "cn_literature" if query_language == "zh" else "pubmed"
     items = sorted(
-        _SAMPLE_ITEMS,
-        key=lambda item: item["source_type"] != preferred_source_type,
+        _REPOSITORY.list_items(),
+        key=lambda item: item.source_type != preferred_source_type,
     )
     if source != "all":
-        items = [item for item in items if item["source_type"] == source]
+        items = [item for item in items if item.source_type == source]
     return LiteratureSearchResponse(
         query=normalized_query,
         total=len(items),
