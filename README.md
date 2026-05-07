@@ -71,7 +71,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 只返回 mock answer + citation cards + “非诊断结论、需结合临床”免责声明，不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试已保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card。
+当前 RAG endpoint 只返回 mock answer + citation cards + “非诊断结论、需结合临床”免责声明，不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试已保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
 
 ## 前端
 

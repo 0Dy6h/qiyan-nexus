@@ -41,3 +41,11 @@ def test_answer_question_filters_citations_by_source():
 
     assert len(response.citations) == 1
     assert response.citations[0].literature_id == "en-ad-barrier-001"
+
+
+def test_answer_question_returns_retrieval_metadata():
+    response = answer_question("特应性皮炎", source="pubmed", top_k=1)
+
+    assert response.retrieval.applied_source == "pubmed"
+    assert response.retrieval.applied_top_k == 1
+    assert response.retrieval.available_citation_count == 1

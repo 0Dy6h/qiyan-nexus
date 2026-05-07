@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.schemas.rag import CitationCard, RagAnswerResponse
+from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
 from app.services.literature import detect_query_language
 
 DISCLAIMER = "非诊断结论、需结合临床。"
@@ -23,6 +23,7 @@ def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAn
     )
     if source != "all":
         items = [item for item in items if item.source_type == source]
+    available_citation_count = len(items)
     items = items[:top_k]
     citations = [
         CitationCard(
@@ -38,5 +39,10 @@ def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAn
         question=normalized_question,
         answer=MOCK_ANSWER,
         disclaimer=DISCLAIMER,
+        retrieval=RetrievalMetadata(
+            applied_source=source,
+            applied_top_k=top_k,
+            available_citation_count=available_citation_count,
+        ),
         citations=citations,
     )

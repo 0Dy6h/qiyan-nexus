@@ -11,6 +11,12 @@ class CitationCard(BaseModel):
     confidence: float
 
 
+class RetrievalMetadata(BaseModel):
+    applied_source: Literal["all", "cn_literature", "pubmed"]
+    applied_top_k: int
+    available_citation_count: int
+
+
 class RagAnswerRequest(BaseModel):
     question: str = Field(min_length=1)
     source: Literal["all", "cn_literature", "pubmed"] = "all"
@@ -21,4 +27,6 @@ class RagAnswerResponse(BaseModel):
     question: str
     answer: str
     disclaimer: str
+    retrieval: RetrievalMetadata
     citations: list[CitationCard]
+

@@ -19,6 +19,11 @@ def test_rag_answer_endpoint_returns_mock_answer_with_citations():
         "question": "特应性皮炎和肠-脑-皮肤轴有什么关系？",
         "answer": "基于当前样本文献，特应性皮炎（AD）可从肠-脑-皮肤轴、皮肤屏障功能和免疫通路三个角度组织证据。此接口目前只返回 mock RAG 结果，用于验证引用卡片与合规文案。",
         "disclaimer": DISCLAIMER,
+        "retrieval": {
+            "applied_source": "all",
+            "applied_top_k": 2,
+            "available_citation_count": 2,
+        },
         "citations": [
             {
                 "literature_id": "cn-ad-gbs-001",
@@ -93,3 +98,19 @@ def test_rag_answer_endpoint_rejects_zero_top_k():
     )
 
     assert response.status_code == 422
+
+
+def test_rag_answer_endpoint_returns_retrieval_metadata():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": "特应性皮炎", "source": "pubmed", "top_k": 1},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["retrieval"] == {
+        "applied_source": "pubmed",
+        "applied_top_k": 1,
+        "available_citation_count": 1,
+    }
