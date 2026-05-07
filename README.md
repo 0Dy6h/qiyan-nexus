@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有第一个文献检索端到端切片：后端本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口，前端 `/literature` 页面通过浏览器端 API client 调用后端。
+当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有两个后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；RAG mock endpoint 返回带引用卡片的合规问答响应。前端 `/literature` 页面已通过浏览器端 API client 调用文献检索后端，RAG 前端后续再做。
 
 正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -56,6 +56,16 @@ curl http://127.0.0.1:8000/health
 ```bash
 curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎"
 ```
+
+RAG mock API：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？"}'
+```
+
+当前 RAG endpoint 只返回 mock answer + citation cards + “非诊断结论、需结合临床”免责声明，不接真实 LLM、embedding、pgvector 或外部服务。
 
 ## 前端
 
