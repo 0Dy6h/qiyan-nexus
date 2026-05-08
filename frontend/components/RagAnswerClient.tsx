@@ -9,7 +9,7 @@ import {
   RagAnswerResponse,
   RagSource,
 } from "../lib/api/rag";
-import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
+import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
 import StatusPanel from "./StatusPanel";
 
@@ -57,6 +57,7 @@ export default function RagAnswerClient() {
   });
   const statusCopy = getStatusCopy("rag", state.isLoading);
   const emptyStateCopy = getEmptyStateCopy("rag");
+  const citationEmptyCopy = getCitationEmptyCopy();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -216,9 +217,11 @@ export default function RagAnswerClient() {
                 当前来源过滤：{getRagSourceLabel(state.source)}；请求 top_k：{state.topK}
               </p>
             </div>
-            {state.result.citations.map((citation) => (
-              <CitationListItem key={citation.literature_id} citation={citation} />
-            ))}
+            {state.result.citations.length > 0 ? (
+              state.result.citations.map((citation) => <CitationListItem key={citation.literature_id} citation={citation} />)
+            ) : (
+              <StatusPanel message={citationEmptyCopy} />
+            )}
           </section>
         </div>
       ) : state.error ? null : (

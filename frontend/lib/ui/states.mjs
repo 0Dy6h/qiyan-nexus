@@ -12,6 +12,10 @@ export function getStatusCopy(page, isLoading) {
   };
 }
 
+export function getCitationEmptyCopy() {
+  return "当前回答未返回可展示的引用卡片，请调整问题或来源后重试。";
+}
+
 export function getEmptyStateCopy(page) {
   if (page === "rag") {
     return {

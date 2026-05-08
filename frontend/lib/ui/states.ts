@@ -10,6 +10,10 @@ export type EmptyStateCopy = {
   error: string;
 };
 
+export function getCitationEmptyCopy() {
+  return "当前回答未返回可展示的引用卡片，请调整问题或来源后重试。";
+}
+
 export function getStatusCopy(page: StatusPage, isLoading: boolean): StatusCopy {
   if (page === "rag") {
     return {
