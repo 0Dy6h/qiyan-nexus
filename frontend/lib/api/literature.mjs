@@ -20,3 +20,8 @@ export function buildLiteratureSearchUrl(query, source = "all") {
   }
   return url.toString();
 }
+
+export function buildLiteratureDetailUrl(itemId) {
+  const encodedItemId = encodeURIComponent(itemId);
+  return new URL(`/api/literature/${encodedItemId}`, getBackendBaseUrl()).toString();
+}

@@ -39,6 +39,11 @@ export function buildLiteratureSearchUrl(query: string, source: LiteratureSource
   return url.toString();
 }
 
+export function buildLiteratureDetailUrl(itemId: string) {
+  const encodedItemId = encodeURIComponent(itemId);
+  return new URL(`/api/literature/${encodedItemId}`, getBackendBaseUrl()).toString();
+}
+
 export async function searchLiterature(
   query: string,
   source: LiteratureSource = "all",
@@ -47,6 +52,16 @@ export async function searchLiterature(
 
   if (!response.ok) {
     throw new Error("Literature search failed");
+  }
+
+  return response.json();
+}
+
+export async function getLiteratureDetail(itemId: string): Promise<LiteratureItem> {
+  const response = await fetch(buildLiteratureDetailUrl(itemId));
+
+  if (!response.ok) {
+    throw new Error("Literature detail request failed");
   }
 
   return response.json();

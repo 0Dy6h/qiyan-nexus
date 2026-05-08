@@ -8,6 +8,9 @@ import {
   LiteratureSource,
   searchLiterature,
 } from "../lib/api/literature";
+import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
+import { CardBodyText, CardMetaRow } from "./CardMeta";
+import StatusPanel from "./StatusPanel";
 
 type SearchState = {
   query: string;
@@ -25,6 +28,8 @@ export default function LiteratureSearchClient() {
     error: null,
     isLoading: false,
   });
+  const statusCopy = getStatusCopy("literature", state.isLoading);
+  const emptyStateCopy = getEmptyStateCopy("literature");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,13 +42,13 @@ export default function LiteratureSearchClient() {
       return;
     }
 
-    setState((current) => ({ ...current, query, source, error: null, isLoading: true }));
+    setState((current) => ({ ...current, query, source, items: [], error: null, isLoading: true }));
 
     try {
       const result = await searchLiterature(query, source);
       setState({ query: result.query, source, items: result.items, error: null, isLoading: false });
     } catch {
-      setState({ query, source, items: [], error: "文献检索失败，请确认后端服务已启动。", isLoading: false });
+      setState({ query, source, items: [], error: emptyStateCopy.error, isLoading: false });
     }
   }
 
@@ -90,11 +95,11 @@ export default function LiteratureSearchClient() {
             padding: "12px 20px",
           }}
         >
-          {state.isLoading ? "搜索中" : "搜索"}
+          {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
         </button>
       </form>
 
-      {state.error ? <p style={{ color: "#b45309" }}>{state.error}</p> : null}
+      {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
 
       {state.items.length > 0 ? (
         <div style={{ display: "grid", gap: 16 }}>
@@ -108,16 +113,24 @@ export default function LiteratureSearchClient() {
                 padding: 24,
               }}
             >
-              <p style={{ color: "#64748b", margin: 0 }}>
-                {item.language === "zh" ? "中文" : "英文"} · {getLiteratureSourceLabel(item.source_type)} · {item.source} · {item.year}
-              </p>
+              <CardMetaRow
+                items={[
+                  item.language === "zh" ? "中文" : "英文",
+                  getLiteratureSourceLabel(item.source_type),
+                  item.source,
+                  String(item.year),
+                ]}
+              />
               <h2 style={{ color: "#1e293b", fontSize: 22 }}>{item.title}</h2>
-              <p style={{ color: "#475569" }}>{item.snippet}</p>
+              <CardBodyText>{item.snippet}</CardBodyText>
+              <a href={`/literature/${encodeURIComponent(item.id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
+                查看详情 →
+              </a>
             </article>
           ))}
         </div>
-      ) : (
-        <p style={{ color: "#64748b" }}>输入关键词后，从后端 API 获取文献结果。</p>
+      ) : state.isLoading || state.error ? null : (
+        <StatusPanel message={emptyStateCopy.idle} />
       )}
     </>
   );
