@@ -51,6 +51,22 @@ export default function HomePage() {
           >
             进入 RAG 问答
           </a>
+          <a
+            href="/compliance"
+            style={{
+              display: "inline-block",
+              borderRadius: 8,
+              background: "#f8fafc",
+              border: "1px solid #cbd5e1",
+              color: "#334155",
+              fontSize: 16,
+              fontWeight: 700,
+              padding: "12px 20px",
+              textDecoration: "none",
+            }}
+          >
+            查看合规说明
+          </a>
         </div>
       </section>
     </main>
