@@ -3,36 +3,19 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_literature_search_returns_mock_results_for_keyword():
+def test_literature_search_returns_curated_results_for_keyword():
     client = TestClient(app)
 
     response = client.get("/api/literature/search", params={"q": "特应性皮炎"})
 
     assert response.status_code == 200
-    assert response.json() == {
-        "query": "特应性皮炎",
-        "total": 2,
-        "items": [
-            {
-                "id": "cn-ad-gbs-001",
-                "title": "肠-脑-皮肤轴与特应性皮炎中医证候研究",
-                "language": "zh",
-                "source_type": "cn_literature",
-                "source": "中文本地样本文献库",
-                "year": 2025,
-                "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。",
-            },
-            {
-                "id": "en-ad-barrier-001",
-                "title": "Atopic dermatitis, skin barrier dysfunction, and immune pathways",
-                "language": "en",
-                "source_type": "pubmed",
-                "source": "PubMed sample",
-                "year": 2024,
-                "snippet": "A sample English literature record for AD barrier and immune pathway retrieval.",
-            },
-        ],
-    }
+    payload = response.json()
+    assert payload["query"] == "特应性皮炎"
+    assert payload["total"] == 20
+    assert payload["items"][0]["id"] == "cn-ad-gbs-001"
+    assert payload["items"][0]["authors"] == ["王琳", "张倩", "刘晨"]
+    assert payload["items"][0]["evidence_tags"] == ["gut_skin_axis", "tcm_syndrome", "skin_barrier"]
+    assert payload["items"][0]["citation_url"] == "https://example.org/cnki/cn-ad-gbs-001"
 
 
 def test_literature_search_prioritizes_pubmed_results_for_english_keyword():
@@ -41,7 +24,11 @@ def test_literature_search_prioritizes_pubmed_results_for_english_keyword():
     response = client.get("/api/literature/search", params={"q": "atopic dermatitis"})
 
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()["items"]] == ["en-ad-barrier-001", "cn-ad-gbs-001"]
+    assert [item["id"] for item in response.json()["items"][:3]] == [
+        "pmid-40100001",
+        "pmid-40100002",
+        "pmid-40100003",
+    ]
 
 
 def test_literature_search_filters_source():
@@ -53,8 +40,8 @@ def test_literature_search_filters_source():
     )
 
     assert response.status_code == 200
-    assert response.json()["total"] == 1
-    assert [item["source_type"] for item in response.json()["items"]] == ["pubmed"]
+    assert response.json()["total"] == 10
+    assert [item["source_type"] for item in response.json()["items"]] == ["pubmed"] * 10
 
 
 def test_literature_search_rejects_invalid_source():

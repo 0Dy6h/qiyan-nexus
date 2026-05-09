@@ -27,6 +27,7 @@
 | 设计 | `Cursordos/docs/tcm-platform-frontend-design.md` | 信息架构、色彩/字体、合规交互 |
 | 质量 | `docs/quality-score.md` | 各领域质量评分 |
 | 开发计划 | `docs/plans/2026-05-06-first-week-dev-start.md` | 第一周开发启动计划 |
+| 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留 |
 
 ## 已冻结的技术决策
 
@@ -54,3 +55,4 @@
 - TDD：行为代码先写测试，确认失败，再实现
 - 不提前接入真实 AI API、Embedding 模型、Neo4j、支付等重依赖
 - Secret 不进仓库，只写 `.env.example`
+- 长期科研模块按阶段推进：当前只做证据工作台 MVP-A；网络药理学为 MVP-B；分子对接/分子动力学模拟为 MVP-C；当前只做 herb、formula、compound、target、pathway、disease、protein、ligand、simulation_task 等概念预留，不接真实重计算

@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有三个后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG mock endpoint 返回带引用卡片的合规问答响应。前端 `/literature` 页面已通过浏览器端 API client 调用文献检索后端，RAG 与详情页前端后续再做。
+当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有三条已验证的后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应。前端 `/literature`、`/rag` 与 `/literature/[id]` 均已接通后端 API，并完成最小体验统一、citation → 文献详情联动与 RAG 0 citations 空状态修补。
 
 正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -71,7 +71,14 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 只返回 mock answer + citation cards + “非诊断结论、需结合临床”免责声明，不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试已保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+当前 RAG endpoint 当前采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。当前仍不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试已保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+
+当前验证结果：
+
+- 后端：`cd backend && .venv/bin/python -m pytest -q` → 48 passed
+- 前端：`cd frontend && pnpm test` → 22 passed
+- 前端：`cd frontend && pnpm typecheck` → 通过
+- 前端：`cd frontend && pnpm build` → 通过
 
 ## 前端
 
@@ -114,6 +121,16 @@ pnpm test
 
 - 首页：`/`
 - 文献检索页：`/literature`
+- RAG 问答页：`/rag`
+- 文献详情页：`/literature/[id]`
+
+当前前端能力：
+
+- `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页
+- `/rag`：支持 question、source、top_k 输入，展示 answer、retrieval metadata、citation cards 与免责声明
+- `/literature/[id]`：服务端读取文献详情并展示统一 meta/body 样式
+- `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一
+- 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区
 
 ## 合规底线
 

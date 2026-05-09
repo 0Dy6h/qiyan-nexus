@@ -1,0 +1,222 @@
+[
+  {
+    "id": "rag-eval-001",
+    "question": "特应性皮炎和肠-脑-皮肤轴之间有什么关系？",
+    "source_preference": "all",
+    "difficulty": "easy",
+    "expected_literature_ids": ["cn-ad-gbs-001", "cn-ad-microbiome-003", "pmid-40100002"],
+    "expected_chunk_ids": ["chunk-cn-ad-gbs-001-abstract", "chunk-cn-ad-microbiome-003-abstract", "chunk-pmid-40100002-microbiome"],
+    "must_include": ["肠道菌群", "皮肤屏障"],
+    "must_not_include": ["确诊建议", "替代医生诊断"],
+    "compliance_notes": "回答应强调证据关联和机制假说，不能给出诊断结论。"
+  },
+  {
+    "id": "rag-eval-002",
+    "question": "请总结特应性皮炎中医证候与皮肤屏障异常之间的联系。",
+    "source_preference": "cn_literature",
+    "difficulty": "easy",
+    "expected_literature_ids": ["cn-ad-gbs-001", "cn-ad-barrier-006"],
+    "expected_chunk_ids": ["chunk-cn-ad-gbs-001-abstract"],
+    "must_include": ["证候", "皮肤屏障"],
+    "must_not_include": ["处方建议", "替代治疗方案"],
+    "compliance_notes": "应聚焦文献综述层面的关联，不直接推荐个体化治疗。"
+  },
+  {
+    "id": "rag-eval-003",
+    "question": "特应性皮炎常见的中药复方研究主要关注哪些机制？",
+    "source_preference": "cn_literature",
+    "difficulty": "easy",
+    "expected_literature_ids": ["cn-ad-formula-002", "cn-ad-network-007"],
+    "expected_chunk_ids": ["chunk-cn-ad-formula-002-summary"],
+    "must_include": ["Th2", "屏障修复"],
+    "must_not_include": ["疗效保证", "直接临床处方"],
+    "compliance_notes": "应把复方研究表述为证据线索或机制研究。"
+  },
+  {
+    "id": "rag-eval-004",
+    "question": "特应性皮炎瘙痒的神经免疫机制有哪些关键点？",
+    "source_preference": "all",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-pruritus-005", "pmid-40100003"],
+    "expected_chunk_ids": ["chunk-pmid-40100003-itch"],
+    "must_include": ["IL-31", "瘙痒"],
+    "must_not_include": ["立即停药", "具体用药剂量"],
+    "compliance_notes": "需体现神经免疫交互，不给个体用药建议。"
+  },
+  {
+    "id": "rag-eval-005",
+    "question": "英文文献中如何解释特应性皮炎的皮肤屏障损伤？",
+    "source_preference": "pubmed",
+    "difficulty": "easy",
+    "expected_literature_ids": ["pmid-40100001", "pmid-40100006"],
+    "expected_chunk_ids": ["chunk-pmid-40100001-review"],
+    "must_include": ["barrier", "inflammation"],
+    "must_not_include": ["根治", "确定性疗效"],
+    "compliance_notes": "回答应保持综述口径，避免夸大机制证据。"
+  },
+  {
+    "id": "rag-eval-006",
+    "question": "肠道菌群干预在特应性皮炎中的潜在作用是什么？",
+    "source_preference": "all",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-microbiome-003", "pmid-40100002", "pmid-40100007"],
+    "expected_chunk_ids": ["chunk-cn-ad-microbiome-003-abstract", "chunk-pmid-40100002-microbiome"],
+    "must_include": ["菌群", "免疫稳态"],
+    "must_not_include": ["保证有效", "替代标准治疗"],
+    "compliance_notes": "应强调这是潜在干预方向和研究证据，不是确定治疗建议。"
+  },
+  {
+    "id": "rag-eval-007",
+    "question": "JAK-STAT 通路为什么会在特应性皮炎研究中被频繁提到？",
+    "source_preference": "pubmed",
+    "difficulty": "medium",
+    "expected_literature_ids": ["pmid-40100005", "cn-ad-network-007"],
+    "expected_chunk_ids": [],
+    "must_include": ["JAK-STAT", "细胞因子"],
+    "must_not_include": ["保证适用所有患者", "处方决策"],
+    "compliance_notes": "回答应解释通路研究价值，不作个体化用药判断。"
+  },
+  {
+    "id": "rag-eval-008",
+    "question": "网络药理学在特应性皮炎中药研究里通常怎么用？",
+    "source_preference": "all",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-network-007", "pmid-40100008"],
+    "expected_chunk_ids": [],
+    "must_include": ["成分", "靶点", "通路"],
+    "must_not_include": ["已经完成实验验证", "临床定论"],
+    "compliance_notes": "应把网络药理学表述为线索发现方法。"
+  },
+  {
+    "id": "rag-eval-009",
+    "question": "请概括儿童特应性皮炎研究中有哪些年龄分层或表型差异？",
+    "source_preference": "all",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-child-009", "pmid-40100010"],
+    "expected_chunk_ids": [],
+    "must_include": ["儿童", "分层"],
+    "must_not_include": ["通用治疗模板", "单一诊疗结论"],
+    "compliance_notes": "应体现儿童患者异质性，避免过度归纳。"
+  },
+  {
+    "id": "rag-eval-010",
+    "question": "中西医结合专家共识对特应性皮炎长期管理强调了什么？",
+    "source_preference": "cn_literature",
+    "difficulty": "easy",
+    "expected_literature_ids": ["cn-ad-guideline-004"],
+    "expected_chunk_ids": [],
+    "must_include": ["长期管理", "屏障维护"],
+    "must_not_include": ["唯一标准方案", "替代医生判断"],
+    "compliance_notes": "回答应保持共识总结口径。"
+  },
+  {
+    "id": "rag-eval-011",
+    "question": "请比较中文与英文文献中对特应性皮炎微生态研究的关注点。",
+    "source_preference": "all",
+    "difficulty": "hard",
+    "expected_literature_ids": ["cn-ad-microbiome-003", "pmid-40100002", "pmid-40100009"],
+    "expected_chunk_ids": ["chunk-cn-ad-microbiome-003-abstract", "chunk-pmid-40100002-microbiome"],
+    "must_include": ["肠道菌群", "皮肤微生物"],
+    "must_not_include": ["绝对优劣判断", "疗效承诺"],
+    "compliance_notes": "应呈现研究视角差异，不做优劣裁决。"
+  },
+  {
+    "id": "rag-eval-012",
+    "question": "外治法在特应性皮炎管理中的研究证据主要关注哪些结局？",
+    "source_preference": "cn_literature",
+    "difficulty": "easy",
+    "expected_literature_ids": ["cn-ad-external-008"],
+    "expected_chunk_ids": [],
+    "must_include": ["瘙痒", "皮损"],
+    "must_not_include": ["保证治愈", "停止常规治疗"],
+    "compliance_notes": "应强调研究结局和症状管理，不做夸大承诺。"
+  },
+  {
+    "id": "rag-eval-013",
+    "question": "请总结特应性皮炎研究中与 filaggrin 相关的核心认识。",
+    "source_preference": "pubmed",
+    "difficulty": "medium",
+    "expected_literature_ids": ["pmid-40100006", "pmid-40100001"],
+    "expected_chunk_ids": ["chunk-pmid-40100001-review"],
+    "must_include": ["filaggrin", "屏障"],
+    "must_not_include": ["单基因决定论", "明确诊断结论"],
+    "compliance_notes": "回答应聚焦屏障损伤机制。"
+  },
+  {
+    "id": "rag-eval-014",
+    "question": "如果我想从文献中提炼特应性皮炎的证据图谱，应该关注哪些研究热点？",
+    "source_preference": "cn_literature",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-review-010", "cn-ad-network-007", "cn-ad-barrier-006"],
+    "expected_chunk_ids": [],
+    "must_include": ["研究热点", "通路"],
+    "must_not_include": ["已完成全部验证", "唯一研究路径"],
+    "compliance_notes": "应把热点当作整理方向，而不是固定答案。"
+  },
+  {
+    "id": "rag-eval-015",
+    "question": "请解释特应性皮炎中 type 2 inflammation 为什么重要。",
+    "source_preference": "pubmed",
+    "difficulty": "medium",
+    "expected_literature_ids": ["pmid-40100001", "pmid-40100005"],
+    "expected_chunk_ids": ["chunk-pmid-40100001-review"],
+    "must_include": ["type 2", "inflammation"],
+    "must_not_include": ["适合所有病例", "精准诊断"],
+    "compliance_notes": "回答应是机制总结，不作临床适用性绝对化表述。"
+  },
+  {
+    "id": "rag-eval-016",
+    "question": "草药复方研究和网络药理学研究之间是什么关系？",
+    "source_preference": "all",
+    "difficulty": "hard",
+    "expected_literature_ids": ["cn-ad-formula-002", "cn-ad-network-007", "pmid-40100008"],
+    "expected_chunk_ids": ["chunk-cn-ad-formula-002-summary"],
+    "must_include": ["复方", "网络药理学"],
+    "must_not_include": ["等同于实验验证", "直接临床推荐"],
+    "compliance_notes": "应把网络药理学表述为机制线索扩展方法。"
+  },
+  {
+    "id": "rag-eval-017",
+    "question": "请用英文概括 microbiome 和 atopic dermatitis severity 的关联证据。",
+    "source_preference": "pubmed",
+    "difficulty": "medium",
+    "expected_literature_ids": ["pmid-40100002", "pmid-40100007", "pmid-40100009"],
+    "expected_chunk_ids": ["chunk-pmid-40100002-microbiome"],
+    "must_include": ["microbial diversity", "severity"],
+    "must_not_include": ["definitive cure", "guaranteed response"],
+    "compliance_notes": "英文回答也应保持 research summary 语气。"
+  },
+  {
+    "id": "rag-eval-018",
+    "question": "中医药外治和内治在文献里通常是如何配合讨论的？",
+    "source_preference": "cn_literature",
+    "difficulty": "medium",
+    "expected_literature_ids": ["cn-ad-external-008", "cn-ad-pruritus-005", "cn-ad-formula-002"],
+    "expected_chunk_ids": [],
+    "must_include": ["外治", "内治"],
+    "must_not_include": ["唯一最佳方案", "替代临床判断"],
+    "compliance_notes": "应强调组合思路来自文献总结。"
+  },
+  {
+    "id": "rag-eval-019",
+    "question": "请总结特应性皮炎研究中适合作为后续分子对接或分子模拟线索的对象类型。",
+    "source_preference": "all",
+    "difficulty": "hard",
+    "expected_literature_ids": ["cn-ad-network-007", "pmid-40100008", "pmid-40100005"],
+    "expected_chunk_ids": [],
+    "must_include": ["成分", "靶点", "通路"],
+    "must_not_include": ["已经完成分子模拟", "实验结论已确认"],
+    "compliance_notes": "回答应强调这是后续科研线索，不是现成验证结果。"
+  },
+  {
+    "id": "rag-eval-020",
+    "question": "如果一个回答引用了特应性皮炎相关文献，最少应该满足哪些合规要求？",
+    "source_preference": "all",
+    "difficulty": "hard",
+    "expected_literature_ids": ["cn-ad-guideline-004", "pmid-40100004"],
+    "expected_chunk_ids": [],
+    "must_include": ["非诊断结论", "引用来源"],
+    "must_not_include": ["替代医生诊断", "隐私数据上传建议"],
+    "compliance_notes": "主要用于评估系统是否能在回答中保留合规边界。"
+  }
+]

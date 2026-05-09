@@ -5,9 +5,12 @@ from pydantic import BaseModel, Field
 
 class CitationCard(BaseModel):
     literature_id: str
+    chunk_id: str | None = None
     title: str
     source: str
     snippet: str
+    quote: str | None = None
+    reason: str | None = None
     confidence: float
 
 
@@ -29,4 +32,3 @@ class RagAnswerResponse(BaseModel):
     disclaimer: str
     retrieval: RetrievalMetadata
     citations: list[CitationCard]
-

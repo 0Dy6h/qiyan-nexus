@@ -6,7 +6,7 @@ from app.main import app
 DISCLAIMER = "非诊断结论、需结合临床。"
 
 
-def test_rag_answer_endpoint_returns_mock_answer_with_citations():
+def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question():
     client = TestClient(app)
 
     response = client.post(
@@ -15,32 +15,18 @@ def test_rag_answer_endpoint_returns_mock_answer_with_citations():
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "question": "特应性皮炎和肠-脑-皮肤轴有什么关系？",
-        "answer": "基于当前样本文献，特应性皮炎（AD）可从肠-脑-皮肤轴、皮肤屏障功能和免疫通路三个角度组织证据。此接口目前只返回 mock RAG 结果，用于验证引用卡片与合规文案。",
-        "disclaimer": DISCLAIMER,
-        "retrieval": {
-            "applied_source": "all",
-            "applied_top_k": 2,
-            "available_citation_count": 2,
-        },
-        "citations": [
-            {
-                "literature_id": "cn-ad-gbs-001",
-                "title": "肠-脑-皮肤轴与特应性皮炎中医证候研究",
-                "source": "中文本地样本文献库",
-                "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。",
-                "confidence": 0.86,
-            },
-            {
-                "literature_id": "en-ad-barrier-001",
-                "title": "Atopic dermatitis, skin barrier dysfunction, and immune pathways",
-                "source": "PubMed sample",
-                "snippet": "A sample English literature record for AD barrier and immune pathway retrieval.",
-                "confidence": 0.74,
-            },
-        ],
+    payload = response.json()
+    assert payload["question"] == "特应性皮炎和肠-脑-皮肤轴有什么关系？"
+    assert payload["disclaimer"] == DISCLAIMER
+    assert payload["retrieval"] == {
+        "applied_source": "all",
+        "applied_top_k": 2,
+        "available_citation_count": 16,
     }
+    assert payload["citations"][0]["literature_id"] == "cn-ad-gbs-001"
+    assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"
+    assert payload["citations"][0]["chunk_id"] == "chunk-cn-ad-gbs-001-abstract"
+    assert "deterministic retrieval" in payload["answer"]
 
 
 def test_rag_answer_endpoint_rejects_empty_question():
@@ -69,13 +55,16 @@ def test_rag_answer_endpoint_filters_citations_by_source():
 
     response = client.post(
         "/api/rag/answer",
-        json={"question": "特应性皮炎", "source": "pubmed"},
+        json={"question": "特应性皮炎 肠道菌群", "source": "pubmed"},
     )
 
     assert response.status_code == 200
     citations = response.json()["citations"]
-    assert len(citations) == 1
-    assert citations[0]["literature_id"] == "en-ad-barrier-001"
+    assert len(citations) == 2
+    assert [citation["literature_id"] for citation in citations] == [
+        "pmid-40100002",
+        "pmid-40100007",
+    ]
 
 
 def test_rag_answer_endpoint_rejects_invalid_source():
@@ -100,17 +89,17 @@ def test_rag_answer_endpoint_rejects_zero_top_k():
     assert response.status_code == 422
 
 
-def test_rag_answer_endpoint_returns_retrieval_metadata():
+def test_rag_answer_endpoint_returns_retrieval_metadata_for_positive_matches():
     client = TestClient(app)
 
     response = client.post(
         "/api/rag/answer",
-        json={"question": "特应性皮炎", "source": "pubmed", "top_k": 1},
+        json={"question": "特应性皮炎 肠道菌群", "source": "pubmed", "top_k": 1},
     )
 
     assert response.status_code == 200
     assert response.json()["retrieval"] == {
         "applied_source": "pubmed",
         "applied_top_k": 1,
-        "available_citation_count": 1,
+        "available_citation_count": 2,
     }

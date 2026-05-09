@@ -1,0 +1,56 @@
+[
+  {
+    "chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "literature_id": "cn-ad-gbs-001",
+    "section": "abstract",
+    "text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "source_quote": "提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "evidence_tags": ["gut_skin_axis", "tcm_syndrome", "skin_barrier"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:gut-skin-axis"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-formula-002-summary",
+    "literature_id": "cn-ad-formula-002",
+    "section": "summary",
+    "text": "综述特应性皮炎常用中药复方的基础与临床研究，归纳其在 Th2 炎症抑制、屏障修复和瘙痒控制中的潜在作用。",
+    "source_quote": "归纳其在 Th2 炎症抑制、屏障修复和瘙痒控制中的潜在作用。",
+    "evidence_tags": ["formula", "immune_pathway", "pruritus"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "formula:xiaofengsan"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-microbiome-003-abstract",
+    "literature_id": "cn-ad-microbiome-003",
+    "section": "abstract",
+    "text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "source_quote": "讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "evidence_tags": ["microbiome", "gut_skin_axis", "immune_pathway"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:gut-skin-axis"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100001-review",
+    "literature_id": "pmid-40100001",
+    "section": "review",
+    "text": "This review summarizes how barrier disruption, alarmins, and type 2 inflammation interact in atopic dermatitis and discusses implications for targeted therapy.",
+    "source_quote": "barrier disruption, alarmins, and type 2 inflammation interact in atopic dermatitis",
+    "evidence_tags": ["skin_barrier", "immune_pathway", "review"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:type-2-inflammation"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100002-microbiome",
+    "literature_id": "pmid-40100002",
+    "section": "results",
+    "text": "The study links gut microbial diversity loss and altered metabolite profiles with clinical severity in atopic dermatitis, supporting gut-skin axis hypotheses.",
+    "source_quote": "gut microbial diversity loss and altered metabolite profiles with clinical severity",
+    "evidence_tags": ["microbiome", "gut_skin_axis", "severity"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:gut-skin-axis"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100003-itch",
+    "literature_id": "pmid-40100003",
+    "section": "review",
+    "text": "This review focuses on how neuroimmune crosstalk, including IL-31 signaling and sensory neuron activation, sustains itch in atopic dermatitis.",
+    "source_quote": "IL-31 signaling and sensory neuron activation sustains itch",
+    "evidence_tags": ["pruritus", "immune_pathway", "neuroimmune"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "target:IL31"]
+  }
+]
