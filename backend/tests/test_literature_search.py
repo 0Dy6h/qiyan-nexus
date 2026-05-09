@@ -16,6 +16,9 @@ def test_literature_search_returns_curated_results_for_keyword():
     assert payload["items"][0]["authors"] == ["王琳", "张倩", "刘晨"]
     assert payload["items"][0]["evidence_tags"] == ["gut_skin_axis", "tcm_syndrome", "skin_barrier"]
     assert payload["items"][0]["citation_url"] == "https://example.org/cnki/cn-ad-gbs-001"
+    assert payload["items"][0]["pdf_upload_id"] is None
+    assert payload["items"][0]["pdf_file_name"] is None
+    assert payload["items"][0]["pdf_parse_status"] is None
 
 
 def test_literature_search_prioritizes_pubmed_results_for_english_keyword():

@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有三条已验证的后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应。前端 `/literature`、`/rag` 与 `/literature/[id]` 均已接通后端 API，并完成最小体验统一、citation → 文献详情联动与 RAG 0 citations 空状态修补。
+当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有三条已验证的后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应。另已为文献记录补上 PDF metadata 契约字段（`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`），为后续真实 ingestion / parser slice 预留稳定接口。前端 `/literature`、`/rag`、`/literature/[id]` 与 `/compliance` 均已可访问。
 
 正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -50,6 +50,7 @@ curl http://127.0.0.1:8000/health
 - 样本文献 JSON：`backend/data/literature/sample_ad_literature.json`
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
+- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`（仅契约占位，尚未接上传与解析器）
 
 文献检索 mock API：
 

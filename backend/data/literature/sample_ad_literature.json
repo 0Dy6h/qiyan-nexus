@@ -7,11 +7,27 @@
     "source": "CNKI curated AD sample",
     "year": 2025,
     "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述，强调脾虚湿蕴、血虚风燥等证候与皮肤屏障、神经免疫调节之间的联系。",
-    "authors": ["王琳", "张倩", "刘晨"],
-    "keywords": ["特应性皮炎", "肠-脑-皮肤轴", "中医证候", "皮肤屏障"],
-    "evidence_tags": ["gut_skin_axis", "tcm_syndrome", "skin_barrier"],
+    "authors": [
+      "王琳",
+      "张倩",
+      "刘晨"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "肠-脑-皮肤轴",
+      "中医证候",
+      "皮肤屏障"
+    ],
+    "evidence_tags": [
+      "gut_skin_axis",
+      "tcm_syndrome",
+      "skin_barrier"
+    ],
     "abstract": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
-    "citation_url": "https://example.org/cnki/cn-ad-gbs-001"
+    "citation_url": "https://example.org/cnki/cn-ad-gbs-001",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-formula-002",
@@ -21,11 +37,26 @@
     "source": "WanFang curated AD sample",
     "year": 2024,
     "snippet": "总结消风散、当归饮子等常用复方在炎症因子调节、皮肤屏障修复和瘙痒缓解方面的研究证据。",
-    "authors": ["赵楠", "周悦"],
-    "keywords": ["特应性皮炎", "中药复方", "消风散", "炎症因子"],
-    "evidence_tags": ["formula", "immune_pathway", "pruritus"],
+    "authors": [
+      "赵楠",
+      "周悦"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "中药复方",
+      "消风散",
+      "炎症因子"
+    ],
+    "evidence_tags": [
+      "formula",
+      "immune_pathway",
+      "pruritus"
+    ],
     "abstract": "综述特应性皮炎常用中药复方的基础与临床研究，归纳其在 Th2 炎症抑制、屏障修复和瘙痒控制中的潜在作用。",
-    "citation_url": "https://example.org/wanfang/cn-ad-formula-002"
+    "citation_url": "https://example.org/wanfang/cn-ad-formula-002",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-microbiome-003",
@@ -35,11 +66,26 @@
     "source": "VIP curated AD sample",
     "year": 2024,
     "snippet": "聚焦双歧杆菌、乳酸杆菌下降与炎症偏移，讨论肠道菌群干预对 AD 的潜在意义。",
-    "authors": ["蒋菲", "陈默"],
-    "keywords": ["特应性皮炎", "肠道菌群", "益生菌", "炎症"],
-    "evidence_tags": ["microbiome", "gut_skin_axis", "immune_pathway"],
+    "authors": [
+      "蒋菲",
+      "陈默"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "肠道菌群",
+      "益生菌",
+      "炎症"
+    ],
+    "evidence_tags": [
+      "microbiome",
+      "gut_skin_axis",
+      "immune_pathway"
+    ],
     "abstract": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
-    "citation_url": "https://example.org/vip/cn-ad-microbiome-003"
+    "citation_url": "https://example.org/vip/cn-ad-microbiome-003",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-guideline-004",
@@ -49,11 +95,25 @@
     "source": "Chinese guideline curated sample",
     "year": 2023,
     "snippet": "提炼中西医结合诊疗共识中关于分型辨证、屏障修复、抗炎与长期管理的关键证据。",
-    "authors": ["中华医学会皮肤性病学分会"],
-    "keywords": ["特应性皮炎", "专家共识", "中西医结合", "长期管理"],
-    "evidence_tags": ["guideline", "clinical_management", "tcm_syndrome"],
+    "authors": [
+      "中华医学会皮肤性病学分会"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "专家共识",
+      "中西医结合",
+      "长期管理"
+    ],
+    "evidence_tags": [
+      "guideline",
+      "clinical_management",
+      "tcm_syndrome"
+    ],
     "abstract": "共识文件总结了特应性皮炎长期管理中的证据基础，强调皮肤屏障维护、炎症控制和个体化辨证施治。",
-    "citation_url": "https://example.org/guideline/cn-ad-guideline-004"
+    "citation_url": "https://example.org/guideline/cn-ad-guideline-004",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-pruritus-005",
@@ -63,11 +123,26 @@
     "source": "CNKI curated AD sample",
     "year": 2023,
     "snippet": "讨论 IL-31、神经肽、睡眠障碍与瘙痒恶性循环，并总结中医药外治与内治策略。",
-    "authors": ["高颖", "徐帆"],
-    "keywords": ["特应性皮炎", "瘙痒", "IL-31", "中医药干预"],
-    "evidence_tags": ["pruritus", "immune_pathway", "tcm_therapy"],
+    "authors": [
+      "高颖",
+      "徐帆"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "瘙痒",
+      "IL-31",
+      "中医药干预"
+    ],
+    "evidence_tags": [
+      "pruritus",
+      "immune_pathway",
+      "tcm_therapy"
+    ],
     "abstract": "文章从神经免疫角度梳理特应性皮炎瘙痒机制，并总结内服外用中医药在瘙痒控制中的应用证据。",
-    "citation_url": "https://example.org/cnki/cn-ad-pruritus-005"
+    "citation_url": "https://example.org/cnki/cn-ad-pruritus-005",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-barrier-006",
@@ -77,11 +152,26 @@
     "source": "WanFang curated AD sample",
     "year": 2022,
     "snippet": "总结 filaggrin、神经酰胺与角质层功能异常，并讨论中药改善屏障的实验研究。",
-    "authors": ["马欣", "朱彤"],
-    "keywords": ["特应性皮炎", "皮肤屏障", "filaggrin", "中药"],
-    "evidence_tags": ["skin_barrier", "immune_pathway", "compound"],
+    "authors": [
+      "马欣",
+      "朱彤"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "皮肤屏障",
+      "filaggrin",
+      "中药"
+    ],
+    "evidence_tags": [
+      "skin_barrier",
+      "immune_pathway",
+      "compound"
+    ],
     "abstract": "围绕皮肤屏障损伤这一核心病理环节，综述中药及复方在修复角质层功能和调节炎症中的研究证据。",
-    "citation_url": "https://example.org/wanfang/cn-ad-barrier-006"
+    "citation_url": "https://example.org/wanfang/cn-ad-barrier-006",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-network-007",
@@ -91,11 +181,26 @@
     "source": "Chinese netpharm curated sample",
     "year": 2022,
     "snippet": "归纳网络药理学研究中高频成分、靶点与通路，指出 PI3K-Akt、NF-kB、JAK-STAT 是常见轴线。",
-    "authors": ["何清", "吴敏"],
-    "keywords": ["网络药理学", "特应性皮炎", "方剂", "通路"],
-    "evidence_tags": ["network_pharmacology", "pathway", "formula"],
+    "authors": [
+      "何清",
+      "吴敏"
+    ],
+    "keywords": [
+      "网络药理学",
+      "特应性皮炎",
+      "方剂",
+      "通路"
+    ],
+    "evidence_tags": [
+      "network_pharmacology",
+      "pathway",
+      "formula"
+    ],
     "abstract": "综述网络药理学在特应性皮炎中药方剂研究中的常见对象、核心靶点和信号通路，为后续实验验证提供线索。",
-    "citation_url": "https://example.org/netpharm/cn-ad-network-007"
+    "citation_url": "https://example.org/netpharm/cn-ad-network-007",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-external-008",
@@ -105,11 +210,26 @@
     "source": "CNKI curated AD sample",
     "year": 2021,
     "snippet": "聚焦药浴、湿敷、软膏等外治法在瘙痒、渗出和皮损缓解中的应用证据。",
-    "authors": ["邱兰", "曹静"],
-    "keywords": ["特应性皮炎", "外治法", "药浴", "湿敷"],
-    "evidence_tags": ["external_therapy", "clinical_management", "pruritus"],
+    "authors": [
+      "邱兰",
+      "曹静"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "外治法",
+      "药浴",
+      "湿敷"
+    ],
+    "evidence_tags": [
+      "external_therapy",
+      "clinical_management",
+      "pruritus"
+    ],
     "abstract": "文章总结了特应性皮炎外治法的临床应用研究，强调症状缓解与屏障修复之间的配合关系。",
-    "citation_url": "https://example.org/cnki/cn-ad-external-008"
+    "citation_url": "https://example.org/cnki/cn-ad-external-008",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-child-009",
@@ -119,11 +239,25 @@
     "source": "Pediatric TCM curated sample",
     "year": 2021,
     "snippet": "讨论儿童 AD 常见湿热、脾虚、血虚风燥证型及其与年龄分层管理的关系。",
-    "authors": ["孙蕾", "罗云"],
-    "keywords": ["儿童特应性皮炎", "中医证治", "年龄分层"],
-    "evidence_tags": ["pediatric_ad", "tcm_syndrome", "clinical_management"],
+    "authors": [
+      "孙蕾",
+      "罗云"
+    ],
+    "keywords": [
+      "儿童特应性皮炎",
+      "中医证治",
+      "年龄分层"
+    ],
+    "evidence_tags": [
+      "pediatric_ad",
+      "tcm_syndrome",
+      "clinical_management"
+    ],
     "abstract": "从儿童患者的疾病特点出发，总结中医证型分布与治疗思路，并回顾相关文献证据。",
-    "citation_url": "https://example.org/pediatrics/cn-ad-child-009"
+    "citation_url": "https://example.org/pediatrics/cn-ad-child-009",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "cn-ad-review-010",
@@ -133,11 +267,27 @@
     "source": "Chinese review curated sample",
     "year": 2020,
     "snippet": "从关键词共现和研究主题演化角度总结 AD 中医药研究热点，涵盖菌群、屏障、炎症通路与复方机制。",
-    "authors": ["丁宁", "韩雪"],
-    "keywords": ["特应性皮炎", "中医药", "研究热点", "证据图谱"],
-    "evidence_tags": ["review", "evidence_map", "microbiome", "formula"],
+    "authors": [
+      "丁宁",
+      "韩雪"
+    ],
+    "keywords": [
+      "特应性皮炎",
+      "中医药",
+      "研究热点",
+      "证据图谱"
+    ],
+    "evidence_tags": [
+      "review",
+      "evidence_map",
+      "microbiome",
+      "formula"
+    ],
     "abstract": "综述特应性皮炎中医药研究的主要主题演化，提示肠道菌群、屏障修复与网络药理学是持续升温方向。",
-    "citation_url": "https://example.org/review/cn-ad-review-010"
+    "citation_url": "https://example.org/review/cn-ad-review-010",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100001",
@@ -147,13 +297,28 @@
     "source": "PubMed curated AD sample",
     "year": 2024,
     "snippet": "Reviewing barrier disruption, Th2 skewing, and epithelial cytokines as central drivers of atopic dermatitis.",
-    "authors": ["Emily Carter", "Jason Lee"],
-    "keywords": ["atopic dermatitis", "skin barrier", "Th2", "immune pathway"],
-    "evidence_tags": ["skin_barrier", "immune_pathway", "review"],
+    "authors": [
+      "Emily Carter",
+      "Jason Lee"
+    ],
+    "keywords": [
+      "atopic dermatitis",
+      "skin barrier",
+      "Th2",
+      "immune pathway"
+    ],
+    "evidence_tags": [
+      "skin_barrier",
+      "immune_pathway",
+      "review"
+    ],
     "abstract": "This review summarizes how barrier disruption, alarmins, and type 2 inflammation interact in atopic dermatitis and discusses implications for targeted therapy.",
     "pubmed_id": "40100001",
     "doi": "10.1000/ad.2024.001",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100001/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100001/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100002",
@@ -163,13 +328,28 @@
     "source": "PubMed curated AD sample",
     "year": 2024,
     "snippet": "Associating reduced microbial diversity and altered short-chain fatty acid metabolism with AD severity.",
-    "authors": ["Mina Patel", "Robert Young"],
-    "keywords": ["atopic dermatitis", "microbiome", "severity", "short-chain fatty acids"],
-    "evidence_tags": ["microbiome", "gut_skin_axis", "severity"],
+    "authors": [
+      "Mina Patel",
+      "Robert Young"
+    ],
+    "keywords": [
+      "atopic dermatitis",
+      "microbiome",
+      "severity",
+      "short-chain fatty acids"
+    ],
+    "evidence_tags": [
+      "microbiome",
+      "gut_skin_axis",
+      "severity"
+    ],
     "abstract": "The study links gut microbial diversity loss and altered metabolite profiles with clinical severity in atopic dermatitis, supporting gut-skin axis hypotheses.",
     "pubmed_id": "40100002",
     "doi": "10.1000/ad.2024.002",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100002/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100002/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100003",
@@ -179,13 +359,28 @@
     "source": "PubMed curated AD sample",
     "year": 2023,
     "snippet": "Summarizing IL-31, sensory neurons, and the self-reinforcing itch-scratch cycle in AD.",
-    "authors": ["Sarah Kim", "Daniel Brooks"],
-    "keywords": ["itch", "IL-31", "neuroimmune", "atopic dermatitis"],
-    "evidence_tags": ["pruritus", "immune_pathway", "neuroimmune"],
+    "authors": [
+      "Sarah Kim",
+      "Daniel Brooks"
+    ],
+    "keywords": [
+      "itch",
+      "IL-31",
+      "neuroimmune",
+      "atopic dermatitis"
+    ],
+    "evidence_tags": [
+      "pruritus",
+      "immune_pathway",
+      "neuroimmune"
+    ],
     "abstract": "This review focuses on how neuroimmune crosstalk, including IL-31 signaling and sensory neuron activation, sustains itch in atopic dermatitis.",
     "pubmed_id": "40100003",
     "doi": "10.1000/ad.2023.003",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100003/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100003/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100004",
@@ -195,13 +390,28 @@
     "source": "PubMed curated AD sample",
     "year": 2023,
     "snippet": "Reviewing clinical studies of herbal formulas for eczema severity, itch relief, and quality of life outcomes.",
-    "authors": ["Olivia Chen", "Mark Rivera"],
-    "keywords": ["herbal medicine", "systematic review", "eczema", "clinical study"],
-    "evidence_tags": ["formula", "systematic_review", "clinical_management"],
+    "authors": [
+      "Olivia Chen",
+      "Mark Rivera"
+    ],
+    "keywords": [
+      "herbal medicine",
+      "systematic review",
+      "eczema",
+      "clinical study"
+    ],
+    "evidence_tags": [
+      "formula",
+      "systematic_review",
+      "clinical_management"
+    ],
     "abstract": "The review evaluates clinical evidence for herbal interventions in atopic dermatitis and highlights heterogeneity in study quality and outcome measures.",
     "pubmed_id": "40100004",
     "doi": "10.1000/ad.2023.004",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100004/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100004/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100005",
@@ -211,13 +421,28 @@
     "source": "PubMed curated AD sample",
     "year": 2023,
     "snippet": "Discussing cytokine-driven JAK-STAT activation and its relevance to targeted therapies in AD.",
-    "authors": ["Nathan Green", "Aisha Moore"],
-    "keywords": ["JAK-STAT", "cytokine", "targeted therapy", "atopic dermatitis"],
-    "evidence_tags": ["immune_pathway", "pathway", "targeted_therapy"],
+    "authors": [
+      "Nathan Green",
+      "Aisha Moore"
+    ],
+    "keywords": [
+      "JAK-STAT",
+      "cytokine",
+      "targeted therapy",
+      "atopic dermatitis"
+    ],
+    "evidence_tags": [
+      "immune_pathway",
+      "pathway",
+      "targeted_therapy"
+    ],
     "abstract": "This paper reviews cytokine-mediated JAK-STAT activation in atopic dermatitis and explains why this pathway has become a major therapeutic target.",
     "pubmed_id": "40100005",
     "doi": "10.1000/ad.2023.005",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100005/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100005/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100006",
@@ -227,13 +452,28 @@
     "source": "PubMed curated AD sample",
     "year": 2022,
     "snippet": "Connecting filaggrin loss-of-function, transepidermal water loss, and enhanced allergen penetration.",
-    "authors": ["Grace Turner", "Liam Scott"],
-    "keywords": ["filaggrin", "epidermal barrier", "allergen", "atopic dermatitis"],
-    "evidence_tags": ["skin_barrier", "filaggrin", "pathogenesis"],
+    "authors": [
+      "Grace Turner",
+      "Liam Scott"
+    ],
+    "keywords": [
+      "filaggrin",
+      "epidermal barrier",
+      "allergen",
+      "atopic dermatitis"
+    ],
+    "evidence_tags": [
+      "skin_barrier",
+      "filaggrin",
+      "pathogenesis"
+    ],
     "abstract": "The article explains how filaggrin deficiency contributes to barrier failure and increased susceptibility to immune activation in atopic dermatitis.",
     "pubmed_id": "40100006",
     "doi": "10.1000/ad.2022.006",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100006/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100006/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100007",
@@ -243,13 +483,28 @@
     "source": "PubMed curated AD sample",
     "year": 2022,
     "snippet": "Evaluating microbial interventions, responder heterogeneity, and evidence limits in AD prevention and treatment.",
-    "authors": ["Hannah Flores", "Kevin Adams"],
-    "keywords": ["probiotics", "prebiotics", "microbiome", "atopic dermatitis"],
-    "evidence_tags": ["microbiome", "intervention", "gut_skin_axis"],
+    "authors": [
+      "Hannah Flores",
+      "Kevin Adams"
+    ],
+    "keywords": [
+      "probiotics",
+      "prebiotics",
+      "microbiome",
+      "atopic dermatitis"
+    ],
+    "evidence_tags": [
+      "microbiome",
+      "intervention",
+      "gut_skin_axis"
+    ],
     "abstract": "This review summarizes evidence for probiotics and prebiotics in atopic dermatitis, noting subgroup effects and limitations across studies.",
     "pubmed_id": "40100007",
     "doi": "10.1000/ad.2022.007",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100007/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100007/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100008",
@@ -259,13 +514,28 @@
     "source": "PubMed curated AD sample",
     "year": 2022,
     "snippet": "Describing how herbal formula studies prioritize compounds, targets, and pathways in AD using network pharmacology.",
-    "authors": ["Sophia Lin", "Ethan Cooper"],
-    "keywords": ["network pharmacology", "herbal formula", "target", "pathway"],
-    "evidence_tags": ["network_pharmacology", "formula", "pathway"],
+    "authors": [
+      "Sophia Lin",
+      "Ethan Cooper"
+    ],
+    "keywords": [
+      "network pharmacology",
+      "herbal formula",
+      "target",
+      "pathway"
+    ],
+    "evidence_tags": [
+      "network_pharmacology",
+      "formula",
+      "pathway"
+    ],
     "abstract": "The article outlines common network pharmacology workflows used to study herbal formulas in atopic dermatitis and discusses validation challenges.",
     "pubmed_id": "40100008",
     "doi": "10.1000/ad.2022.008",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100008/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100008/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100009",
@@ -275,13 +545,28 @@
     "source": "PubMed curated AD sample",
     "year": 2021,
     "snippet": "Reviewing how microbial imbalance, especially S. aureus expansion, correlates with flares and barrier injury.",
-    "authors": ["Isabella White", "Noah Perez"],
-    "keywords": ["skin microbiome", "Staphylococcus aureus", "flare", "barrier"],
-    "evidence_tags": ["microbiome", "skin_barrier", "flare"],
+    "authors": [
+      "Isabella White",
+      "Noah Perez"
+    ],
+    "keywords": [
+      "skin microbiome",
+      "Staphylococcus aureus",
+      "flare",
+      "barrier"
+    ],
+    "evidence_tags": [
+      "microbiome",
+      "skin_barrier",
+      "flare"
+    ],
     "abstract": "This review examines the role of skin microbiome dysbiosis and Staphylococcus aureus dominance in disease flares and barrier dysfunction in atopic dermatitis.",
     "pubmed_id": "40100009",
     "doi": "10.1000/ad.2021.009",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100009/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100009/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   },
   {
     "id": "pmid-40100010",
@@ -291,12 +576,27 @@
     "source": "PubMed curated AD sample",
     "year": 2021,
     "snippet": "Summarizing phenotype heterogeneity, age-dependent presentation, and long-term management priorities in pediatric AD.",
-    "authors": ["Chloe Hall", "Benjamin Reed"],
-    "keywords": ["pediatric", "phenotype", "longitudinal care", "atopic dermatitis"],
-    "evidence_tags": ["pediatric_ad", "clinical_management", "review"],
+    "authors": [
+      "Chloe Hall",
+      "Benjamin Reed"
+    ],
+    "keywords": [
+      "pediatric",
+      "phenotype",
+      "longitudinal care",
+      "atopic dermatitis"
+    ],
+    "evidence_tags": [
+      "pediatric_ad",
+      "clinical_management",
+      "review"
+    ],
     "abstract": "The paper discusses phenotype diversity and age-dependent disease features in pediatric atopic dermatitis, emphasizing long-term management strategies.",
     "pubmed_id": "40100010",
     "doi": "10.1000/ad.2021.010",
-    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100010/"
+    "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100010/",
+    "pdf_upload_id": null,
+    "pdf_file_name": null,
+    "pdf_parse_status": null
   }
 ]

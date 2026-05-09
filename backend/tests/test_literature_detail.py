@@ -24,6 +24,9 @@ def test_literature_detail_returns_item_by_id():
         "citation_url": "https://example.org/cnki/cn-ad-gbs-001",
         "pubmed_id": None,
         "doi": None,
+        "pdf_upload_id": None,
+        "pdf_file_name": None,
+        "pdf_parse_status": None,
     }
 
 

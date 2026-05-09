@@ -73,6 +73,9 @@ def test_repository_exposes_required_and_extended_fields(tmp_path: Path):
     assert item.citation_url == "https://example.org/cnki/cn-ad-gbs-001"
     assert item.pubmed_id is None
     assert item.doi is None
+    assert item.pdf_upload_id is None
+    assert item.pdf_file_name is None
+    assert item.pdf_parse_status is None
 
 
 def test_repository_exposes_pubmed_identifiers_when_present(tmp_path: Path):
