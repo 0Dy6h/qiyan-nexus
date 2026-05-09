@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有三条已验证的后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应。另已为文献记录补上 PDF metadata 契约字段（`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`），为后续真实 ingestion / parser slice 预留稳定接口。前端 `/literature`、`/rag`、`/literature/[id]` 与 `/compliance` 均已可访问。
+当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有四条已验证的后端纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应；PDF upload endpoint 已支持本地文件存储并返回 storage metadata。另已为文献记录补上 PDF metadata 契约字段（`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`），为后续真实 ingestion / parser slice 预留稳定接口。
 
 正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -50,7 +50,8 @@ curl http://127.0.0.1:8000/health
 - 样本文献 JSON：`backend/data/literature/sample_ad_literature.json`
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
-- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`（当前已支持 backend-only metadata attach 与 parse status 更新；尚未接上传文件存储与真实解析器）
+- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`
+- 当前已支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
 
 文献检索 mock API：
 
@@ -62,6 +63,24 @@ curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎"
 
 ```bash
 curl "http://127.0.0.1:8000/api/literature/cn-ad-gbs-001"
+```
+
+PDF upload API（本地文件存储 + 自动关联 literature metadata；默认返回 pending）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/uploads/pdf" \
+  -F "literature_id=cn-ad-gbs-001" \
+  -F "file=@/absolute/path/to/ad-evidence.pdf;type=application/pdf"
+```
+
+说明：upload endpoint 只负责落盘与写入 `pending`；真正的 mock 解析推进由独立 fake parser API 完成，并补充 `pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`。
+
+Fake parser API（独立 mock 解析步骤）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/uploads/pdf/auto-parse" \
+  -H "Content-Type: application/json" \
+  -d '{"literature_id":"cn-ad-gbs-001","file_name":"ad-evidence.pdf"}'
 ```
 
 PDF metadata attach API（backend-only）：
@@ -92,8 +111,8 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
 
 当前验证结果：
 
-- 后端：`cd backend && .venv/bin/python -m pytest -q` → 48 passed
-- 前端：`cd frontend && pnpm test` → 22 passed
+- 后端：`cd backend && .venv/bin/python -m pytest -q` → 62 passed
+- 前端：`cd frontend && pnpm test` → 37 passed
 - 前端：`cd frontend && pnpm typecheck` → 通过
 - 前端：`cd frontend && pnpm build` → 通过
 
@@ -145,7 +164,7 @@ pnpm test
 
 - `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页
 - `/rag`：支持 question、source、top_k 输入，展示 answer、retrieval metadata、citation cards 与免责声明
-- `/literature/[id]`：服务端读取文献详情并展示统一 meta/body 样式
+- `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、parse status 展示、parse message/时间戳/触发来源/尝试次数展示，以及 pending→parsed/failed 的手动 mock 推进按钮
 - `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一
 - 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区
 

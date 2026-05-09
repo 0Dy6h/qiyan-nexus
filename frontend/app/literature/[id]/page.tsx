@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
+import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
 import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
 
 type LiteratureDetailPageProps = {
@@ -49,6 +50,8 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
               <CardBodyText>{item.snippet}</CardBodyText>
             </div>
           </article>
+
+          <LiteraturePdfUploadClient item={item} />
 
           <p style={{ color: "#64748b", margin: 0 }}>非诊断结论、需结合临床。</p>
         </section>

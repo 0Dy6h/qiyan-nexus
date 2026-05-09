@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
@@ -50,10 +51,30 @@ def attach_pdf_metadata(literature_id: str, file_name: str) -> LiteratureItem | 
     )
 
 
-def update_pdf_parse_status(literature_id: str, pdf_parse_status: str) -> tuple[str, LiteratureItem | None]:
+def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
+    started_at = datetime.now(UTC).isoformat()
+    finished_at = datetime.now(UTC).isoformat()
+    if pdf_parse_status == "failed":
+        return "Mock parser flagged file as failed", started_at, finished_at
+    return "Mock parser completed successfully", started_at, finished_at
+
+
+def update_pdf_parse_status(
+    literature_id: str,
+    pdf_parse_status: str,
+    trigger: str = "manual",
+) -> tuple[str, LiteratureItem | None]:
     item = _REPOSITORY.get_item_by_id(literature_id)
     if item is None:
         return "not_found", None
     if not item.pdf_upload_id or not item.pdf_file_name:
         return "missing_metadata", None
-    return "ok", _REPOSITORY.update_pdf_parse_status(literature_id, pdf_parse_status)
+    pdf_parse_message, pdf_parse_started_at, pdf_parse_finished_at = build_parse_metadata(pdf_parse_status)
+    return "ok", _REPOSITORY.update_pdf_parse_status(
+        literature_id,
+        pdf_parse_status,
+        pdf_parse_message=pdf_parse_message,
+        pdf_parse_started_at=pdf_parse_started_at,
+        pdf_parse_finished_at=pdf_parse_finished_at,
+        last_parse_trigger=trigger,
+    )

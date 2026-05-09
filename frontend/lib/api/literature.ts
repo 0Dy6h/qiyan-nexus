@@ -6,14 +6,33 @@ export type LiteratureItem = {
   source: string;
   year: number;
   snippet: string;
+  pdf_upload_id?: string | null;
+  pdf_file_name?: string | null;
+  pdf_parse_status?: "pending" | "parsed" | "failed" | null;
+  pdf_parse_message?: string | null;
+  pdf_parse_started_at?: string | null;
+  pdf_parse_finished_at?: string | null;
+  last_parse_trigger?: "auto" | "manual" | null;
+  parse_attempt_count?: number | null;
 };
 
 export type LiteratureSource = "all" | "cn_literature" | "pubmed";
+export type PdfParseStatus = "pending" | "parsed" | "failed";
 
 export type LiteratureSearchResponse = {
   query: string;
   total: number;
   items: LiteratureItem[];
+};
+
+export type PdfUploadResponse = {
+  literature_id: string;
+  pdf_upload_id: string;
+  file_name: string;
+  content_type: string;
+  file_size: number;
+  storage_path: string;
+  pdf_parse_status: PdfParseStatus;
 };
 
 export function getBackendBaseUrl() {
@@ -30,6 +49,23 @@ export function getLiteratureSourceLabel(source: LiteratureSource) {
   return "全部";
 }
 
+export function getParseTriggerLabel(trigger: LiteratureItem["last_parse_trigger"]) {
+  if (trigger === "auto") {
+    return "自动触发";
+  }
+  if (trigger === "manual") {
+    return "手动触发";
+  }
+  return null;
+}
+
+export function getParseAttemptLabel(count: LiteratureItem["parse_attempt_count"]) {
+  if (count === null || count === undefined) {
+    return null;
+  }
+  return `尝试 ${count} 次`;
+}
+
 export function buildLiteratureSearchUrl(query: string, source: LiteratureSource = "all") {
   const url = new URL("/api/literature/search", getBackendBaseUrl());
   url.searchParams.set("q", query.trim());
@@ -42,6 +78,24 @@ export function buildLiteratureSearchUrl(query: string, source: LiteratureSource
 export function buildLiteratureDetailUrl(itemId: string) {
   const encodedItemId = encodeURIComponent(itemId);
   return new URL(`/api/literature/${encodedItemId}`, getBackendBaseUrl()).toString();
+}
+
+export function buildPdfUploadUrl() {
+  return new URL("/api/uploads/pdf", getBackendBaseUrl()).toString();
+}
+
+export function buildPdfParseStatusRequest(literatureId: string, status: Exclude<PdfParseStatus, "pending">) {
+  return {
+    literature_id: literatureId,
+    pdf_parse_status: status,
+  };
+}
+
+export function buildFakePdfAutoParseRequest(literatureId: string, fileName: string) {
+  return {
+    literature_id: literatureId,
+    file_name: fileName,
+  };
 }
 
 export async function searchLiterature(
@@ -62,6 +116,61 @@ export async function getLiteratureDetail(itemId: string): Promise<LiteratureIte
 
   if (!response.ok) {
     throw new Error("Literature detail request failed");
+  }
+
+  return response.json();
+}
+
+export async function uploadLiteraturePdf(
+  literatureId: string,
+  file: File,
+): Promise<PdfUploadResponse> {
+  const formData = new FormData();
+  formData.set("literature_id", literatureId);
+  formData.set("file", file);
+
+  const response = await fetch(buildPdfUploadUrl(), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("PDF upload failed");
+  }
+
+  return response.json();
+}
+
+export async function runFakePdfAutoParse(literatureId: string, fileName: string): Promise<LiteratureItem> {
+  const response = await fetch(new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(buildFakePdfAutoParseRequest(literatureId, fileName)),
+  });
+
+  if (!response.ok) {
+    throw new Error("Fake PDF auto parse failed");
+  }
+
+  return response.json();
+}
+
+export async function updatePdfParseStatus(
+  literatureId: string,
+  status: Exclude<PdfParseStatus, "pending">,
+): Promise<LiteratureItem> {
+  const response = await fetch(new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(buildPdfParseStatusRequest(literatureId, status)),
+  });
+
+  if (!response.ok) {
+    throw new Error("PDF parse status update failed");
   }
 
   return response.json();

@@ -1,9 +1,18 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
-def test_literature_detail_returns_item_by_id():
+def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_data_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_data_path))
+
     client = TestClient(app)
 
     response = client.get("/api/literature/cn-ad-gbs-001")
@@ -27,10 +36,22 @@ def test_literature_detail_returns_item_by_id():
         "pdf_upload_id": None,
         "pdf_file_name": None,
         "pdf_parse_status": None,
+        "pdf_parse_message": None,
+        "pdf_parse_started_at": None,
+        "pdf_parse_finished_at": None,
+        "last_parse_trigger": None,
+        "parse_attempt_count": None,
     }
 
 
-def test_literature_detail_returns_404_for_unknown_id():
+def test_literature_detail_returns_404_for_unknown_id(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_data_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_data_path))
+
     client = TestClient(app)
 
     response = client.get("/api/literature/unknown")

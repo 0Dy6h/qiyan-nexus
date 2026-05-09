@@ -1,14 +1,14 @@
 import type { CSSProperties } from "react";
 
-import { getStatusCardStyle, getStatusMessageStyle, getStatusTone } from "../lib/ui/status-card";
+import { getStatusCardStyle, getStatusMessageStyle, getStatusTone, type StatusTone } from "../lib/ui/status-card";
 
 type StatusPanelProps = {
   message: string;
-  tone?: "idle" | "error";
+  tone?: StatusTone;
 };
 
 export default function StatusPanel({ message, tone = "idle" }: StatusPanelProps) {
-  const resolvedTone = getStatusTone(tone === "error");
+  const resolvedTone = tone === "idle" || tone === "error" ? getStatusTone(tone === "error") : tone;
 
   return (
     <div style={getStatusCardStyle(resolvedTone) as CSSProperties}>

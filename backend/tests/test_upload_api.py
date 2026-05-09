@@ -1,0 +1,312 @@
+import json
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+def reset_sample_data(original_path: Path, temp_path: Path) -> None:
+    temp_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001"},
+        files={
+            "file": ("ad-evidence.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["literature_id"] == "cn-ad-gbs-001"
+    assert payload["pdf_upload_id"] == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    assert payload["file_name"] == "ad-evidence.pdf"
+    assert payload["pdf_parse_status"] == "pending"
+    assert payload["storage_path"].endswith("pdf-cn-ad-gbs-001-ad-evidence-pdf.pdf")
+
+    persisted = json.loads(temp_data_path.read_text(encoding="utf-8"))
+    first = next(item for item in persisted if item["id"] == "cn-ad-gbs-001")
+    assert first["pdf_upload_id"] == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    assert first["pdf_file_name"] == "ad-evidence.pdf"
+    assert first["pdf_parse_status"] == "pending"
+    assert first["pdf_parse_message"] is None
+    assert first["pdf_parse_started_at"] is None
+    assert first["pdf_parse_finished_at"] is None
+    assert first["last_parse_trigger"] is None
+    assert first["parse_attempt_count"] == 0
+
+    stored_file = Path(payload["storage_path"])
+    assert stored_file.exists()
+    assert stored_file.read_bytes() == b"%PDF-1.4\nmock pdf bytes\n"
+
+
+def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001", "auto_parse": "true"},
+        files={
+            "file": ("ad-evidence.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["pdf_parse_status"] == "pending"
+
+    persisted = json.loads(temp_data_path.read_text(encoding="utf-8"))
+    first = next(item for item in persisted if item["id"] == "cn-ad-gbs-001")
+    assert first["pdf_parse_status"] == "pending"
+    assert first["last_parse_trigger"] is None
+    assert first["parse_attempt_count"] == 0
+
+
+def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_keeps_pending(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001", "auto_parse": "true"},
+        files={
+            "file": ("ad-fail-evidence.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["pdf_parse_status"] == "pending"
+
+    persisted = json.loads(temp_data_path.read_text(encoding="utf-8"))
+    first = next(item for item in persisted if item["id"] == "cn-ad-gbs-001")
+    assert first["pdf_parse_status"] == "pending"
+    assert first["last_parse_trigger"] is None
+    assert first["parse_attempt_count"] == 0
+
+
+def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
+        pdf_file_name="ad-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "ad-evidence.pdf"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["pdf_parse_status"] == "parsed"
+    assert payload["pdf_parse_message"] == "Mock parser completed successfully"
+    assert payload["pdf_parse_started_at"] is not None
+    assert payload["pdf_parse_finished_at"] is not None
+    assert payload["last_parse_trigger"] == "auto"
+    assert payload["parse_attempt_count"] == 1
+
+
+def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-fail-evidence-pdf",
+        pdf_file_name="ad-fail-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "ad-fail-evidence.pdf"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["pdf_parse_status"] == "failed"
+    assert payload["pdf_parse_message"] == "Mock parser flagged file as failed"
+    assert payload["pdf_parse_started_at"] is not None
+    assert payload["pdf_parse_finished_at"] is not None
+    assert payload["last_parse_trigger"] == "auto"
+    assert payload["parse_attempt_count"] == 1
+
+
+def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
+        pdf_file_name="ad-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/literature/pdf-parse-status",
+        json={"literature_id": "cn-ad-gbs-001", "pdf_parse_status": "parsed"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["pdf_parse_status"] == "parsed"
+    assert payload["last_parse_trigger"] == "manual"
+    assert payload["parse_attempt_count"] == 1
+
+
+def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
+        pdf_file_name="ad-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+
+    client = TestClient(app)
+
+    auto_response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "ad-evidence.pdf"},
+    )
+    assert auto_response.status_code == 200
+    assert auto_response.json()["parse_attempt_count"] == 1
+
+    manual_response = client.post(
+        "/api/literature/pdf-parse-status",
+        json={"literature_id": "cn-ad-gbs-001", "pdf_parse_status": "failed"},
+    )
+    assert manual_response.status_code == 200
+    payload = manual_response.json()
+    assert payload["last_parse_trigger"] == "manual"
+    assert payload["parse_attempt_count"] == 2
+
+
+def test_pdf_upload_endpoint_returns_404_for_unknown_literature_id_and_does_not_persist_file(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "unknown"},
+        files={
+            "file": ("ad-evidence.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Literature item not found"}
+    assert not upload_dir.exists() or list(upload_dir.iterdir()) == []
+
+
+def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_collisions(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001"},
+        files={
+            "file": ("review.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["pdf_upload_id"] == "pdf-cn-ad-gbs-001-review-pdf"
+    assert payload["storage_path"].endswith("pdf-cn-ad-gbs-001-review-pdf.pdf")
+
+    stored_file = Path(payload["storage_path"])
+    assert stored_file.exists()
+    assert stored_file.name == "pdf-cn-ad-gbs-001-review-pdf.pdf"
