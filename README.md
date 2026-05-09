@@ -50,7 +50,7 @@ curl http://127.0.0.1:8000/health
 - 样本文献 JSON：`backend/data/literature/sample_ad_literature.json`
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
-- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`（仅契约占位，尚未接上传与解析器）
+- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`（当前已支持 backend-only metadata attach 与 parse status 更新；尚未接上传文件存储与真实解析器）
 
 文献检索 mock API：
 
@@ -62,6 +62,22 @@ curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎"
 
 ```bash
 curl "http://127.0.0.1:8000/api/literature/cn-ad-gbs-001"
+```
+
+PDF metadata attach API（backend-only）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/literature/pdf-metadata" \
+  -H "Content-Type: application/json" \
+  -d '{"literature_id":"cn-ad-gbs-001","file_name":"ad-evidence.pdf","source_type":"uploaded_pdf"}'
+```
+
+PDF parse status API（backend-only）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/literature/pdf-parse-status" \
+  -H "Content-Type: application/json" \
+  -d '{"literature_id":"cn-ad-gbs-001","pdf_parse_status":"parsed"}'
 ```
 
 RAG mock API：

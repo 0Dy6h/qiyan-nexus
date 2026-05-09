@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -25,3 +27,14 @@ class LiteratureSearchResponse(BaseModel):
     query: str
     total: int
     items: list[LiteratureItem]
+
+
+class PdfMetadataUploadRequest(BaseModel):
+    literature_id: str = Field(min_length=1)
+    file_name: str = Field(min_length=1)
+    source_type: Literal["uploaded_pdf", "user_pdf"]
+
+
+class PdfParseStatusUpdateRequest(BaseModel):
+    literature_id: str = Field(min_length=1)
+    pdf_parse_status: Literal["parsed", "failed"]
