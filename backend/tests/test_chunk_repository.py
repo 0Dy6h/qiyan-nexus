@@ -69,3 +69,36 @@ def test_chunk_repository_returns_none_for_unknown_chunk_id(tmp_path: Path):
     write_sample_data(data_path, SAMPLE_CHUNKS)
 
     assert InMemoryChunkRepository(data_path).get_chunk_by_id("unknown") is None
+
+
+def test_chunk_repository_upserts_uploaded_pdf_chunk(tmp_path: Path):
+    data_path = tmp_path / "sample_ad_chunks.json"
+    write_sample_data(data_path, SAMPLE_CHUNKS)
+
+    repository = InMemoryChunkRepository(data_path)
+    chunk = repository.upsert_uploaded_pdf_chunk(
+        chunk_id="chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded",
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
+        text="上传 PDF ad-evidence.pdf 已完成解析，包含特应性皮炎证据片段。",
+        source_quote="包含特应性皮炎证据片段",
+        evidence_tags=["uploaded_pdf", "pdf_parse"],
+    )
+
+    assert chunk.source_type == "uploaded_pdf"
+    assert chunk.pdf_upload_id == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    assert repository.get_chunk_by_id("chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded") == chunk
+
+    repository.upsert_uploaded_pdf_chunk(
+        chunk_id="chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded",
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
+        text="上传 PDF ad-evidence.pdf 已重新解析，包含 RAG 引用片段。",
+        source_quote="包含 RAG 引用片段",
+        evidence_tags=["uploaded_pdf", "pdf_parse"],
+    )
+
+    persisted_chunks = repository.list_chunks_by_literature_id("cn-ad-gbs-001")
+    uploaded_chunks = [item for item in persisted_chunks if item.source_type == "uploaded_pdf"]
+    assert len(uploaded_chunks) == 1
+    assert uploaded_chunks[0].source_quote == "包含 RAG 引用片段"

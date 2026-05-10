@@ -3,8 +3,10 @@
 import { FormEvent, useState } from "react";
 
 import {
+  getPdfParseStatusLabel,
   getLiteratureSourceLabel,
   LiteratureItem,
+  LiteratureSearchSort,
   LiteratureSource,
   searchLiterature,
 } from "../lib/api/literature";
@@ -15,46 +17,113 @@ import StatusPanel from "./StatusPanel";
 type SearchState = {
   query: string;
   source: LiteratureSource;
+  sort: LiteratureSearchSort;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
   items: LiteratureItem[];
   error: string | null;
   isLoading: boolean;
+  hasSearched: boolean;
 };
 
 export default function LiteratureSearchClient() {
   const [state, setState] = useState<SearchState>({
     query: "特应性皮炎",
     source: "all",
+    sort: "relevance",
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 0,
     items: [],
     error: null,
     isLoading: false,
+    hasSearched: false,
   });
   const statusCopy = getStatusCopy("literature", state.isLoading);
   const emptyStateCopy = getEmptyStateCopy("literature");
+
+  async function runSearch(
+    query: string,
+    source: LiteratureSource,
+    page: number,
+    pageSize: number,
+    sort: LiteratureSearchSort,
+  ) {
+    setState((current) => ({
+      ...current,
+      query,
+      source,
+      sort,
+      page,
+      pageSize,
+      items: [],
+      error: null,
+      isLoading: true,
+      hasSearched: true,
+    }));
+
+    try {
+      const result = await searchLiterature(query, source, page, pageSize, sort);
+      setState({
+        query: result.query,
+        source: result.source,
+        sort: result.sort,
+        page: result.page,
+        pageSize: result.page_size,
+        total: result.total,
+        totalPages: result.total_pages,
+        items: result.items,
+        error: null,
+        isLoading: false,
+        hasSearched: true,
+      });
+    } catch {
+      setState({
+        query,
+        source,
+        sort,
+        page,
+        pageSize,
+        total: 0,
+        totalPages: 0,
+        items: [],
+        error: emptyStateCopy.error,
+        isLoading: false,
+        hasSearched: true,
+      });
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const query = String(form.get("q") ?? "").trim();
     const source = String(form.get("source") ?? "all") as LiteratureSource;
+    const sort = String(form.get("sort") ?? "relevance") as LiteratureSearchSort;
+    const pageSize = Number(form.get("page_size") ?? state.pageSize);
 
     if (!query) {
-      setState((current) => ({ ...current, query, source, items: [], error: "请输入检索关键词。" }));
+      setState((current) => ({
+        ...current,
+        query,
+        source,
+        sort,
+        items: [],
+        error: "请输入检索关键词。",
+        hasSearched: true,
+      }));
       return;
     }
 
-    setState((current) => ({ ...current, query, source, items: [], error: null, isLoading: true }));
-
-    try {
-      const result = await searchLiterature(query, source);
-      setState({ query: result.query, source, items: result.items, error: null, isLoading: false });
-    } catch {
-      setState({ query, source, items: [], error: emptyStateCopy.error, isLoading: false });
-    }
+    await runSearch(query, source, 1, pageSize, sort);
   }
 
   return (
     <>
-      <form onSubmit={onSubmit} style={{ display: "flex", gap: 12, margin: "32px 0" }}>
+      <form onSubmit={onSubmit} style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "32px 0" }}>
         <input
           name="q"
           defaultValue={state.query}
@@ -64,6 +133,7 @@ export default function LiteratureSearchClient() {
             border: "1px solid #cbd5e1",
             borderRadius: 8,
             fontSize: 16,
+            minWidth: 220,
             padding: "12px 14px",
           }}
         />
@@ -81,6 +151,36 @@ export default function LiteratureSearchClient() {
           <option value="all">全部</option>
           <option value="cn_literature">中文文献</option>
           <option value="pubmed">PubMed</option>
+        </select>
+        <select
+          name="sort"
+          defaultValue={state.sort}
+          aria-label="排序方式"
+          style={{
+            border: "1px solid #cbd5e1",
+            borderRadius: 8,
+            fontSize: 16,
+            padding: "12px 14px",
+          }}
+        >
+          <option value="relevance">相关度</option>
+          <option value="year_desc">年份降序</option>
+          <option value="year_asc">年份升序</option>
+        </select>
+        <select
+          name="page_size"
+          defaultValue={state.pageSize}
+          aria-label="每页数量"
+          style={{
+            border: "1px solid #cbd5e1",
+            borderRadius: 8,
+            fontSize: 16,
+            padding: "12px 14px",
+          }}
+        >
+          <option value="5">5 条/页</option>
+          <option value="10">10 条/页</option>
+          <option value="20">20 条/页</option>
         </select>
         <button
           type="submit"
@@ -101,6 +201,55 @@ export default function LiteratureSearchClient() {
 
       {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
 
+      {!state.error && state.total > 0 ? (
+        <div
+          style={{
+            alignItems: "center",
+            color: "#475569",
+            display: "flex",
+            flexWrap: "wrap",
+            fontSize: 14,
+            gap: 12,
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <span>
+            共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              disabled={state.isLoading || state.page <= 1}
+              onClick={() => runSearch(state.query, state.source, state.page - 1, state.pageSize, state.sort)}
+              style={{
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                background: "white",
+                color: "#0f172a",
+                padding: "8px 12px",
+              }}
+            >
+              上一页
+            </button>
+            <button
+              type="button"
+              disabled={state.isLoading || state.page >= state.totalPages}
+              onClick={() => runSearch(state.query, state.source, state.page + 1, state.pageSize, state.sort)}
+              style={{
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                background: "white",
+                color: "#0f172a",
+                padding: "8px 12px",
+              }}
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {state.items.length > 0 ? (
         <div style={{ display: "grid", gap: 16 }}>
           {state.items.map((item) => (
@@ -119,6 +268,7 @@ export default function LiteratureSearchClient() {
                   getLiteratureSourceLabel(item.source_type),
                   item.source,
                   String(item.year),
+                  getPdfParseStatusLabel(item.pdf_parse_status ?? null),
                 ]}
               />
               <h2 style={{ color: "#1e293b", fontSize: 22 }}>{item.title}</h2>
@@ -130,7 +280,7 @@ export default function LiteratureSearchClient() {
           ))}
         </div>
       ) : state.isLoading || state.error ? null : (
-        <StatusPanel message={emptyStateCopy.idle} />
+        <StatusPanel message={state.hasSearched ? "未检索到匹配文献，请调整关键词或来源。" : emptyStateCopy.idle} />
       )}
     </>
   );

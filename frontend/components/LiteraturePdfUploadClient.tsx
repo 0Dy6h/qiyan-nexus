@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import {
+  buildPdfDownloadUrl,
   getParseAttemptLabel,
   getParseTriggerLabel,
   LiteratureItem,
@@ -56,6 +57,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
   const currentParseFinishedAt = state.currentItem.pdf_parse_finished_at ?? null;
   const currentParseTrigger = getParseTriggerLabel(state.currentItem.last_parse_trigger ?? null);
   const currentParseAttempt = getParseAttemptLabel(state.currentItem.parse_attempt_count ?? null);
+  const currentPdfDownloadUrl = currentUploadId ? buildPdfDownloadUrl(currentUploadId) : null;
   const statusTone = useMemo(() => getPdfStatusTone(currentStatus), [currentStatus]);
   const actionLabels = useMemo(() => getPdfActionLabels(currentStatus), [currentStatus]);
   const statusCopy = useMemo(
@@ -175,6 +177,17 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           currentStoragePath ? `存储 ${currentStoragePath}` : null,
         ]}
       />
+
+      {currentPdfDownloadUrl ? (
+        <a
+          href={currentPdfDownloadUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: "#0d9488", fontWeight: 700, width: "fit-content" }}
+        >
+          预览 PDF
+        </a>
+      ) : null}
 
       <CardMetaRow
         items={[

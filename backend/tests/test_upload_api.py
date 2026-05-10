@@ -54,6 +54,36 @@ def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tm
     assert stored_file.read_bytes() == b"%PDF-1.4\nmock pdf bytes\n"
 
 
+def test_pdf_upload_endpoint_normalizes_storage_suffix_to_pdf_for_uppercase_filename(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001"},
+        files={
+            "file": ("AD-EVIDENCE.PDF", b"%PDF-1.4\nmock uppercase suffix\n", "application/pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["storage_path"].endswith("pdf-cn-ad-gbs-001-ad-evidence-pdf.pdf")
+
+    download_response = client.get(f"/api/uploads/pdf/{payload['pdf_upload_id']}")
+    assert download_response.status_code == 200
+    assert download_response.headers["content-type"] == "application/pdf"
+    assert download_response.content == b"%PDF-1.4\nmock uppercase suffix\n"
+
+
 def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
@@ -117,11 +147,15 @@ def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_k
 
 
 def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+    from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
     original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
     temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
 
     repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
@@ -133,6 +167,8 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
 
     client = TestClient(app)
 
@@ -150,13 +186,26 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     assert payload["last_parse_trigger"] == "auto"
     assert payload["parse_attempt_count"] == 1
 
+    persisted_chunks = json.loads(temp_chunk_path.read_text(encoding="utf-8"))
+    uploaded_chunk = next(
+        item for item in persisted_chunks if item["chunk_id"] == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
+    )
+    assert uploaded_chunk["literature_id"] == "cn-ad-gbs-001"
+    assert uploaded_chunk["source_type"] == "uploaded_pdf"
+    assert uploaded_chunk["pdf_upload_id"] == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    assert "上传 PDF ad-evidence.pdf 已完成解析" in uploaded_chunk["text"]
+
 
 def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+    from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
     original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
     temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
 
     repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
@@ -168,6 +217,8 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
 
     client = TestClient(app)
 
@@ -184,6 +235,9 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     assert payload["pdf_parse_finished_at"] is not None
     assert payload["last_parse_trigger"] == "auto"
     assert payload["parse_attempt_count"] == 1
+
+    persisted_chunks = json.loads(temp_chunk_path.read_text(encoding="utf-8"))
+    assert all(item["chunk_id"] != "chunk-pdf-cn-ad-gbs-001-ad-fail-evidence-pdf-uploaded" for item in persisted_chunks)
 
 
 def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path: Path):
@@ -219,11 +273,15 @@ def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path
 
 
 def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(monkeypatch, tmp_path: Path):
+    from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
     original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
     temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
 
     repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
@@ -235,6 +293,8 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
+    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
 
     client = TestClient(app)
 
@@ -310,3 +370,45 @@ def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_
     stored_file = Path(payload["storage_path"])
     assert stored_file.exists()
     assert stored_file.name == "pdf-cn-ad-gbs-001-review-pdf.pdf"
+
+
+def test_pdf_download_endpoint_returns_uploaded_file_by_upload_id(monkeypatch, tmp_path: Path):
+    from app.services import literature as literature_service
+
+    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    reset_sample_data(original_path, temp_data_path)
+
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+
+    client = TestClient(app)
+
+    upload_response = client.post(
+        "/api/uploads/pdf",
+        data={"literature_id": "cn-ad-gbs-001"},
+        files={
+            "file": ("review.pdf", b"%PDF-1.4\nmock pdf bytes\n", "application/pdf"),
+        },
+    )
+    assert upload_response.status_code == 201
+    upload_payload = upload_response.json()
+
+    download_response = client.get(f"/api/uploads/pdf/{upload_payload['pdf_upload_id']}")
+
+    assert download_response.status_code == 200
+    assert download_response.headers["content-type"] == "application/pdf"
+    assert download_response.headers["content-disposition"].startswith("inline;")
+    assert download_response.content == b"%PDF-1.4\nmock pdf bytes\n"
+
+
+def test_pdf_download_endpoint_returns_404_for_missing_upload(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+
+    client = TestClient(app)
+
+    response = client.get("/api/uploads/pdf/pdf-cn-ad-gbs-001-missing-pdf")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "PDF upload not found"}

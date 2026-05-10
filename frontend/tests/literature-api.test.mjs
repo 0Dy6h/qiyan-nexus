@@ -18,6 +18,15 @@ test("buildLiteratureSearchUrl trims query", () => {
   assert.equal(url, "http://127.0.0.1:8000/api/literature/search?q=AD");
 });
 
+test("buildLiteratureSearchUrl appends non-default search contract params", () => {
+  const url = buildLiteratureSearchUrl("AD", "pubmed", 2, 5, "year_asc");
+
+  assert.equal(
+    url,
+    "http://127.0.0.1:8000/api/literature/search?q=AD&source=pubmed&page=2&page_size=5&sort=year_asc",
+  );
+});
+
 test("getLiteratureSourceLabel returns display text", () => {
   assert.equal(getLiteratureSourceLabel("all"), "全部");
   assert.equal(getLiteratureSourceLabel("cn_literature"), "中文文献");

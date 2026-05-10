@@ -80,12 +80,15 @@ def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAn
     if source != "all":
         items = [item for item in items if item.source_type == source]
 
-    ranked_items: list[tuple[int, int, object, object]] = []
+    ranked_items: list[tuple[int, int, object, object | None]] = []
     for item in items:
-        chunk = next(iter(_CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id)), None)
-        score = score_item(item, chunk, query_tokens)
-        language_bonus = 1 if item.source_type == preferred_source_type else 0
-        ranked_items.append((score, language_bonus, item, chunk))
+        chunks = _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id)
+        if not chunks:
+            chunks = [None]
+        for chunk in chunks:
+            score = score_item(item, chunk, query_tokens)
+            language_bonus = 1 if item.source_type == preferred_source_type else 0
+            ranked_items.append((score, language_bonus, item, chunk))
 
     ranked_items.sort(key=lambda row: (row[0], row[1], row[2].year), reverse=True)
     available_citation_count = sum(1 for score, _, _, _ in ranked_items if score > 0)

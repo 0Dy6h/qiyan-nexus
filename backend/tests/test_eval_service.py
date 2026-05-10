@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.schemas.eval import load_rag_eval_dataset
-from app.services.eval import get_rag_eval_questions
+from app.services.eval import get_rag_eval_questions, run_rag_ad_eval_report
 
 
 def test_load_rag_eval_dataset_returns_20_questions():
@@ -32,3 +32,38 @@ def test_get_rag_eval_questions_returns_serializable_payload():
     assert len(items) == 20
     assert items[16]["id"] == "rag-eval-017"
     assert items[16]["source_preference"] == "pubmed"
+
+
+def test_run_rag_ad_eval_report_returns_summary_and_item_results():
+    report = run_rag_ad_eval_report()
+
+    assert report["summary"]["total_questions"] == 20
+    assert report["summary"]["disclaimer_coverage_count"] == 20
+    assert report["summary"]["must_not_violation_count"] == 0
+    assert 0 <= report["summary"]["pass_rate"] <= 1
+    assert len(report["items"]) == 20
+
+    first = report["items"][0]
+    assert first["id"] == "rag-eval-001"
+    assert first["source_preference"] == "all"
+    assert "cn-ad-gbs-001" in first["expected_literature_hits"]
+    assert "chunk-cn-ad-gbs-001-abstract" in first["expected_chunk_hits"]
+    assert first["disclaimer_present"] is True
+    assert first["violated_must_not_include"] == []
+
+
+def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks():
+    report = run_rag_ad_eval_report()
+
+    item = next(
+        result
+        for result in report["items"]
+        if not result["expected_chunk_ids"]
+        and result["expected_literature_hits"]
+        and not result["missing_must_include"]
+        and not result["violated_must_not_include"]
+        and result["disclaimer_present"]
+    )
+
+    assert item["expected_chunk_ids"] == []
+    assert item["passed"] is True

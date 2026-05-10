@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.schemas.literature import LiteratureItem
 from app.schemas.upload import FakePdfAutoParseRequest, StoredUpload
 from app.services.fake_parser import auto_parse_uploaded_pdf
-from app.services.upload import store_pdf_upload
+from app.services.upload import resolve_stored_pdf_path, store_pdf_upload
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
@@ -19,6 +20,19 @@ def upload_pdf_endpoint(
         raise HTTPException(status_code=415, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/pdf/{pdf_upload_id}", response_class=FileResponse)
+def download_pdf_endpoint(pdf_upload_id: str) -> FileResponse:
+    storage_path = resolve_stored_pdf_path(pdf_upload_id)
+    if storage_path is None:
+        raise HTTPException(status_code=404, detail="PDF upload not found")
+    return FileResponse(
+        storage_path,
+        media_type="application/pdf",
+        filename=storage_path.name,
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/pdf/auto-parse", response_model=LiteratureItem)

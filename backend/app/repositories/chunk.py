@@ -20,3 +20,36 @@ class InMemoryChunkRepository:
             if chunk.chunk_id == chunk_id:
                 return chunk
         return None
+
+    def upsert_uploaded_pdf_chunk(
+        self,
+        chunk_id: str,
+        literature_id: str,
+        pdf_upload_id: str,
+        text: str,
+        source_quote: str,
+        evidence_tags: list[str],
+        related_entity_ids: list[str] | None = None,
+    ) -> LiteratureChunk:
+        raw_items = json.loads(self.data_path.read_text(encoding="utf-8"))
+        next_item = {
+            "chunk_id": chunk_id,
+            "literature_id": literature_id,
+            "section": "uploaded_pdf",
+            "text": text,
+            "source_quote": source_quote,
+            "evidence_tags": evidence_tags,
+            "related_entity_ids": related_entity_ids or ["disease:atopic-dermatitis"],
+            "source_type": "uploaded_pdf",
+            "pdf_upload_id": pdf_upload_id,
+        }
+
+        for index, item in enumerate(raw_items):
+            if item.get("chunk_id") == chunk_id:
+                raw_items[index] = next_item
+                self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                return LiteratureChunk(**next_item)
+
+        raw_items.append(next_item)
+        self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return LiteratureChunk(**next_item)

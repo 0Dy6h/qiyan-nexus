@@ -1,3 +1,8 @@
+import json
+from pathlib import Path
+
+from app.repositories.chunk import InMemoryChunkRepository
+from app.repositories.literature import InMemoryLiteratureRepository
 from app.services.rag import answer_question
 
 
@@ -62,3 +67,67 @@ def test_answer_question_falls_back_when_no_positive_match_exists():
     assert len(response.citations) == 1
     assert response.retrieval.available_citation_count == 10
     assert "没有检索到足够匹配的证据片段" in response.answer or "deterministic retrieval" in response.answer
+
+
+def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path):
+    from app.services import rag as rag_service
+
+    literature_path = tmp_path / "sample_ad_literature.json"
+    chunk_path = tmp_path / "sample_ad_chunks.json"
+    literature_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "cn-ad-gbs-001",
+                    "title": "肠-脑-皮肤轴与特应性皮炎中医证候研究",
+                    "language": "zh",
+                    "source_type": "cn_literature",
+                    "source": "CNKI curated AD sample",
+                    "year": 2025,
+                    "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。",
+                    "pdf_upload_id": "pdf-cn-ad-gbs-001-ad-evidence-pdf",
+                    "pdf_file_name": "ad-evidence.pdf",
+                    "pdf_parse_status": "parsed",
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    chunk_path.write_text(
+        json.dumps(
+            [
+                {
+                    "chunk_id": "chunk-cn-ad-gbs-001-abstract",
+                    "literature_id": "cn-ad-gbs-001",
+                    "section": "abstract",
+                    "text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎。",
+                    "source_quote": "肠-脑-皮肤轴视角",
+                    "evidence_tags": ["gut_skin_axis"],
+                    "related_entity_ids": ["disease:atopic-dermatitis"],
+                },
+                {
+                    "chunk_id": "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded",
+                    "literature_id": "cn-ad-gbs-001",
+                    "section": "uploaded_pdf",
+                    "text": "上传 PDF ad-evidence.pdf 已完成解析，Mock parser 提取了特应性皮炎证据片段。",
+                    "source_quote": "Mock parser 提取了特应性皮炎证据片段",
+                    "evidence_tags": ["uploaded_pdf", "pdf_parse", "atopic_dermatitis"],
+                    "related_entity_ids": ["disease:atopic-dermatitis"],
+                    "source_type": "uploaded_pdf",
+                    "pdf_upload_id": "pdf-cn-ad-gbs-001-ad-evidence-pdf",
+                },
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(rag_service, "_REPOSITORY", InMemoryLiteratureRepository(literature_path))
+    monkeypatch.setattr(rag_service, "_CHUNK_REPOSITORY", InMemoryChunkRepository(chunk_path))
+
+    response = answer_question("ad-evidence.pdf 上传 PDF 解析片段", top_k=1)
+
+    assert response.citations[0].literature_id == "cn-ad-gbs-001"
+    assert response.citations[0].chunk_id == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
+    assert response.citations[0].quote == "Mock parser 提取了特应性皮炎证据片段"
+    assert response.citations[0].reason == "uploaded_pdf, pdf_parse"

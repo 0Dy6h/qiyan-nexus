@@ -4,8 +4,10 @@ import { test } from "node:test";
 import {
   buildFakePdfAutoParseRequest,
   buildLiteratureDetailUrl,
+  buildPdfDownloadUrl,
   buildPdfParseStatusRequest,
   buildPdfUploadUrl,
+  getPdfParseStatusLabel,
   getParseAttemptLabel,
   getParseTriggerLabel,
 } from "../lib/api/literature.mjs";
@@ -26,6 +28,20 @@ test("buildLiteratureDetailUrl encodes reserved characters", () => {
 
 test("buildPdfUploadUrl points to upload endpoint on default backend base URL", () => {
   assert.equal(buildPdfUploadUrl(), "http://127.0.0.1:8000/api/uploads/pdf");
+});
+
+test("buildPdfDownloadUrl points to stable uploaded PDF endpoint", () => {
+  assert.equal(
+    buildPdfDownloadUrl("pdf-cn-ad-gbs-001-review-pdf"),
+    "http://127.0.0.1:8000/api/uploads/pdf/pdf-cn-ad-gbs-001-review-pdf",
+  );
+});
+
+test("buildPdfDownloadUrl encodes reserved upload id characters", () => {
+  assert.equal(
+    buildPdfDownloadUrl("pdf-cn/ad gbs?001"),
+    "http://127.0.0.1:8000/api/uploads/pdf/pdf-cn%2Fad%20gbs%3F001",
+  );
 });
 
 test("uploadLiteraturePdf sends only literature_id and file in multipart form", async () => {
@@ -88,4 +104,11 @@ test("getParseAttemptLabel returns readable retry count copy", () => {
   assert.equal(getParseAttemptLabel(0), "尝试 0 次");
   assert.equal(getParseAttemptLabel(2), "尝试 2 次");
   assert.equal(getParseAttemptLabel(null), null);
+});
+
+test("getPdfParseStatusLabel returns compact search card copy", () => {
+  assert.equal(getPdfParseStatusLabel("pending"), "PDF 待解析");
+  assert.equal(getPdfParseStatusLabel("parsed"), "PDF 已解析");
+  assert.equal(getPdfParseStatusLabel("failed"), "PDF 解析失败");
+  assert.equal(getPdfParseStatusLabel(null), null);
 });

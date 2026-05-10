@@ -2,6 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+LiteratureSource = Literal["all", "cn_literature", "pubmed"]
+LiteratureSearchSort = Literal["relevance", "year_desc", "year_asc"]
+
 
 class LiteratureItem(BaseModel):
     id: str
@@ -30,7 +33,12 @@ class LiteratureItem(BaseModel):
 
 class LiteratureSearchResponse(BaseModel):
     query: str
+    source: LiteratureSource
+    page: int
+    page_size: int
     total: int
+    total_pages: int
+    sort: LiteratureSearchSort
     items: list[LiteratureItem]
 
 

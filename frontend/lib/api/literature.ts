@@ -17,11 +17,17 @@ export type LiteratureItem = {
 };
 
 export type LiteratureSource = "all" | "cn_literature" | "pubmed";
+export type LiteratureSearchSort = "relevance" | "year_desc" | "year_asc";
 export type PdfParseStatus = "pending" | "parsed" | "failed";
 
 export type LiteratureSearchResponse = {
   query: string;
+  source: LiteratureSource;
+  page: number;
+  page_size: number;
   total: number;
+  total_pages: number;
+  sort: LiteratureSearchSort;
   items: LiteratureItem[];
 };
 
@@ -66,11 +72,39 @@ export function getParseAttemptLabel(count: LiteratureItem["parse_attempt_count"
   return `尝试 ${count} 次`;
 }
 
-export function buildLiteratureSearchUrl(query: string, source: LiteratureSource = "all") {
+export function getPdfParseStatusLabel(status: LiteratureItem["pdf_parse_status"]) {
+  if (status === "pending") {
+    return "PDF 待解析";
+  }
+  if (status === "parsed") {
+    return "PDF 已解析";
+  }
+  if (status === "failed") {
+    return "PDF 解析失败";
+  }
+  return null;
+}
+
+export function buildLiteratureSearchUrl(
+  query: string,
+  source: LiteratureSource = "all",
+  page = 1,
+  pageSize = 10,
+  sort: LiteratureSearchSort = "relevance",
+) {
   const url = new URL("/api/literature/search", getBackendBaseUrl());
   url.searchParams.set("q", query.trim());
   if (source !== "all") {
     url.searchParams.set("source", source);
+  }
+  if (page !== 1) {
+    url.searchParams.set("page", String(page));
+  }
+  if (pageSize !== 10) {
+    url.searchParams.set("page_size", String(pageSize));
+  }
+  if (sort !== "relevance") {
+    url.searchParams.set("sort", sort);
   }
   return url.toString();
 }
@@ -82,6 +116,11 @@ export function buildLiteratureDetailUrl(itemId: string) {
 
 export function buildPdfUploadUrl() {
   return new URL("/api/uploads/pdf", getBackendBaseUrl()).toString();
+}
+
+export function buildPdfDownloadUrl(pdfUploadId: string) {
+  const encodedPdfUploadId = encodeURIComponent(pdfUploadId);
+  return new URL(`/api/uploads/pdf/${encodedPdfUploadId}`, getBackendBaseUrl()).toString();
 }
 
 export function buildPdfParseStatusRequest(literatureId: string, status: Exclude<PdfParseStatus, "pending">) {
@@ -101,8 +140,11 @@ export function buildFakePdfAutoParseRequest(literatureId: string, fileName: str
 export async function searchLiterature(
   query: string,
   source: LiteratureSource = "all",
+  page = 1,
+  pageSize = 10,
+  sort: LiteratureSearchSort = "relevance",
 ): Promise<LiteratureSearchResponse> {
-  const response = await fetch(buildLiteratureSearchUrl(query, source));
+  const response = await fetch(buildLiteratureSearchUrl(query, source, page, pageSize, sort));
 
   if (!response.ok) {
     throw new Error("Literature search failed");

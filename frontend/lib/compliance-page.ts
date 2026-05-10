@@ -44,5 +44,6 @@ export function getComplianceNavigationLinks() {
     { href: "/", label: "返回首页" },
     { href: "/literature", label: "查看文献检索" },
     { href: "/rag", label: "查看 RAG 问答" },
+    { href: "/evals/rag-ad", label: "运行 RAG 评估" },
   ];
 }

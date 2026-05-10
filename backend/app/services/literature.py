@@ -3,10 +3,90 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.schemas.literature import LiteratureItem, LiteratureSearchResponse
+from app.schemas.literature import LiteratureItem, LiteratureSearchResponse, LiteratureSearchSort, LiteratureSource
 
 _SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
 _REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
+DEFAULT_SEARCH_PAGE_SIZE = 10
+MAX_SEARCH_PAGE_SIZE = 50
+
+_SEARCH_ALIASES = {
+    "disease": ["特应性皮炎", "atopic dermatitis", "atopic", "dermatitis", "ad"],
+    "gut_skin_axis": ["肠", "肠道", "肠道菌群", "肠-脑-皮肤轴", "gut", "gut-skin", "microbiome", "菌群"],
+    "skin_barrier": ["屏障", "皮肤屏障", "barrier", "filaggrin", "ceramide"],
+    "immune": ["免疫", "炎症", "inflammation", "immune", "th2", "jak", "cytokine"],
+    "pruritus": ["瘙痒", "itch", "itching", "il-31", "pruritus"],
+    "formula": ["复方", "方剂", "中药", "formula", "herbal", "消风散"],
+    "network": ["网络药理学", "靶点", "通路", "network pharmacology", "target", "pathway"],
+    "pediatric": ["儿童", "pediatric", "children"],
+}
+_DISEASE_TERMS = {term.lower() for term in _SEARCH_ALIASES["disease"]}
+
+
+def _english_term_matches(text: str, term: str) -> bool:
+    return re.search(rf"\b{re.escape(term)}\b", text) is not None
+
+
+def _keyword_in_text(text: str, keyword: str) -> bool:
+    keyword = keyword.lower()
+    if re.fullmatch(r"[a-z0-9][a-z0-9\-]*", keyword):
+        return _english_term_matches(text, keyword)
+    return keyword in text
+
+
+def tokenize_search_query(query: str) -> list[str]:
+    normalized = query.lower().strip()
+    terms = set(re.findall(r"[a-z0-9][a-z0-9\-]*", normalized))
+    terms.update(re.findall(r"[\u4e00-\u9fff]+", normalized))
+
+    for alias_terms in _SEARCH_ALIASES.values():
+        if any(_keyword_in_text(normalized, keyword) for keyword in alias_terms):
+            terms.update(alias_terms)
+
+    return sorted((term for term in terms if term), key=lambda term: (-len(term), term))
+
+
+def _is_broad_disease_query(query_terms: list[str]) -> bool:
+    return bool(query_terms) and all(term.lower() in _DISEASE_TERMS for term in query_terms)
+
+
+def _build_search_haystacks(item: LiteratureItem) -> list[tuple[str, int]]:
+    evidence_tags = " ".join(item.evidence_tags + [tag.replace("_", " ") for tag in item.evidence_tags])
+    return [
+        (item.title.lower(), 4),
+        (" ".join(item.keywords).lower(), 3),
+        (evidence_tags.lower(), 2),
+        (item.snippet.lower(), 2),
+        ((item.abstract or "").lower(), 1),
+        (" ".join(item.authors).lower(), 1),
+    ]
+
+
+def score_literature_item(item: LiteratureItem, query_terms: list[str]) -> int:
+    score = 0
+    for haystack, weight in _build_search_haystacks(item):
+        if not haystack:
+            continue
+        for term in query_terms:
+            if _keyword_in_text(haystack, term):
+                score += weight
+    return score
+
+
+def _sort_scored_items(
+    scored_items: list[tuple[int, int, int, LiteratureItem]],
+    sort: LiteratureSearchSort,
+    is_broad_disease_query: bool,
+) -> list[LiteratureItem]:
+    if sort == "year_desc":
+        scored_items.sort(key=lambda row: (row[3].year, row[0], row[1], -row[2]), reverse=True)
+    elif sort == "year_asc":
+        scored_items.sort(key=lambda row: (row[3].year, -row[0], -row[1], row[2]))
+    elif is_broad_disease_query:
+        scored_items.sort(key=lambda row: (row[1], -row[2]), reverse=True)
+    else:
+        scored_items.sort(key=lambda row: (row[1], row[0], row[3].year, -row[2]), reverse=True)
+    return [item for _, _, _, item in scored_items]
 
 
 def detect_query_language(query: str) -> str:
@@ -16,20 +96,42 @@ def detect_query_language(query: str) -> str:
     return "en"
 
 
-def search_literature(query: str, source: str = "all") -> LiteratureSearchResponse:
+def search_literature(
+    query: str,
+    source: LiteratureSource = "all",
+    page: int = 1,
+    page_size: int = DEFAULT_SEARCH_PAGE_SIZE,
+    sort: LiteratureSearchSort = "relevance",
+) -> LiteratureSearchResponse:
     normalized_query = query.strip()
     query_language = detect_query_language(normalized_query)
     preferred_source_type = "cn_literature" if query_language == "zh" else "pubmed"
-    items = sorted(
-        _REPOSITORY.list_items(),
-        key=lambda item: item.source_type != preferred_source_type,
-    )
+    query_terms = tokenize_search_query(normalized_query)
+    items = _REPOSITORY.list_items()
     if source != "all":
         items = [item for item in items if item.source_type == source]
+    scored_items = [
+        (score, 1 if item.source_type == preferred_source_type else 0, index, item)
+        for index, item in enumerate(items)
+        if (score := score_literature_item(item, query_terms)) > 0
+    ]
+    items = _sort_scored_items(scored_items, sort, _is_broad_disease_query(query_terms))
+    total = len(items)
+    normalized_page = max(page, 1)
+    normalized_page_size = min(max(page_size, 1), MAX_SEARCH_PAGE_SIZE)
+    start = (normalized_page - 1) * normalized_page_size
+    end = start + normalized_page_size
+    paged_items = items[start:end]
+    total_pages = (total + normalized_page_size - 1) // normalized_page_size if total else 0
     return LiteratureSearchResponse(
         query=normalized_query,
-        total=len(items),
-        items=items,
+        source=source,
+        page=normalized_page,
+        page_size=normalized_page_size,
+        total=total,
+        total_pages=total_pages,
+        sort=sort,
+        items=paged_items,
     )
 
 

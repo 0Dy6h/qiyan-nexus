@@ -1,10 +1,10 @@
-from typing import Literal
-
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from app.schemas.literature import (
     LiteratureItem,
+    LiteratureSearchSort,
     LiteratureSearchResponse,
+    LiteratureSource,
     PdfMetadataUploadRequest,
     PdfParseStatusUpdateRequest,
 )
@@ -16,9 +16,12 @@ router = APIRouter(prefix="/api/literature", tags=["literature"])
 @router.get("/search", response_model=LiteratureSearchResponse)
 def search_literature_endpoint(
     q: str = Query(min_length=1),
-    source: Literal["all", "cn_literature", "pubmed"] = "all",
+    source: LiteratureSource = "all",
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=50),
+    sort: LiteratureSearchSort = "relevance",
 ) -> LiteratureSearchResponse:
-    return search_literature(q, source=source)
+    return search_literature(q, source=source, page=page, page_size=page_size, sort=sort)
 
 
 @router.post("/pdf-metadata", response_model=LiteratureItem)
