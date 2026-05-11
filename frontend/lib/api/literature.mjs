@@ -88,6 +88,26 @@ export function buildFakePdfAutoParseRequest(literatureId, fileName) {
   };
 }
 
+export async function searchLiterature(query, source = "all", page = 1, pageSize = 10, sort = "relevance") {
+  const response = await fetch(buildLiteratureSearchUrl(query, source, page, pageSize, sort));
+
+  if (!response.ok) {
+    throw new Error("Literature search failed");
+  }
+
+  return response.json();
+}
+
+export async function getLiteratureDetail(itemId) {
+  const response = await fetch(buildLiteratureDetailUrl(itemId));
+
+  if (!response.ok) {
+    throw new Error("Literature detail request failed");
+  }
+
+  return response.json();
+}
+
 export async function uploadLiteraturePdf(literatureId, file) {
   const formData = new FormData();
   formData.set("literature_id", literatureId);
@@ -100,6 +120,38 @@ export async function uploadLiteraturePdf(literatureId, file) {
 
   if (!response.ok) {
     throw new Error("PDF upload failed");
+  }
+
+  return response.json();
+}
+
+export async function runFakePdfAutoParse(literatureId, fileName) {
+  const response = await fetch(new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(buildFakePdfAutoParseRequest(literatureId, fileName)),
+  });
+
+  if (!response.ok) {
+    throw new Error("Fake PDF auto parse failed");
+  }
+
+  return response.json();
+}
+
+export async function updatePdfParseStatus(literatureId, status) {
+  const response = await fetch(new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(buildPdfParseStatusRequest(literatureId, status)),
+  });
+
+  if (!response.ok) {
+    throw new Error("PDF parse status update failed");
   }
 
   return response.json();
