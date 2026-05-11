@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
 import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
 import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
+import { getSurfaceSectionStyle } from "../../../lib/ui/surfaces";
 
 type LiteratureDetailPageProps = {
   params: Promise<{
@@ -28,14 +29,13 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
             </a>
           </div>
 
-          <article
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
-              padding: 32,
-            }}
-          >
+          <article style={getSurfaceSectionStyle()}>
+            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>文献详情</h2>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+                先核对文献来源与摘要，再进入 PDF 上传、解析状态与后续人工补录流程。
+              </p>
+            </div>
             <CardMetaRow
               items={[
                 item.language === "zh" ? "中文" : "英文",

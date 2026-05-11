@@ -13,6 +13,7 @@ import {
   uploadLiteraturePdf,
 } from "../lib/api/literature";
 import { getPdfActionLabels, getPdfStatusCopy, getPdfStatusTone } from "../lib/ui/status-card";
+import { getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardMetaRow } from "./CardMeta";
 import StatusPanel from "./StatusPanel";
 
@@ -153,17 +154,14 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
   return (
     <section
       style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 16,
-        padding: 24,
+        ...getSurfaceSectionStyle(),
         display: "grid",
         gap: 16,
       }}
     >
       <div style={{ display: "grid", gap: 8 }}>
         <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>PDF 上传与解析状态</h2>
-        <p style={{ color: "#64748b", margin: 0 }}>
+        <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
           上传 PDF 后，当前文献会先写入 `pdf_upload_id` 与 `pending`，随后前端显式触发 mock 解析步骤。
         </p>
       </div>
@@ -198,70 +196,103 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
         ]}
       />
 
-      <form onSubmit={onSubmit} style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          name="file"
-          type="file"
-          accept="application/pdf,.pdf"
-          aria-label="上传 PDF"
-          style={{ color: "#334155" }}
-        />
-        <button
-          type="submit"
-          disabled={state.isLoading || state.isParsing || state.isUpdatingStatus}
-          style={{
-            border: 0,
-            borderRadius: 8,
-            background: state.isLoading || state.isParsing ? "#94a3b8" : "#0d9488",
-            color: "white",
-            fontSize: 15,
-            fontWeight: 700,
-            padding: "10px 16px",
-          }}
-        >
-          {state.isLoading ? "上传中..." : state.isParsing ? "解析中..." : "上传 PDF"}
-        </button>
-        {state.fileName ? <span style={{ color: "#64748b" }}>当前选择：{state.fileName}</span> : null}
-      </form>
+      <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label htmlFor="literature-pdf-file" style={{ color: "#334155", fontSize: 15, fontWeight: 700 }}>
+            选择 PDF 文件
+          </label>
+          <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+            建议上传当前文献对应的 PDF 原文，用于后续解析与人工校正。
+          </p>
+        </div>
+
+        <form onSubmit={onSubmit} style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            id="literature-pdf-file"
+            name="file"
+            type="file"
+            accept="application/pdf,.pdf"
+            aria-label="上传 PDF"
+            style={{ color: "#334155", maxWidth: "100%" }}
+          />
+          <button
+            type="submit"
+            disabled={state.isLoading || state.isParsing || state.isUpdatingStatus}
+            style={{
+              border: 0,
+              borderRadius: 8,
+              background: state.isLoading || state.isParsing ? "#94a3b8" : "#0d9488",
+              color: "white",
+              fontSize: 15,
+              fontWeight: 700,
+              padding: "10px 16px",
+              minHeight: 44,
+            }}
+          >
+            {state.isLoading ? "上传中..." : state.isParsing ? "解析中..." : "上传 PDF"}
+          </button>
+        </form>
+
+        {state.fileName ? <CardMetaRow items={[`当前文件 ${state.fileName}`]} /> : null}
+
+        {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
+      </div>
 
       {actionLabels.length > 0 ? (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            disabled={state.isUpdatingStatus || state.isLoading || state.isParsing}
-            onClick={() => onUpdateStatus("parsed")}
-            style={{
-              border: 0,
-              borderRadius: 8,
-              background: state.isUpdatingStatus ? "#94a3b8" : "#16a34a",
-              color: "white",
-              fontSize: 15,
-              fontWeight: 700,
-              padding: "10px 16px",
-            }}
-          >
-            {state.isUpdatingStatus ? "状态更新中..." : actionLabels[0]}
-          </button>
-          <button
-            type="button"
-            disabled={state.isUpdatingStatus || state.isLoading || state.isParsing}
-            onClick={() => onUpdateStatus("failed")}
-            style={{
-              border: 0,
-              borderRadius: 8,
-              background: state.isUpdatingStatus ? "#94a3b8" : "#dc2626",
-              color: "white",
-              fontSize: 15,
-              fontWeight: 700,
-              padding: "10px 16px",
-            }}
-          >
-            {state.isUpdatingStatus ? "状态更新中..." : actionLabels[1]}
-          </button>
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            padding: 16,
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            background: "#f8fafc",
+          }}
+        >
+          <div style={{ display: "grid", gap: 4 }}>
+            <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>人工校正</h3>
+            <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+              当自动解析结果待确认时，可人工标记当前 PDF 是否解析完成。
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={state.isUpdatingStatus || state.isLoading || state.isParsing}
+              onClick={() => onUpdateStatus("parsed")}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                background: state.isUpdatingStatus ? "#94a3b8" : "#16a34a",
+                color: "white",
+                fontSize: 15,
+                fontWeight: 700,
+                padding: "10px 16px",
+                minHeight: 44,
+              }}
+            >
+              {state.isUpdatingStatus ? "状态更新中..." : actionLabels[0]}
+            </button>
+            <button
+              type="button"
+              disabled={state.isUpdatingStatus || state.isLoading || state.isParsing}
+              onClick={() => onUpdateStatus("failed")}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                background: state.isUpdatingStatus ? "#94a3b8" : "#dc2626",
+                color: "white",
+                fontSize: 15,
+                fontWeight: 700,
+                padding: "10px 16px",
+                minHeight: 44,
+              }}
+            >
+              {state.isUpdatingStatus ? "状态更新中..." : actionLabels[1]}
+            </button>
+          </div>
         </div>
       ) : null}
-
-      {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
     </section>
   );
 }

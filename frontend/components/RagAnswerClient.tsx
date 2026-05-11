@@ -10,6 +10,7 @@ import {
   RagSource,
 } from "../lib/api/rag";
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
+import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
 import StatusPanel from "./StatusPanel";
 
@@ -28,16 +29,9 @@ function formatConfidence(value: number) {
 
 function CitationListItem({ citation }: { citation: CitationCard }) {
   return (
-    <article
-      style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 20,
-      }}
-    >
+    <article style={getSurfaceCardStyle()}>
       <CardMetaRow items={["证据来源", citation.source, `置信度 ${formatConfidence(citation.confidence)}`]} />
-      <h3 style={{ color: "#1e293b", fontSize: 20 }}>{citation.title}</h3>
+      <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
       <CardBodyText>{citation.snippet}</CardBodyText>
       <a href={`/literature/${encodeURIComponent(citation.literature_id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
         查看文献详情 →
@@ -90,135 +84,144 @@ export default function RagAnswerClient() {
   }
 
   return (
-    <>
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 16, margin: "32px 0" }}>
-        <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
-          问题
-          <textarea
-            name="question"
-            value={state.question}
-            onChange={(event) => setState((current) => ({ ...current, question: event.target.value }))}
-            aria-label="RAG 问题"
-            rows={4}
-            style={{
-              width: "100%",
-              border: "1px solid #cbd5e1",
-              borderRadius: 8,
-              fontSize: 16,
-              padding: "12px 14px",
-              resize: "vertical",
-            }}
-          />
-        </label>
+    <div style={{ display: "grid", gap: 20 }}>
+      <section style={getSurfaceSectionStyle()}>
+        <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
+          <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>问答条件</h2>
+          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+            先明确问题、来源与引用数量，再核对回答、检索元数据与引用证据。
+          </p>
+        </div>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 16 }}>
           <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
-            文献来源
-            <select
-              name="source"
-              value={state.source}
-              onChange={(event) => setState((current) => ({ ...current, source: event.target.value as RagSource }))}
-              aria-label="RAG 文献来源"
+            问题
+            <textarea
+              name="question"
+              value={state.question}
+              onChange={(event) => setState((current) => ({ ...current, question: event.target.value }))}
+              aria-label="RAG 问题"
+              rows={4}
               style={{
-                minWidth: 180,
+                width: "100%",
                 border: "1px solid #cbd5e1",
                 borderRadius: 8,
                 fontSize: 16,
                 padding: "12px 14px",
-              }}
-            >
-              <option value="all">全部文献</option>
-              <option value="cn_literature">中文文献</option>
-              <option value="pubmed">PubMed</option>
-            </select>
-          </label>
-
-          <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
-            引用数量 top_k
-            <input
-              name="top_k"
-              type="number"
-              min={1}
-              value={state.topK}
-              onChange={(event) => {
-                const nextValue = Number(event.target.value);
-                setState((current) => ({
-                  ...current,
-                  topK: Number.isFinite(nextValue) ? Math.max(1, Math.floor(nextValue)) : 1,
-                }));
-              }}
-              aria-label="引用数量"
-              style={{
-                width: 140,
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                fontSize: 16,
-                padding: "12px 14px",
+                resize: "vertical",
               }}
             />
           </label>
 
-          <button
-            type="submit"
-            disabled={state.isLoading}
-            style={{
-              border: 0,
-              borderRadius: 8,
-              background: state.isLoading ? "#94a3b8" : "#0d9488",
-              color: "white",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-            }}
-          >
-            {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
-          </button>
-        </div>
-      </form>
+          <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
+            <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
+              文献来源
+              <select
+                name="source"
+                value={state.source}
+                onChange={(event) => setState((current) => ({ ...current, source: event.target.value as RagSource }))}
+                aria-label="RAG 文献来源"
+                style={{
+                  minWidth: 180,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  fontSize: 16,
+                  padding: "12px 14px",
+                }}
+              >
+                <option value="all">全部文献</option>
+                <option value="cn_literature">中文文献</option>
+                <option value="pubmed">PubMed</option>
+              </select>
+            </label>
+
+            <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
+              引用数量 top_k
+              <input
+                name="top_k"
+                type="number"
+                min={1}
+                value={state.topK}
+                onChange={(event) => {
+                  const nextValue = Number(event.target.value);
+                  setState((current) => ({
+                    ...current,
+                    topK: Number.isFinite(nextValue) ? Math.max(1, Math.floor(nextValue)) : 1,
+                  }));
+                }}
+                aria-label="引用数量"
+                style={{
+                  width: 140,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  fontSize: 16,
+                  padding: "12px 14px",
+                }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={state.isLoading}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                background: state.isLoading ? "#94a3b8" : "#0d9488",
+                color: "white",
+                fontSize: 16,
+                fontWeight: 700,
+                padding: "12px 20px",
+                minHeight: 44,
+              }}
+            >
+              {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
+            </button>
+          </div>
+        </form>
+      </section>
 
       {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
 
       {state.result ? (
         <div style={{ display: "grid", gap: 20 }}>
-          <section
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: 24,
-            }}
-          >
-            <p style={{ color: "#64748b", marginTop: 0 }}>当前问题</p>
-            <h2 style={{ color: "#1e293b", fontSize: 28 }}>{state.result.question}</h2>
-            <p style={{ color: "#334155", fontSize: 17, lineHeight: 1.7 }}>{state.result.answer}</p>
-            <p style={{ color: "#64748b", marginBottom: 0 }}>{state.result.disclaimer}</p>
+          <section style={getSurfaceSectionStyle()}>
+            <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
+              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>回答结果</h2>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>先阅读结论，再回到下方引用卡片核对证据来源。</p>
+            </div>
+            <CardMetaRow items={[`当前来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `当前 top_k ${state.result.retrieval.applied_top_k}`]} />
+            <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
+            <CardBodyText>{state.result.answer}</CardBodyText>
+            <p style={{ color: "#64748b", marginBottom: 0, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
           </section>
 
-          <section
-            style={{
-              background: "#ecfeff",
-              border: "1px solid #99f6e4",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <h3 style={{ color: "#115e59", marginTop: 0 }}>检索元数据</h3>
-            <ul style={{ color: "#134e4a", margin: 0, paddingLeft: 20 }}>
-              <li>应用来源：{getRagSourceLabel(state.result.retrieval.applied_source)}</li>
-              <li>应用 top_k：{state.result.retrieval.applied_top_k}</li>
-              <li>当前可用引用数：{state.result.retrieval.available_citation_count}</li>
-            </ul>
+          <section style={getSurfaceSectionStyle()}>
+            <div style={{ display: "grid", gap: 4, marginBottom: 12 }}>
+              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索元数据</h2>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围与引用上限。</p>
+            </div>
+            <CardMetaRow
+              items={[
+                `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
+                `应用 top_k ${state.result.retrieval.applied_top_k}`,
+                `当前可用引用数 ${state.result.retrieval.available_citation_count}`,
+              ]}
+            />
           </section>
 
-          <section style={{ display: "grid", gap: 16 }}>
-            <div>
-              <h3 style={{ color: "#1e293b", marginBottom: 8 }}>引用卡片</h3>
-              <p style={{ color: "#64748b", marginTop: 0 }}>
+          <section style={getSurfaceSectionStyle()}>
+            <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
+              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>引用卡片</h2>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
                 当前来源过滤：{getRagSourceLabel(state.source)}；请求 top_k：{state.topK}
               </p>
             </div>
             {state.result.citations.length > 0 ? (
-              state.result.citations.map((citation) => <CitationListItem key={citation.literature_id} citation={citation} />)
+              <div style={{ display: "grid", gap: 16 }}>
+                {state.result.citations.map((citation) => (
+                  <CitationListItem key={citation.literature_id} citation={citation} />
+                ))}
+              </div>
             ) : (
               <StatusPanel message={citationEmptyCopy} />
             )}
@@ -227,6 +230,6 @@ export default function RagAnswerClient() {
       ) : state.error ? null : (
         <StatusPanel message={emptyStateCopy.idle} />
       )}
-    </>
+    </div>
   );
 }
