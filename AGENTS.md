@@ -28,6 +28,8 @@
 | 质量 | `docs/quality-score.md` | 各领域质量评分 |
 | 开发计划 | `docs/plans/2026-05-06-first-week-dev-start.md` | 第一周开发启动计划 |
 | 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留 |
+| 最近交接 | `docs/handoffs/2026-05-11-windows-codex-sync.md` | Windows Codex 进度同步回 WSL 后的当前事实源与下一步建议 |
+| 最近前端收口 | `docs/handoffs/2026-05-11-compliance-polish.md` | `/compliance` 两轮最小 UI polish、验证结果与下一步建议 |
 
 ## 已冻结的技术决策
 
