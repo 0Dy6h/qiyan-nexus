@@ -89,7 +89,7 @@ export default function RagAnswerClient() {
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
           <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>问答条件</h2>
           <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-            先明确问题、来源与引用数量，再核对回答、检索元数据与引用证据。
+            先明确问题，再限定来源与引用数量，随后核对回答、检索元数据与引用证据。
           </p>
         </div>
 
@@ -187,7 +187,9 @@ export default function RagAnswerClient() {
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>回答结果</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>先阅读结论，再回到下方引用卡片核对证据来源。</p>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+                先阅读结论，再回到下方引用卡片核对证据来源与检索边界。
+              </p>
             </div>
             <CardMetaRow items={[`当前来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `当前 top_k ${state.result.retrieval.applied_top_k}`]} />
             <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
@@ -198,7 +200,7 @@ export default function RagAnswerClient() {
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 12 }}>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索元数据</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围与引用上限。</p>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围、引用上限与可核对证据数量。</p>
             </div>
             <CardMetaRow
               items={[

@@ -29,6 +29,20 @@ type SearchState = {
   hasSearched: boolean;
 };
 
+const fieldLabelStyle = {
+  display: "grid",
+  gap: 8,
+  color: "#1e293b",
+  fontWeight: 700,
+} as const;
+
+const fieldControlStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  fontSize: 16,
+  padding: "12px 14px",
+} as const;
+
 export default function LiteratureSearchClient() {
   const [state, setState] = useState<SearchState>({
     query: "特应性皮炎",
@@ -128,85 +142,67 @@ export default function LiteratureSearchClient() {
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
           <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索条件</h2>
           <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-            先限定关键词、来源与排序方式，再进入结果核对与原文追踪。
+            先明确关键词，再限定来源、排序与每页数量，随后进入结果核对与原文追踪。
           </p>
         </div>
 
-        <form onSubmit={onSubmit} style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-          <input
-            name="q"
-            defaultValue={state.query}
-            aria-label="检索关键词"
-            style={{
-              flex: 1,
-              border: "1px solid #cbd5e1",
-              borderRadius: 8,
-              fontSize: 16,
-              minWidth: 220,
-              padding: "12px 14px",
-            }}
-          />
-          <select
-            name="source"
-            defaultValue={state.source}
-            aria-label="文献来源"
-            style={{
-              border: "1px solid #cbd5e1",
-              borderRadius: 8,
-              fontSize: 16,
-              padding: "12px 14px",
-            }}
-          >
-            <option value="all">全部</option>
-            <option value="cn_literature">中文文献</option>
-            <option value="pubmed">PubMed</option>
-          </select>
-          <select
-            name="sort"
-            defaultValue={state.sort}
-            aria-label="排序方式"
-            style={{
-              border: "1px solid #cbd5e1",
-              borderRadius: 8,
-              fontSize: 16,
-              padding: "12px 14px",
-            }}
-          >
-            <option value="relevance">相关度</option>
-            <option value="year_desc">年份降序</option>
-            <option value="year_asc">年份升序</option>
-          </select>
-          <select
-            name="page_size"
-            defaultValue={state.pageSize}
-            aria-label="每页数量"
-            style={{
-              border: "1px solid #cbd5e1",
-              borderRadius: 8,
-              fontSize: 16,
-              padding: "12px 14px",
-            }}
-          >
-            <option value="5">5 条/页</option>
-            <option value="10">10 条/页</option>
-            <option value="20">20 条/页</option>
-          </select>
-          <button
-            type="submit"
-            disabled={state.isLoading}
-            style={{
-              border: 0,
-              borderRadius: 8,
-              background: state.isLoading ? "#94a3b8" : "#0d9488",
-              color: "white",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              minHeight: 44,
-            }}
-          >
-            {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
-          </button>
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 16 }}>
+          <label style={fieldLabelStyle}>
+            检索关键词
+            <input
+              name="q"
+              defaultValue={state.query}
+              aria-label="检索关键词"
+              style={{
+                ...fieldControlStyle,
+                width: "100%",
+                minWidth: 220,
+              }}
+            />
+          </label>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
+            <label style={fieldLabelStyle}>
+              文献来源
+              <select name="source" defaultValue={state.source} aria-label="文献来源" style={{ ...fieldControlStyle, minWidth: 180 }}>
+                <option value="all">全部文献</option>
+                <option value="cn_literature">中文文献</option>
+                <option value="pubmed">PubMed</option>
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              排序方式
+              <select name="sort" defaultValue={state.sort} aria-label="排序方式" style={fieldControlStyle}>
+                <option value="relevance">相关度</option>
+                <option value="year_desc">年份降序</option>
+                <option value="year_asc">年份升序</option>
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              每页数量
+              <select name="page_size" defaultValue={state.pageSize} aria-label="每页数量" style={fieldControlStyle}>
+                <option value="5">5 条/页</option>
+                <option value="10">10 条/页</option>
+                <option value="20">20 条/页</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={state.isLoading}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                background: state.isLoading ? "#94a3b8" : "#0d9488",
+                color: "white",
+                fontSize: 16,
+                fontWeight: 700,
+                padding: "12px 20px",
+                minHeight: 44,
+              }}
+            >
+              {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
+            </button>
+          </div>
         </form>
       </section>
 
@@ -228,11 +224,11 @@ export default function LiteratureSearchClient() {
           >
             <div style={{ display: "grid", gap: 4 }}>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索结果</h2>
-              <span>
-                共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页
-              </span>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+                共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页；请优先核对来源、年份与解析状态。
+              </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 disabled={state.isLoading || state.page <= 1}
@@ -241,9 +237,11 @@ export default function LiteratureSearchClient() {
                   border: "1px solid #cbd5e1",
                   borderRadius: 8,
                   background: "white",
-                  color: "#0f172a",
-                  padding: "8px 12px",
-                  minHeight: 40,
+                  color: "#334155",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: "10px 14px",
+                  minHeight: 44,
                 }}
               >
                 上一页
@@ -253,12 +251,14 @@ export default function LiteratureSearchClient() {
                 disabled={state.isLoading || state.page >= state.totalPages}
                 onClick={() => runSearch(state.query, state.source, state.page + 1, state.pageSize, state.sort)}
                 style={{
-                  border: "1px solid #cbd5e1",
+                  border: 0,
                   borderRadius: 8,
-                  background: "white",
-                  color: "#0f172a",
-                  padding: "8px 12px",
-                  minHeight: 40,
+                  background: state.isLoading || state.page >= state.totalPages ? "#94a3b8" : "#0d9488",
+                  color: "white",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "10px 14px",
+                  minHeight: 44,
                 }}
               >
                 下一页
@@ -290,7 +290,7 @@ export default function LiteratureSearchClient() {
       ) : null}
 
       {state.items.length > 0 || state.isLoading || state.error ? null : (
-        <StatusPanel message={state.hasSearched ? "未检索到匹配文献，请调整关键词或来源。" : emptyStateCopy.idle} />
+        <StatusPanel message={state.hasSearched ? "未检索到匹配文献，请调整关键词、来源或排序后重试。" : emptyStateCopy.idle} />
       )}
     </div>
   );
