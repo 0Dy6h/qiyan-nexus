@@ -29,11 +29,15 @@ test("literature and rag client forms share labeled hierarchy and primary action
   assert.match(literatureSource, /background: state\.isLoading \|\| state\.page >= state\.totalPages \? "#94a3b8" : "#0d9488"/);
 });
 
-test("literature and rag client result sections include supporting copy for review guidance", () => {
-  const literatureSource = getSource("components/LiteratureSearchClient.tsx");
+test("literature detail and rag evidence sections share review-first supporting copy", () => {
+  const literatureDetailSource = getSource("app/literature/[id]/page.tsx");
+  const literaturePdfSource = getSource("components/LiteraturePdfUploadClient.tsx");
   const ragSource = getSource("components/RagAnswerClient.tsx");
 
-  assert.match(literatureSource, /请优先核对来源、年份与解析状态/);
+  assert.match(literatureDetailSource, /先核对文献来源、摘要与年份，再进入 PDF 上传、解析状态与后续人工校正流程/);
+  assert.match(literaturePdfSource, /先确认当前 PDF 与解析状态，再决定是继续自动解析、预览原文，还是进入人工校正/);
+  assert.match(literaturePdfSource, /用于后续证据核对、解析与人工校正/);
+  assert.match(literaturePdfSource, /可回到原文预览与状态面板，再人工标记当前 PDF 是否解析完成/);
   assert.match(ragSource, /核对证据来源与检索边界/);
   assert.match(ragSource, /可核对证据数量/);
 });

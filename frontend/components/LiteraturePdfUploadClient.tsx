@@ -162,7 +162,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
       <div style={{ display: "grid", gap: 8 }}>
         <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>PDF 上传与解析状态</h2>
         <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-          上传 PDF 后，当前文献会先写入 `pdf_upload_id` 与 `pending`，随后前端显式触发 mock 解析步骤。
+          先确认当前 PDF 与解析状态，再决定是继续自动解析、预览原文，还是进入人工校正。
         </p>
       </div>
 
@@ -202,7 +202,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             选择 PDF 文件
           </label>
           <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-            建议上传当前文献对应的 PDF 原文，用于后续解析与人工校正。
+            建议上传当前文献对应的 PDF 原文，用于后续证据核对、解析与人工校正。
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           <div style={{ display: "grid", gap: 4 }}>
             <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>人工校正</h3>
             <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-              当自动解析结果待确认时，可人工标记当前 PDF 是否解析完成。
+              当自动解析结果待确认时，可回到原文预览与状态面板，再人工标记当前 PDF 是否解析完成。
             </p>
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

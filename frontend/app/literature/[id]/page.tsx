@@ -33,7 +33,7 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
             <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>文献详情</h2>
               <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-                先核对文献来源与摘要，再进入 PDF 上传、解析状态与后续人工补录流程。
+                先核对文献来源、摘要与年份，再进入 PDF 上传、解析状态与后续人工校正流程。
               </p>
             </div>
             <CardMetaRow
@@ -53,7 +53,22 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
 
           <LiteraturePdfUploadClient item={item} />
 
-          <p style={{ color: "#64748b", margin: 0 }}>非诊断结论、需结合临床。</p>
+          <section
+            aria-label="使用提醒"
+            style={{
+              ...getSurfaceSectionStyle(),
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              padding: 20,
+            }}
+          >
+            <div style={{ display: "grid", gap: 6 }}>
+              <p style={{ color: "#334155", fontSize: 14, fontWeight: 700, margin: 0 }}>使用提醒</p>
+              <p style={{ color: "#64748b", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+                本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
+              </p>
+            </div>
+          </section>
         </section>
       </main>
     );
