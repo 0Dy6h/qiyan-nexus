@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
 import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
 import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
+import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../../lib/ui/surfaces";
 
 type LiteratureDetailPageProps = {
@@ -16,21 +17,43 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
 
   try {
     const item = await getLiteratureDetail(id);
+    const navigationLinks = getComplianceNavigationLinks();
 
     return (
-      <main style={{ minHeight: "100vh", background: "#f8fafc", padding: 48 }}>
+      <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "clamp(20px, 4vw, 48px)" }}>
         <section style={{ maxWidth: 960, margin: "0 auto", display: "grid", gap: 20 }}>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <a href="/rag" style={{ color: "#0d9488", fontWeight: 700 }}>
-              ← 返回 RAG 问答
-            </a>
-            <a href="/literature" style={{ color: "#0d9488", fontWeight: 700 }}>
-              返回文献检索
-            </a>
-          </div>
+          <nav aria-label="工作台导航" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {navigationLinks.map((link) => {
+              const isCurrent = link.href === "/literature";
+
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  aria-current={isCurrent ? "page" : undefined}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: 999,
+                    background: isCurrent ? "#ecfeff" : "transparent",
+                    border: `1px solid ${isCurrent ? "#99f6e4" : "#cbd5e1"}`,
+                    color: isCurrent ? "#115e59" : "#475569",
+                    fontSize: 14,
+                    fontWeight: isCurrent ? 700 : 600,
+                    padding: "10px 14px",
+                    textDecoration: "none",
+                    minHeight: 44,
+                  }}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+          </nav>
 
           <article style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+              <p style={{ color: "#0d9488", fontWeight: 700, margin: 0 }}>Evidence workbench</p>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>文献详情</h2>
               <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
                 先核对文献来源、摘要与年份，再进入 PDF 上传、解析状态与后续人工校正流程。
@@ -38,10 +61,10 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
             </div>
             <CardMetaRow
               items={[
-                item.language === "zh" ? "中文" : "英文",
-                getLiteratureSourceLabel(item.source_type),
-                item.source,
-                String(item.year),
+                `语言 ${item.language === "zh" ? "中文" : "英文"}`,
+                `来源 ${getLiteratureSourceLabel(item.source_type)}`,
+                `期刊 ${item.source}`,
+                `年份 ${String(item.year)}`,
                 `文献 ID ${item.id}`,
               ]}
             />

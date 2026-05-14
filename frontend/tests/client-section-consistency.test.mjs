@@ -41,3 +41,21 @@ test("literature detail and rag evidence sections share review-first supporting 
   assert.match(ragSource, /核对证据来源与检索边界/);
   assert.match(ragSource, /可核对证据数量/);
 });
+
+test("literature result cards use explicit labeled metadata copy", () => {
+  const literatureSource = getSource("components/LiteratureSearchClient.tsx");
+
+  assert.match(literatureSource, /语言 \$\{item\.language === "zh" \? "中文" : "英文"\}/);
+  assert.match(literatureSource, /来源 \$\{getLiteratureSourceLabel\(item\.source_type\)\}/);
+  assert.match(literatureSource, /期刊 \$\{item\.source\}/);
+  assert.match(literatureSource, /年份 \$\{String\(item\.year\)\}/);
+  assert.match(literatureSource, /解析状态 \$\{getPdfParseStatusLabel\(item\.pdf_parse_status \?\? null\)\}/);
+});
+
+test("rag citation cards use explicit labeled metadata copy", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /来源 \$\{citation\.source\}/);
+  assert.match(ragSource, /置信度 \$\{formatConfidence\(citation\.confidence\)\}/);
+  assert.doesNotMatch(ragSource, /\["证据来源", citation\.source/);
+});

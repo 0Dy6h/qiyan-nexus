@@ -30,6 +30,7 @@
 | 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留 |
 | 最近交接 | `docs/handoffs/2026-05-11-windows-codex-sync.md` | Windows Codex 进度同步回 WSL 后的当前事实源与下一步建议 |
 | 最近前端收口 | `docs/handoffs/2026-05-11-compliance-polish.md` | `/compliance` 两轮最小 UI polish、验证结果与下一步建议 |
+| 最新前端交接 | `docs/handoffs/2026-05-14-frontend-workbench-polish.md` | `/literature`、`/rag`、detail 与 PDF upload metadata 的 workbench polish 收口，以及电脑端接手顺序 |
 
 ## 已冻结的技术决策
 

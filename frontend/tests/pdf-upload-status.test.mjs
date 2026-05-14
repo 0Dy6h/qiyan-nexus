@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { getPdfActionLabels, getPdfStatusCopy, getPdfStatusTone } from "../lib/ui/status-card.mjs";
+
+const testFilePath = fileURLToPath(import.meta.url);
+
+function getSource(relativePath) {
+  return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
+}
 
 test("pending pdf parse status maps to warning tone", () => {
   assert.equal(getPdfStatusTone("pending"), "warning");
@@ -29,4 +38,13 @@ test("parsed status copy prefers parser message over default label", () => {
 
 test("parsing state copy takes precedence over parser message", () => {
   assert.equal(getPdfStatusCopy("pending", true, "Mock parser completed successfully"), "解析中...");
+});
+
+test("pdf upload metadata uses explicit labeled review-first copy", () => {
+  const source = getSource("components/LiteraturePdfUploadClient.tsx");
+
+  assert.match(source, /上传 ID/);
+  assert.match(source, /当前文件/);
+  assert.match(source, /存储路径/);
+  assert.doesNotMatch(source, /Upload ID/);
 });

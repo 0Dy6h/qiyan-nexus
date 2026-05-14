@@ -271,11 +271,11 @@ export default function LiteratureSearchClient() {
               <article key={item.id} style={getSurfaceCardStyle()}>
                 <CardMetaRow
                   items={[
-                    item.language === "zh" ? "中文" : "英文",
-                    getLiteratureSourceLabel(item.source_type),
-                    item.source,
-                    String(item.year),
-                    getPdfParseStatusLabel(item.pdf_parse_status ?? null),
+                    `语言 ${item.language === "zh" ? "中文" : "英文"}`,
+                    `来源 ${getLiteratureSourceLabel(item.source_type)}`,
+                    `期刊 ${item.source}`,
+                    `年份 ${String(item.year)}`,
+                    `解析状态 ${getPdfParseStatusLabel(item.pdf_parse_status ?? null)}`,
                   ]}
                 />
                 <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{item.title}</h3>

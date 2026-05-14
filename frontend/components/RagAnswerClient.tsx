@@ -30,7 +30,7 @@ function formatConfidence(value: number) {
 function CitationListItem({ citation }: { citation: CitationCard }) {
   return (
     <article style={getSurfaceCardStyle()}>
-      <CardMetaRow items={["证据来源", citation.source, `置信度 ${formatConfidence(citation.confidence)}`]} />
+      <CardMetaRow items={[`来源 ${citation.source}`, `置信度 ${formatConfidence(citation.confidence)}`]} />
       <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
       <CardBodyText>{citation.snippet}</CardBodyText>
       <a href={`/literature/${encodeURIComponent(citation.literature_id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>

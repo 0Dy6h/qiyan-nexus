@@ -170,9 +170,9 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
 
       <CardMetaRow
         items={[
-          currentUploadId ? `Upload ID ${currentUploadId}` : null,
-          currentFileName ? `文件 ${currentFileName}` : null,
-          currentStoragePath ? `存储 ${currentStoragePath}` : null,
+          currentUploadId ? `上传 ID ${currentUploadId}` : null,
+          currentFileName ? `当前文件 ${currentFileName}` : null,
+          currentStoragePath ? `存储路径 ${currentStoragePath}` : null,
         ]}
       />
 
