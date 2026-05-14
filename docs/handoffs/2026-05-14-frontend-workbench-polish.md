@@ -32,7 +32,7 @@
 - `frontend/tests/literature-detail-meta.test.mjs`
 - `frontend/tests/page-shell-consistency.test.mjs`
 - `frontend/tests/pdf-upload-status.test.mjs`
-- `~/.hermes/wiki/notes/2026-05-14-Qiyan Nexus-frontend-workbench-ux-and-evidence-copy-handoff.md`
+- `~/.hermes/wiki/notes/2026-05-14-Qiyan Nexus-frontend-workbench-polish-computer-handoff.md`
 
 ## Verification
 - `git diff` / targeted source review — completed
@@ -48,7 +48,7 @@
 1. `AGENTS.md`
 2. `docs/handoffs/2026-05-14-frontend-workbench-polish.md`
 3. `~/.hermes/wiki/projects/Qiyan Nexus.md`
-4. `~/.hermes/wiki/notes/2026-05-14-Qiyan Nexus-frontend-workbench-ux-and-evidence-copy-handoff.md`
+4. `~/.hermes/wiki/notes/2026-05-14-Qiyan Nexus-frontend-workbench-polish-computer-handoff.md`
 5. 上述 4 个 frontend 代码文件与 4 个测试文件
 
 ## Recommended skill / toolset
