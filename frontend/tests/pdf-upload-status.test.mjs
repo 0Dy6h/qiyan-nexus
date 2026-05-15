@@ -46,5 +46,13 @@ test("pdf upload metadata uses explicit labeled review-first copy", () => {
   assert.match(source, /上传 ID/);
   assert.match(source, /当前文件/);
   assert.match(source, /存储路径/);
+  assert.match(source, /触发方式/);
+  assert.match(source, /解析次数/);
+  assert.match(source, /开始时间/);
+  assert.match(source, /完成时间/);
+  assert.doesNotMatch(source, /触发 \${currentParseTrigger}/);
+  assert.doesNotMatch(source, /开始 \${formatTimestamp\(currentParseStartedAt\)}/);
+  assert.doesNotMatch(source, /结束 \${formatTimestamp\(currentParseFinishedAt\)}/);
+  assert.doesNotMatch(source, /state\.fileName \? <CardMetaRow items=\{\[`当前文件 \$\{state\.fileName\}`\]\} \/> : null/);
   assert.doesNotMatch(source, /Upload ID/);
 });

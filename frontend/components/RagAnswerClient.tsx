@@ -191,7 +191,7 @@ export default function RagAnswerClient() {
                 先阅读结论，再回到下方引用卡片核对证据来源与检索边界。
               </p>
             </div>
-            <CardMetaRow items={[`当前来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `当前 top_k ${state.result.retrieval.applied_top_k}`]} />
+            <CardMetaRow items={[`应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `应用 top_k ${state.result.retrieval.applied_top_k}`]} />
             <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
             <CardBodyText>{state.result.answer}</CardBodyText>
             <p style={{ color: "#64748b", marginBottom: 0, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
@@ -206,7 +206,7 @@ export default function RagAnswerClient() {
               items={[
                 `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
                 `应用 top_k ${state.result.retrieval.applied_top_k}`,
-                `当前可用引用数 ${state.result.retrieval.available_citation_count}`,
+                `可用引用数 ${state.result.retrieval.available_citation_count}`,
               ]}
             />
           </section>
@@ -215,7 +215,8 @@ export default function RagAnswerClient() {
             <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
               <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>引用卡片</h2>
               <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-                当前来源过滤：{getRagSourceLabel(state.source)}；请求 top_k：{state.topK}
+                应用来源：{getRagSourceLabel(state.result.retrieval.applied_source)}；应用 top_k：
+                {state.result.retrieval.applied_top_k}
               </p>
             </div>
             {state.result.citations.length > 0 ? (

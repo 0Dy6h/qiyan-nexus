@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useState } from "react";
 
 import {
   buildPdfDownloadUrl,
-  getParseAttemptLabel,
   getParseTriggerLabel,
   LiteratureItem,
   PdfUploadResponse,
@@ -57,7 +56,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
   const currentParseStartedAt = state.currentItem.pdf_parse_started_at ?? null;
   const currentParseFinishedAt = state.currentItem.pdf_parse_finished_at ?? null;
   const currentParseTrigger = getParseTriggerLabel(state.currentItem.last_parse_trigger ?? null);
-  const currentParseAttempt = getParseAttemptLabel(state.currentItem.parse_attempt_count ?? null);
+  const currentParseAttemptCount = state.currentItem.parse_attempt_count ?? null;
   const currentPdfDownloadUrl = currentUploadId ? buildPdfDownloadUrl(currentUploadId) : null;
   const statusTone = useMemo(() => getPdfStatusTone(currentStatus), [currentStatus]);
   const actionLabels = useMemo(() => getPdfActionLabels(currentStatus), [currentStatus]);
@@ -189,10 +188,10 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
 
       <CardMetaRow
         items={[
-          currentParseTrigger ? `触发 ${currentParseTrigger}` : null,
-          currentParseAttempt ? currentParseAttempt : null,
-          currentParseStartedAt ? `开始 ${formatTimestamp(currentParseStartedAt)}` : null,
-          currentParseFinishedAt ? `结束 ${formatTimestamp(currentParseFinishedAt)}` : null,
+          currentParseTrigger ? `触发方式 ${currentParseTrigger}` : null,
+          currentParseAttemptCount !== null ? `解析次数 ${currentParseAttemptCount} 次` : null,
+          currentParseStartedAt ? `开始时间 ${formatTimestamp(currentParseStartedAt)}` : null,
+          currentParseFinishedAt ? `完成时间 ${formatTimestamp(currentParseFinishedAt)}` : null,
         ]}
       />
 
@@ -232,9 +231,6 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             {state.isLoading ? "上传中..." : state.isParsing ? "解析中..." : "上传 PDF"}
           </button>
         </form>
-
-        {state.fileName ? <CardMetaRow items={[`当前文件 ${state.fileName}`]} /> : null}
-
         {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
       </div>
 

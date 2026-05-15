@@ -59,3 +59,25 @@ test("rag citation cards use explicit labeled metadata copy", () => {
   assert.match(ragSource, /置信度 \$\{formatConfidence\(citation\.confidence\)\}/);
   assert.doesNotMatch(ragSource, /\["证据来源", citation\.source/);
 });
+
+test("rag answer and retrieval metadata sections use unified applied retrieval labels", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /`应用来源 \$\{getRagSourceLabel\(state\.result\.retrieval\.applied_source\)\}`/);
+  assert.match(ragSource, /`应用 top_k \$\{state\.result\.retrieval\.applied_top_k\}`/);
+  assert.match(ragSource, /`可用引用数 \$\{state\.result\.retrieval\.available_citation_count\}`/);
+  assert.doesNotMatch(ragSource, /`当前可用引用数 \$\{state\.result\.retrieval\.available_citation_count\}`/);
+  assert.doesNotMatch(ragSource, /`当前来源 \$\{getRagSourceLabel\(state\.result\.retrieval\.applied_source\)\}`/);
+  assert.doesNotMatch(ragSource, /`当前 top_k \$\{state\.result\.retrieval\.applied_top_k\}`/);
+});
+
+test("rag citation section mirrors applied retrieval boundaries instead of request inputs", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /应用来源：\{getRagSourceLabel\(state\.result\.retrieval\.applied_source\)\}/);
+  assert.match(ragSource, /应用 top_k：[\s\S]*\{state\.result\.retrieval\.applied_top_k\}/);
+  assert.doesNotMatch(ragSource, /当前应用来源过滤：\{getRagSourceLabel\(state\.result\.retrieval\.applied_source\)\}/);
+  assert.doesNotMatch(ragSource, /当前应用 top_k：[\s\S]*\{state\.result\.retrieval\.applied_top_k\}/);
+  assert.doesNotMatch(ragSource, /当前来源过滤：\{getRagSourceLabel\(state\.source\)\}/);
+  assert.doesNotMatch(ragSource, /请求 top_k：\{state\.topK\}/);
+});
