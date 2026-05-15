@@ -41,6 +41,7 @@ def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
         "pdf_parse_finished_at": None,
         "last_parse_trigger": None,
         "parse_attempt_count": None,
+        "pdf_parse_result": None,
     }
 
 

@@ -58,6 +58,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
   const currentParseTrigger = getParseTriggerLabel(state.currentItem.last_parse_trigger ?? null);
   const currentParseAttemptCount = state.currentItem.parse_attempt_count ?? null;
   const currentPdfDownloadUrl = currentUploadId ? buildPdfDownloadUrl(currentUploadId) : null;
+  const currentParseResult = state.currentItem.pdf_parse_result ?? null;
   const statusTone = useMemo(() => getPdfStatusTone(currentStatus), [currentStatus]);
   const actionLabels = useMemo(() => getPdfActionLabels(currentStatus), [currentStatus]);
   const statusCopy = useMemo(
@@ -194,6 +195,35 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           currentParseFinishedAt ? `完成时间 ${formatTimestamp(currentParseFinishedAt)}` : null,
         ]}
       />
+
+      {currentParseResult ? (
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            padding: 16,
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            background: "#f8fafc",
+          }}
+        >
+          <div style={{ display: "grid", gap: 4 }}>
+            <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>解析结果预览</h3>
+            <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+              文件级解析结果预览。当前仅展示文件级信息与预览提示，正文抽取与 OCR 能力将在后续接入。
+            </p>
+          </div>
+          <CardMetaRow
+            items={[
+              `解析方式 ${currentParseResult.extraction_method}`,
+              `文件大小 ${currentParseResult.file_size} 字节`,
+            ]}
+          />
+          <p style={{ color: "#334155", margin: 0, fontSize: 14, lineHeight: 1.7 }}>
+            {`预览说明 ${currentParseResult.preview_text}`}
+          </p>
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "grid", gap: 6 }}>

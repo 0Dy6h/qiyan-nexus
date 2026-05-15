@@ -15,6 +15,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Backend runtime uploads
+backend/uploads/
+
 # Environment / secrets
 .env
 .env.*
