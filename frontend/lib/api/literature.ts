@@ -12,6 +12,13 @@ export type LiteratureItem = {
   pdf_parse_message?: string | null;
   pdf_parse_started_at?: string | null;
   pdf_parse_finished_at?: string | null;
+  pdf_parse_result?: {
+    file_name: string;
+    storage_path: string;
+    file_size: number;
+    preview_text: string;
+    extraction_method: string;
+  } | null;
   last_parse_trigger?: "auto" | "manual" | null;
   parse_attempt_count?: number | null;
 };

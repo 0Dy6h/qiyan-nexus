@@ -3,7 +3,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.schemas.literature import LiteratureItem, LiteratureSearchResponse, LiteratureSearchSort, LiteratureSource
+from app.schemas.literature import PdfParseResult, LiteratureItem, LiteratureSearchResponse, LiteratureSearchSort, LiteratureSource
+from app.services.pdf_storage import resolve_stored_pdf_path
 
 _SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
 _REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
@@ -161,6 +162,21 @@ def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
     return "Mock parser completed successfully", started_at, finished_at
 
 
+def build_pdf_parse_result(item: LiteratureItem) -> PdfParseResult | None:
+    if item.pdf_parse_status != "parsed" or not item.pdf_upload_id or not item.pdf_file_name:
+        return None
+    storage_path = resolve_stored_pdf_path(item.pdf_upload_id)
+    if storage_path is None:
+        return None
+    return PdfParseResult(
+        file_name=item.pdf_file_name,
+        storage_path=str(storage_path),
+        file_size=storage_path.stat().st_size,
+        preview_text="已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。",
+        extraction_method="file-metadata-placeholder",
+    )
+
+
 def update_pdf_parse_status(
     literature_id: str,
     pdf_parse_status: str,
@@ -172,11 +188,18 @@ def update_pdf_parse_status(
     if not item.pdf_upload_id or not item.pdf_file_name:
         return "missing_metadata", None
     pdf_parse_message, pdf_parse_started_at, pdf_parse_finished_at = build_parse_metadata(pdf_parse_status)
+    next_item = LiteratureItem(
+        **{
+            **item.dict(),
+            "pdf_parse_status": pdf_parse_status,
+        }
+    )
     return "ok", _REPOSITORY.update_pdf_parse_status(
         literature_id,
         pdf_parse_status,
         pdf_parse_message=pdf_parse_message,
         pdf_parse_started_at=pdf_parse_started_at,
         pdf_parse_finished_at=pdf_parse_finished_at,
+        pdf_parse_result=build_pdf_parse_result(next_item),
         last_parse_trigger=trigger,
     )

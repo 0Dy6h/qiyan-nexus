@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from app.schemas.literature import LiteratureItem
+from app.schemas.literature import LiteratureItem, PdfParseResult
 
 
 class InMemoryLiteratureRepository:
@@ -34,6 +34,7 @@ class InMemoryLiteratureRepository:
                 item["pdf_parse_message"] = None
                 item["pdf_parse_started_at"] = None
                 item["pdf_parse_finished_at"] = None
+                item["pdf_parse_result"] = None
                 item["last_parse_trigger"] = None
                 item["parse_attempt_count"] = 0
                 self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -47,6 +48,7 @@ class InMemoryLiteratureRepository:
         pdf_parse_message: str | None = None,
         pdf_parse_started_at: str | None = None,
         pdf_parse_finished_at: str | None = None,
+        pdf_parse_result: PdfParseResult | None = None,
         last_parse_trigger: str | None = None,
     ) -> LiteratureItem | None:
         raw_items = json.loads(self.data_path.read_text(encoding="utf-8"))
@@ -58,6 +60,7 @@ class InMemoryLiteratureRepository:
                 item["pdf_parse_message"] = pdf_parse_message
                 item["pdf_parse_started_at"] = pdf_parse_started_at
                 item["pdf_parse_finished_at"] = pdf_parse_finished_at
+                item["pdf_parse_result"] = pdf_parse_result.dict() if pdf_parse_result is not None else None
                 item["last_parse_trigger"] = last_parse_trigger
                 item["parse_attempt_count"] = int(item.get("parse_attempt_count") or 0) + 1
                 self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
