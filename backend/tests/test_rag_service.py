@@ -74,6 +74,55 @@ def test_answer_question_falls_back_when_no_positive_match_exists():
     )
 
 
+def test_build_answer_translates_evidence_tags_to_cn_topics():
+    from app.schemas.rag import CitationCard
+    from app.services.rag import build_answer
+
+    citations = [
+        CitationCard(
+            literature_id="pmid-40100001",
+            title="Atopic dermatitis, skin barrier dysfunction, and immune pathways",
+            source="PubMed curated AD sample",
+            snippet="Reviewing barrier disruption and Th2 skewing.",
+            reason="skin_barrier, immune_pathway",
+            confidence=0.74,
+        ),
+        CitationCard(
+            literature_id="cn-ad-guideline-004",
+            title="特应性皮炎中西医结合诊疗专家共识中的证据要点",
+            source="CNKI curated AD sample",
+            snippet="提炼共识中关于分型辨证、屏障修复与长期管理的关键证据。",
+            reason="guideline, clinical_management",
+            confidence=0.86,
+        ),
+        CitationCard(
+            literature_id="pmid-40100009",
+            title="Skin microbiome dysbiosis and Staphylococcus aureus dominance",
+            source="PubMed curated AD sample",
+            snippet="Microbial imbalance correlates with flares.",
+            reason="microbiome, flare",
+            confidence=0.74,
+        ),
+    ]
+
+    answer = build_answer(citations)
+
+    assert "屏障" in answer
+    assert "细胞因子" in answer
+    assert "皮肤微生物" in answer
+    assert "屏障维护" in answer
+    assert "引用来源" in answer
+    assert "deterministic retrieval" in answer
+
+
+def test_build_answer_keeps_fallback_when_no_citations():
+    from app.services.rag import build_answer
+
+    answer = build_answer([])
+
+    assert "没有检索到足够匹配的证据片段" in answer
+
+
 def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path):
     from app.services import rag as rag_service
 
