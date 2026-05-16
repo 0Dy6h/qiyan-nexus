@@ -123,6 +123,17 @@ def test_build_answer_keeps_fallback_when_no_citations():
     assert "没有检索到足够匹配的证据片段" in answer
 
 
+def test_answer_question_reserves_cross_language_chunk_slot_when_top_k_at_least_3():
+    response = answer_question("特应性皮炎瘙痒的神经免疫机制有哪些关键点？", source="all", top_k=3)
+
+    literature_ids = [c.literature_id for c in response.citations]
+    chunk_ids = [c.chunk_id for c in response.citations if c.chunk_id]
+
+    assert len(response.citations) == 3
+    assert "pmid-40100003" in literature_ids
+    assert "chunk-pmid-40100003-itch" in chunk_ids
+
+
 def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path):
     from app.services import rag as rag_service
 

@@ -80,8 +80,8 @@ def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks():
 def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
     report = run_rag_ad_eval_report()
 
-    assert report["summary"]["passed_questions"] >= 19, (
-        "RAG eval baseline must hold at >=19/20 — see docs/plans/2026-05-10-rag-eval-slice.md."
+    assert report["summary"]["passed_questions"] == 20, (
+        "RAG eval baseline must hold at 20/20 — see docs/plans/2026-05-10-rag-eval-slice.md."
         f" Current failing items: "
         f"{[item['id'] for item in report['items'] if not item['passed']]}"
     )

@@ -167,6 +167,23 @@ def answer_question(
     if not selected:
         selected = ranked_items[:top_k]
 
+    if (
+        top_k >= 3
+        and source == "all"
+        and len(selected) == top_k
+        and all(row[1] == 1 for row in selected)
+    ):
+        cross_chunk = next(
+            (
+                row
+                for row in ranked_items
+                if row[0] > 0 and row[1] == 0 and row[3] is not None and row not in selected
+            ),
+            None,
+        )
+        if cross_chunk is not None:
+            selected = selected[:-1] + [cross_chunk]
+
     citations = []
     for _, _, item, chunk in selected:
         chunk_tags = chunk.evidence_tags if chunk and chunk.evidence_tags else []
