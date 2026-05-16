@@ -88,3 +88,14 @@ def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
     assert report["summary"]["citation_hit_count"] == 20
     assert report["summary"]["disclaimer_coverage_count"] == 20
     assert report["summary"]["must_not_violation_count"] == 0
+
+
+def test_run_rag_ad_eval_report_chunk_hit_count_meets_target():
+    report = run_rag_ad_eval_report()
+
+    assert report["summary"]["chunk_hit_count"] >= 16, (
+        "chunk_hit_count must stay >= 16 after the chunk dataset expansion."
+        f" Current value: {report['summary']['chunk_hit_count']}."
+        " Questions without chunk_hit but with expected_chunk_ids: "
+        f"{[item['id'] for item in report['items'] if item['expected_chunk_ids'] and not item['expected_chunk_hits']]}"
+    )

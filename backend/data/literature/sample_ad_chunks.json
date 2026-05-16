@@ -27,6 +27,24 @@
     "related_entity_ids": ["disease:atopic-dermatitis", "pathway:gut-skin-axis"]
   },
   {
+    "chunk_id": "chunk-cn-ad-guideline-004-management",
+    "literature_id": "cn-ad-guideline-004",
+    "section": "consensus",
+    "text": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "source_quote": "皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点",
+    "evidence_tags": ["guideline", "clinical_management", "tcm_syndrome"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "guideline:ad-tcm-western"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-external-008-external-therapy",
+    "literature_id": "cn-ad-external-008",
+    "section": "summary",
+    "text": "总结药浴、湿敷、软膏与中医外治法在缓解瘙痒、控制渗出和促进皮损修复中的临床证据，并强调与辨证内治相互配合的应用场景。",
+    "source_quote": "中医外治法在缓解瘙痒、控制渗出和促进皮损修复中的临床证据",
+    "evidence_tags": ["external_therapy", "clinical_management", "pruritus"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "intervention:external-therapy"]
+  },
+  {
     "chunk_id": "chunk-pmid-40100001-review",
     "literature_id": "pmid-40100001",
     "section": "review",
@@ -52,5 +70,14 @@
     "source_quote": "IL-31 signaling and sensory neuron activation sustains itch",
     "evidence_tags": ["pruritus", "immune_pathway", "neuroimmune"],
     "related_entity_ids": ["disease:atopic-dermatitis", "target:IL31"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100005-jak-stat",
+    "literature_id": "pmid-40100005",
+    "section": "review",
+    "text": "This review explains why JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis. Downstream STAT phosphorylation amplifies pathogenic transcription programs in epidermal and immune cells, motivating targeted therapy strategies.",
+    "source_quote": "JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis",
+    "evidence_tags": ["immune_pathway", "pathway", "targeted_therapy"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:jak-stat"]
   }
 ]
