@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildLiteratureSearchUrl, getLiteratureSourceLabel } from "../lib/api/literature.mjs";
+import { buildLiteratureSearchUrl, getLiteratureSourceLabel } from "../lib/api/literature";
 
 test("buildLiteratureSearchUrl encodes query with default backend base URL", () => {
   const url = buildLiteratureSearchUrl("特应性皮炎");

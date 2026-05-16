@@ -5,7 +5,7 @@ import {
   buildRagAdEvalReportUrl,
   formatEvalPassRate,
   getEvalItemStatusLabel,
-} from "../lib/api/evals.mjs";
+} from "../lib/api/evals";
 
 test("buildRagAdEvalReportUrl returns rag eval report endpoint", () => {
   assert.equal(buildRagAdEvalReportUrl(), "http://127.0.0.1:8000/api/evals/rag-ad/report");
@@ -24,8 +24,8 @@ test("getEvalItemStatusLabel returns compact result labels", () => {
 
 test("getRagAdEvalReport fetches report payload", async () => {
   const originalFetch = globalThis.fetch;
-  const captured = [];
-  globalThis.fetch = async (url) => {
+  const captured: (URL | RequestInfo)[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo) => {
     captured.push(url);
     return {
       ok: true,
@@ -43,11 +43,11 @@ test("getRagAdEvalReport fetches report payload", async () => {
           items: [],
         };
       },
-    };
-  };
+    } as Response;
+  }) as typeof globalThis.fetch;
 
   try {
-    const { getRagAdEvalReport } = await import(`../lib/api/evals.mjs?ts=${Date.now()}`);
+    const { getRagAdEvalReport } = await import(`../lib/api/evals?ts=${Date.now()}`);
     const report = await getRagAdEvalReport();
 
     assert.deepEqual(captured, ["http://127.0.0.1:8000/api/evals/rag-ad/report"]);

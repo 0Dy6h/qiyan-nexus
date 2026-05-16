@@ -10,7 +10,7 @@ import {
   getPdfParseStatusLabel,
   getParseAttemptLabel,
   getParseTriggerLabel,
-} from "../lib/api/literature.mjs";
+} from "../lib/api/literature";
 
 test("buildLiteratureDetailUrl encodes item id with default backend base URL", () => {
   assert.equal(
@@ -45,9 +45,9 @@ test("buildPdfDownloadUrl encodes reserved upload id characters", () => {
 });
 
 test("uploadLiteraturePdf sends only literature_id and file in multipart form", async () => {
-  const captured = [];
+  const captured: (BodyInit | null | undefined)[] = [];
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = (async (_url: URL | RequestInfo, init?: RequestInit) => {
     captured.push(init?.body);
     return {
       ok: true,
@@ -62,18 +62,18 @@ test("uploadLiteraturePdf sends only literature_id and file in multipart form", 
           pdf_parse_status: "pending",
         };
       },
-    };
-  };
+    } as Response;
+  }) as typeof globalThis.fetch;
 
   try {
-    const { uploadLiteraturePdf } = await import(`../lib/api/literature.mjs?ts=${Date.now()}`);
+    const { uploadLiteraturePdf } = await import(`../lib/api/literature?ts=${Date.now()}`);
     const file = new File(["pdf"], "review.pdf", { type: "application/pdf" });
     await uploadLiteraturePdf("cn-ad-gbs-001", file);
 
     assert.equal(captured.length, 1);
-    const formData = captured[0];
+    const formData = captured[0] as FormData;
     assert.equal(formData.get("literature_id"), "cn-ad-gbs-001");
-    assert.equal(formData.get("file").name, "review.pdf");
+    assert.equal((formData.get("file") as File).name, "review.pdf");
     assert.equal(formData.has("auto_parse"), false);
   } finally {
     globalThis.fetch = originalFetch;

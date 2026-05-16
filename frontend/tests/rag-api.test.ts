@@ -5,7 +5,7 @@ import {
   buildRagAnswerRequest,
   buildRagAnswerUrl,
   getRagSourceLabel,
-} from "../lib/api/rag.mjs";
+} from "../lib/api/rag";
 
 test("buildRagAnswerUrl returns rag endpoint with default backend base URL", () => {
   assert.equal(buildRagAnswerUrl(), "http://127.0.0.1:8000/api/rag/answer");

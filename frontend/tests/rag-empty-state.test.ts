@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { getCitationEmptyCopy } from "../lib/ui/states.mjs";
+import { getCitationEmptyCopy } from "../lib/ui/states";
 
 test("getCitationEmptyCopy returns shared rag empty citations message", () => {
   assert.equal(

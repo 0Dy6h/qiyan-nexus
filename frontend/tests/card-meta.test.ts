@@ -5,7 +5,7 @@ import {
   getMetaRowStyle,
   getMetaTextStyle,
   joinMetaItems,
-} from "../lib/ui/card-meta.mjs";
+} from "../lib/ui/card-meta";
 
 test("joinMetaItems drops empty items and joins with bullets", () => {
   assert.equal(joinMetaItems(["中文", "", null, "PubMed", undefined, "2024"]), "中文 · PubMed · 2024");

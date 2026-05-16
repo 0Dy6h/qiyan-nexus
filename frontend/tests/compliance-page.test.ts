@@ -5,7 +5,7 @@ import {
   getComplianceHighlights,
   getComplianceNavigationLinks,
   getCompliancePageIntro,
-} from "../lib/compliance-page.mjs";
+} from "../lib/compliance-page";
 
 test("getCompliancePageIntro returns page title and boundary summary", () => {
   assert.deepEqual(getCompliancePageIntro(), {

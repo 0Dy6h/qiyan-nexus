@@ -4,11 +4,11 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { getPdfActionLabels, getPdfStatusCopy, getPdfStatusTone } from "../lib/ui/status-card.mjs";
+import { getPdfActionLabels, getPdfStatusCopy, getPdfStatusTone } from "../lib/ui/status-card";
 
 const testFilePath = fileURLToPath(import.meta.url);
 
-function getSource(relativePath) {
+function getSource(relativePath: string) {
   return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
 }
 

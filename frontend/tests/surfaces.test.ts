@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces.mjs";
+import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 
 test("getSurfaceCardStyle returns shared white card container for result items", () => {
   assert.deepEqual(getSurfaceCardStyle(), {

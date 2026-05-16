@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states.mjs";
+import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 
 test("getStatusCopy returns unified submit/loading labels for literature page", () => {
   assert.deepEqual(getStatusCopy("literature", true), {

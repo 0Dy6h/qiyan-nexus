@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const testFilePath = fileURLToPath(import.meta.url);
 
-function getPageSource(relativePath) {
+function getPageSource(relativePath: string) {
   return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
 }
 

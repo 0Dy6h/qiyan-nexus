@@ -5,7 +5,7 @@ import {
   getStatusTone,
   getStatusCardStyle,
   getStatusMessageStyle,
-} from "../lib/ui/status-card.mjs";
+} from "../lib/ui/status-card";
 
 test("getStatusTone returns idle and error tones", () => {
   assert.equal(getStatusTone(false), "idle");
