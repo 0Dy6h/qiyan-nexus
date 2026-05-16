@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 from app.schemas.chunk import LiteratureChunk
 
@@ -9,7 +10,7 @@ class InMemoryChunkRepository:
         self.data_path = data_path
 
     def list_chunks(self) -> list[LiteratureChunk]:
-        raw_items = json.loads(self.data_path.read_text(encoding="utf-8"))
+        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
         return [LiteratureChunk(**item) for item in raw_items]
 
     def list_chunks_by_literature_id(self, literature_id: str) -> list[LiteratureChunk]:
@@ -31,8 +32,8 @@ class InMemoryChunkRepository:
         evidence_tags: list[str],
         related_entity_ids: list[str] | None = None,
     ) -> LiteratureChunk:
-        raw_items = json.loads(self.data_path.read_text(encoding="utf-8"))
-        next_item = {
+        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
+        next_item: dict[str, Any] = {
             "chunk_id": chunk_id,
             "literature_id": literature_id,
             "section": "uploaded_pdf",
@@ -47,9 +48,13 @@ class InMemoryChunkRepository:
         for index, item in enumerate(raw_items):
             if item.get("chunk_id") == chunk_id:
                 raw_items[index] = next_item
-                self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                self.data_path.write_text(
+                    json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
                 return LiteratureChunk(**next_item)
 
         raw_items.append(next_item)
-        self.data_path.write_text(json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        self.data_path.write_text(
+            json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         return LiteratureChunk(**next_item)

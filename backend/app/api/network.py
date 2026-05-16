@@ -3,11 +3,12 @@ from fastapi import APIRouter, Body, HTTPException, status
 from app.schemas.network import NetworkAnalyzeAccepted, NetworkAnalyzeRequest, NetworkResultResponse
 from app.services.network import create_network_analysis_task, get_network_analysis_result
 
-
 router = APIRouter(prefix="/api/network", tags=["network"])
 
 
-@router.post("/analyze", response_model=NetworkAnalyzeAccepted, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/analyze", response_model=NetworkAnalyzeAccepted, status_code=status.HTTP_202_ACCEPTED
+)
 def analyze_network_endpoint(request: NetworkAnalyzeRequest = Body()) -> NetworkAnalyzeAccepted:
     return create_network_analysis_task(request.query, request.analysis_type)
 

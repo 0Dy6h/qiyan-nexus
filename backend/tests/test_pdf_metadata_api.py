@@ -11,15 +11,20 @@ def reset_sample_data(original_path: Path, temp_path: Path) -> None:
 
 
 def test_pdf_metadata_upload_endpoint_updates_literature_record(monkeypatch, tmp_path: Path):
-    from app import services as services_pkg
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
-    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_path))
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_path),
+    )
 
     client = TestClient(app)
 
@@ -46,15 +51,23 @@ def test_pdf_metadata_upload_endpoint_updates_literature_record(monkeypatch, tmp
     assert first["pdf_parse_status"] == "pending"
 
 
-def test_pdf_metadata_upload_endpoint_returns_404_for_unknown_literature_id(monkeypatch, tmp_path: Path):
+def test_pdf_metadata_upload_endpoint_returns_404_for_unknown_literature_id(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
-    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_path))
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_path),
+    )
 
     client = TestClient(app)
 

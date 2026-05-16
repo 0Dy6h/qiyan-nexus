@@ -79,7 +79,9 @@ def test_literature_search_accepts_pagination_and_sort_params():
     assert payload["total_pages"] == 4
     assert payload["sort"] == "year_asc"
     assert len(payload["items"]) == 5
-    assert [item["year"] for item in payload["items"]] == sorted(item["year"] for item in payload["items"])
+    assert [item["year"] for item in payload["items"]] == sorted(
+        item["year"] for item in payload["items"]
+    )
 
 
 def test_literature_search_rejects_invalid_page_size():

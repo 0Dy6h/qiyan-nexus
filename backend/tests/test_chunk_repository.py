@@ -3,7 +3,6 @@ from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
 
-
 SAMPLE_CHUNKS = [
     {
         "chunk_id": "chunk-cn-ad-gbs-001-abstract",

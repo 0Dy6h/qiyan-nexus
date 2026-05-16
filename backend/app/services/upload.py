@@ -3,8 +3,7 @@ from fastapi import UploadFile
 from app.core.config import get_settings
 from app.schemas.upload import StoredUpload
 from app.services.literature import attach_pdf_metadata, build_pdf_upload_id, get_literature_item
-from app.services.pdf_storage import build_storage_path, resolve_stored_pdf_path
-
+from app.services.pdf_storage import build_storage_path
 
 
 def store_pdf_upload(file: UploadFile, literature_id: str) -> StoredUpload:

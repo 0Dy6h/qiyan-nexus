@@ -5,7 +5,6 @@ from app.repositories.chunk import InMemoryChunkRepository
 from app.repositories.literature import InMemoryLiteratureRepository
 from app.services.rag import answer_question
 
-
 DISCLAIMER = "非诊断结论、需结合临床。"
 
 
@@ -18,7 +17,10 @@ def test_answer_question_returns_ranked_citation_cards_for_gut_skin_axis_questio
     assert len(response.citations) == 2
     assert response.citations[0].literature_id == "cn-ad-gbs-001"
     assert response.citations[0].chunk_id == "chunk-cn-ad-gbs-001-abstract"
-    assert response.citations[0].quote == "提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。"
+    assert (
+        response.citations[0].quote
+        == "提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。"
+    )
     assert response.citations[0].reason == "gut_skin_axis, tcm_syndrome"
     assert response.citations[1].literature_id == "cn-ad-microbiome-003"
 
@@ -66,7 +68,10 @@ def test_answer_question_falls_back_when_no_positive_match_exists():
 
     assert len(response.citations) == 1
     assert response.retrieval.available_citation_count == 10
-    assert "没有检索到足够匹配的证据片段" in response.answer or "deterministic retrieval" in response.answer
+    assert (
+        "没有检索到足够匹配的证据片段" in response.answer
+        or "deterministic retrieval" in response.answer
+    )
 
 
 def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path):

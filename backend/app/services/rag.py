@@ -1,14 +1,20 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
 from app.repositories.literature import InMemoryLiteratureRepository
+from app.schemas.chunk import LiteratureChunk
+from app.schemas.literature import LiteratureItem, LiteratureSource
 from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
 from app.services.literature import detect_query_language
 
 DISCLAIMER = "非诊断结论、需结合临床。"
-_SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
-_CHUNK_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+_SAMPLE_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+)
+_CHUNK_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+)
 _REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
 _CHUNK_REPOSITORY = InMemoryChunkRepository(_CHUNK_DATA_PATH)
 _CONFIDENCE_BY_SOURCE_TYPE = {
@@ -39,7 +45,7 @@ def tokenize_query(question: str) -> list[str]:
     return sorted(tokens)
 
 
-def score_item(item, chunk, query_tokens: list[str]) -> int:
+def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens: list[str]) -> int:
     haystacks = [
         item.title.lower(),
         item.snippet.lower(),
@@ -71,18 +77,24 @@ def build_answer(citations: list[CitationCard]) -> str:
     )
 
 
-def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAnswerResponse:
+def answer_question(
+    question: str, source: LiteratureSource = "all", top_k: int = 2
+) -> RagAnswerResponse:
     normalized_question = question.strip()
-    preferred_source_type = "cn_literature" if detect_query_language(normalized_question) == "zh" else "pubmed"
+    preferred_source_type = (
+        "cn_literature" if detect_query_language(normalized_question) == "zh" else "pubmed"
+    )
     query_tokens = tokenize_query(normalized_question)
 
     items = _REPOSITORY.list_items()
     if source != "all":
         items = [item for item in items if item.source_type == source]
 
-    ranked_items: list[tuple[int, int, object, object | None]] = []
+    ranked_items: list[tuple[int, int, LiteratureItem, LiteratureChunk | None]] = []
     for item in items:
-        chunks = _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id)
+        chunks: list[LiteratureChunk | None] = list(
+            _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id)
+        )
         if not chunks:
             chunks = [None]
         for chunk in chunks:
@@ -109,7 +121,9 @@ def answer_question(question: str, source: str = "all", top_k: int = 2) -> RagAn
                 source=item.source,
                 snippet=item.snippet,
                 quote=chunk.source_quote if chunk else None,
-                reason=(", ".join(chunk.evidence_tags[:2]) if chunk and chunk.evidence_tags else None),
+                reason=(
+                    ", ".join(chunk.evidence_tags[:2]) if chunk and chunk.evidence_tags else None
+                ),
                 confidence=_CONFIDENCE_BY_SOURCE_TYPE[item.source_type],
             )
         )

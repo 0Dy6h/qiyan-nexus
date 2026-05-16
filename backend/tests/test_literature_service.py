@@ -82,7 +82,9 @@ def test_search_literature_paginates_filtered_results():
     assert second_page.page == 2
     assert second_page.page_size == 5
     assert len(second_page.items) == 5
-    assert {item.id for item in first_page.items}.isdisjoint({item.id for item in second_page.items})
+    assert {item.id for item in first_page.items}.isdisjoint(
+        {item.id for item in second_page.items}
+    )
 
 
 def test_search_literature_sorts_by_year_ascending():

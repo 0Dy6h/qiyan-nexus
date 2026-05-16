@@ -2,13 +2,18 @@ from fastapi import APIRouter, Body, HTTPException, Query
 
 from app.schemas.literature import (
     LiteratureItem,
-    LiteratureSearchSort,
     LiteratureSearchResponse,
+    LiteratureSearchSort,
     LiteratureSource,
     PdfMetadataUploadRequest,
     PdfParseStatusUpdateRequest,
 )
-from app.services.literature import attach_pdf_metadata, get_literature_item, search_literature, update_pdf_parse_status
+from app.services.literature import (
+    attach_pdf_metadata,
+    get_literature_item,
+    search_literature,
+    update_pdf_parse_status,
+)
 
 router = APIRouter(prefix="/api/literature", tags=["literature"])
 
@@ -33,12 +38,15 @@ def upload_pdf_metadata_endpoint(request: PdfMetadataUploadRequest = Body()) -> 
 
 
 @router.post("/pdf-parse-status", response_model=LiteratureItem)
-def update_pdf_parse_status_endpoint(request: PdfParseStatusUpdateRequest = Body()) -> LiteratureItem:
+def update_pdf_parse_status_endpoint(
+    request: PdfParseStatusUpdateRequest = Body(),
+) -> LiteratureItem:
     status, item = update_pdf_parse_status(request.literature_id, request.pdf_parse_status)
     if status == "not_found":
         raise HTTPException(status_code=404, detail="Literature item not found")
     if status == "missing_metadata":
         raise HTTPException(status_code=409, detail="PDF metadata not attached")
+    assert item is not None
     return item
 
 

@@ -6,7 +6,6 @@ from pydantic import ValidationError
 
 from app.repositories.literature import InMemoryLiteratureRepository
 
-
 SAMPLE_ITEMS = [
     {
         "id": "cn-ad-gbs-001",

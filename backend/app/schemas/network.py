@@ -2,7 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 AnalysisType = Literal["formula", "herb"]
 TaskStatus = Literal["queued", "running", "completed"]
 

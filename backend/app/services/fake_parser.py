@@ -4,7 +4,9 @@ from app.repositories.chunk import InMemoryChunkRepository
 from app.schemas.literature import LiteratureItem
 from app.services.literature import update_pdf_parse_status
 
-_CHUNK_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+_CHUNK_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+)
 _CHUNK_REPOSITORY = InMemoryChunkRepository(_CHUNK_DATA_PATH)
 
 
@@ -16,7 +18,9 @@ def build_uploaded_pdf_chunk_id(pdf_upload_id: str) -> str:
     return f"chunk-{pdf_upload_id}-uploaded"
 
 
-def build_mock_uploaded_pdf_chunk_text(item: LiteratureItem, file_name: str) -> tuple[str, str, list[str]]:
+def build_mock_uploaded_pdf_chunk_text(
+    item: LiteratureItem, file_name: str
+) -> tuple[str, str, list[str]]:
     evidence_tags = ["uploaded_pdf", "pdf_parse", "atopic_dermatitis"]
     if item.language == "en":
         text = (
@@ -49,7 +53,9 @@ def upsert_uploaded_pdf_chunk(item: LiteratureItem, file_name: str) -> None:
 
 
 def auto_parse_uploaded_pdf(literature_id: str, file_name: str) -> LiteratureItem:
-    status, item = update_pdf_parse_status(literature_id, resolve_fake_parse_status(file_name), trigger="auto")
+    status, item = update_pdf_parse_status(
+        literature_id, resolve_fake_parse_status(file_name), trigger="auto"
+    )
     if status == "not_found":
         raise LookupError("Literature item not found")
     if status == "missing_metadata":

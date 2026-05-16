@@ -3,17 +3,34 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.schemas.literature import PdfParseResult, LiteratureItem, LiteratureSearchResponse, LiteratureSearchSort, LiteratureSource
+from app.schemas.literature import (
+    LiteratureItem,
+    LiteratureSearchResponse,
+    LiteratureSearchSort,
+    LiteratureSource,
+    PdfParseResult,
+)
 from app.services.pdf_storage import resolve_stored_pdf_path
 
-_SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+_SAMPLE_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+)
 _REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
 DEFAULT_SEARCH_PAGE_SIZE = 10
 MAX_SEARCH_PAGE_SIZE = 50
 
 _SEARCH_ALIASES = {
     "disease": ["特应性皮炎", "atopic dermatitis", "atopic", "dermatitis", "ad"],
-    "gut_skin_axis": ["肠", "肠道", "肠道菌群", "肠-脑-皮肤轴", "gut", "gut-skin", "microbiome", "菌群"],
+    "gut_skin_axis": [
+        "肠",
+        "肠道",
+        "肠道菌群",
+        "肠-脑-皮肤轴",
+        "gut",
+        "gut-skin",
+        "microbiome",
+        "菌群",
+    ],
     "skin_barrier": ["屏障", "皮肤屏障", "barrier", "filaggrin", "ceramide"],
     "immune": ["免疫", "炎症", "inflammation", "immune", "th2", "jak", "cytokine"],
     "pruritus": ["瘙痒", "itch", "itching", "il-31", "pruritus"],
@@ -52,7 +69,9 @@ def _is_broad_disease_query(query_terms: list[str]) -> bool:
 
 
 def _build_search_haystacks(item: LiteratureItem) -> list[tuple[str, int]]:
-    evidence_tags = " ".join(item.evidence_tags + [tag.replace("_", " ") for tag in item.evidence_tags])
+    evidence_tags = " ".join(
+        item.evidence_tags + [tag.replace("_", " ") for tag in item.evidence_tags]
+    )
     return [
         (item.title.lower(), 4),
         (" ".join(item.keywords).lower(), 3),
@@ -187,10 +206,12 @@ def update_pdf_parse_status(
         return "not_found", None
     if not item.pdf_upload_id or not item.pdf_file_name:
         return "missing_metadata", None
-    pdf_parse_message, pdf_parse_started_at, pdf_parse_finished_at = build_parse_metadata(pdf_parse_status)
+    pdf_parse_message, pdf_parse_started_at, pdf_parse_finished_at = build_parse_metadata(
+        pdf_parse_status
+    )
     next_item = LiteratureItem(
         **{
-            **item.dict(),
+            **item.model_dump(),
             "pdf_parse_status": pdf_parse_status,
         }
     )

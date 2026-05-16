@@ -13,7 +13,9 @@ def reset_sample_data(original_path: Path, temp_path: Path) -> None:
 def test_pdf_parse_status_endpoint_updates_existing_pending_record(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
@@ -49,10 +51,14 @@ def test_pdf_parse_status_endpoint_updates_existing_pending_record(monkeypatch, 
     assert first["pdf_parse_status"] == "parsed"
 
 
-def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(monkeypatch, tmp_path: Path):
+def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
@@ -71,7 +77,9 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(monkeyp
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(literature_service, "resolve_stored_pdf_path", lambda pdf_upload_id: storage_path)
+    monkeypatch.setattr(
+        literature_service, "resolve_stored_pdf_path", lambda pdf_upload_id: storage_path
+    )
 
     client = TestClient(app)
 
@@ -104,15 +112,23 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(monkeyp
     }
 
 
-def test_pdf_parse_status_endpoint_rejects_record_without_pending_upload(monkeypatch, tmp_path: Path):
+def test_pdf_parse_status_endpoint_rejects_record_without_pending_upload(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
-    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_path))
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_path),
+    )
 
     client = TestClient(app)
 

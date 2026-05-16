@@ -3,11 +3,13 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from app.schemas.literature import LiteratureSource
+
 
 class RagEvalQuestion(BaseModel):
     id: str
     question: str = Field(min_length=1)
-    source_preference: str
+    source_preference: LiteratureSource
     difficulty: str
     expected_literature_ids: list[str]
     expected_chunk_ids: list[str]
@@ -23,7 +25,7 @@ class RagEvalDataset(BaseModel):
 class RagEvalItemResult(BaseModel):
     id: str
     question: str
-    source_preference: str
+    source_preference: LiteratureSource
     difficulty: str
     expected_literature_ids: list[str]
     expected_literature_hits: list[str]

@@ -2,7 +2,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-
 DISCLAIMER = "非诊断结论、需结合临床。"
 
 

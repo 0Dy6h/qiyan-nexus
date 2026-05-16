@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from app.schemas.literature import LiteratureItem
 from app.schemas.upload import FakePdfAutoParseRequest, StoredUpload
 from app.services.fake_parser import auto_parse_uploaded_pdf
-from app.services.upload import resolve_stored_pdf_path, store_pdf_upload
+from app.services.pdf_storage import resolve_stored_pdf_path
+from app.services.upload import store_pdf_upload
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 

@@ -8,10 +8,16 @@ from app.main import app
 def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     temp_data_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
-    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_data_path))
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_data_path),
+    )
 
     client = TestClient(app)
 
@@ -48,10 +54,16 @@ def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
 def test_literature_detail_returns_404_for_unknown_id(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     temp_data_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
-    monkeypatch.setattr(literature_service, "_REPOSITORY", literature_service.InMemoryLiteratureRepository(temp_data_path))
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_data_path),
+    )
 
     client = TestClient(app)
 

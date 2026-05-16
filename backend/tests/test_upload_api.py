@@ -13,7 +13,9 @@ def reset_sample_data(original_path: Path, temp_path: Path) -> None:
 def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -54,10 +56,14 @@ def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tm
     assert stored_file.read_bytes() == b"%PDF-1.4\nmock pdf bytes\n"
 
 
-def test_pdf_upload_endpoint_normalizes_storage_suffix_to_pdf_for_uppercase_filename(monkeypatch, tmp_path: Path):
+def test_pdf_upload_endpoint_normalizes_storage_suffix_to_pdf_for_uppercase_filename(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -84,10 +90,14 @@ def test_pdf_upload_endpoint_normalizes_storage_suffix_to_pdf_for_uppercase_file
     assert download_response.content == b"%PDF-1.4\nmock uppercase suffix\n"
 
 
-def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(monkeypatch, tmp_path: Path):
+def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -115,10 +125,14 @@ def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(m
     assert first["parse_attempt_count"] == 0
 
 
-def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_keeps_pending(monkeypatch, tmp_path: Path):
+def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_keeps_pending(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -146,12 +160,18 @@ def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_k
     assert first["parse_attempt_count"] == 0
 
 
-def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timestamps_and_auto_trigger(
+    monkeypatch, tmp_path: Path
+):
     from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
-    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
@@ -168,7 +188,11 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
     monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
 
     client = TestClient(app)
 
@@ -188,7 +212,9 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
 
     persisted_chunks = json.loads(temp_chunk_path.read_text(encoding="utf-8"))
     uploaded_chunk = next(
-        item for item in persisted_chunks if item["chunk_id"] == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
+        item
+        for item in persisted_chunks
+        if item["chunk_id"] == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
     )
     assert uploaded_chunk["literature_id"] == "cn-ad-gbs-001"
     assert uploaded_chunk["source_type"] == "uploaded_pdf"
@@ -196,12 +222,18 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     assert "上传 PDF ad-evidence.pdf 已完成解析" in uploaded_chunk["text"]
 
 
-def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(monkeypatch, tmp_path: Path):
+def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(
+    monkeypatch, tmp_path: Path
+):
     from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
-    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
@@ -218,7 +250,11 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
     monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
 
     client = TestClient(app)
 
@@ -237,13 +273,18 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     assert payload["parse_attempt_count"] == 1
 
     persisted_chunks = json.loads(temp_chunk_path.read_text(encoding="utf-8"))
-    assert all(item["chunk_id"] != "chunk-pdf-cn-ad-gbs-001-ad-fail-evidence-pdf-uploaded" for item in persisted_chunks)
+    assert all(
+        item["chunk_id"] != "chunk-pdf-cn-ad-gbs-001-ad-fail-evidence-pdf-uploaded"
+        for item in persisted_chunks
+    )
 
 
 def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -272,12 +313,18 @@ def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path
     assert payload["parse_attempt_count"] == 1
 
 
-def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(monkeypatch, tmp_path: Path):
+def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
+    monkeypatch, tmp_path: Path
+):
     from app.services import fake_parser as fake_parser_service
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
-    original_chunk_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     temp_chunk_path = tmp_path / "sample_ad_chunks.json"
     reset_sample_data(original_path, temp_data_path)
@@ -294,7 +341,11 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
     monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
     monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_REPOSITORY", fake_parser_service.InMemoryChunkRepository(temp_chunk_path))
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
 
     client = TestClient(app)
 
@@ -315,10 +366,14 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
     assert payload["parse_attempt_count"] == 2
 
 
-def test_pdf_upload_endpoint_returns_404_for_unknown_literature_id_and_does_not_persist_file(monkeypatch, tmp_path: Path):
+def test_pdf_upload_endpoint_returns_404_for_unknown_literature_id_and_does_not_persist_file(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -341,10 +396,14 @@ def test_pdf_upload_endpoint_returns_404_for_unknown_literature_id_and_does_not_
     assert not upload_dir.exists() or list(upload_dir.iterdir()) == []
 
 
-def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_collisions(monkeypatch, tmp_path: Path):
+def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_collisions(
+    monkeypatch, tmp_path: Path
+):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
@@ -375,7 +434,9 @@ def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_
 def test_pdf_download_endpoint_returns_uploaded_file_by_upload_id(monkeypatch, tmp_path: Path):
     from app.services import literature as literature_service
 
-    original_path = Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 

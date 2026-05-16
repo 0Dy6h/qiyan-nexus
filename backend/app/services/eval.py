@@ -1,17 +1,17 @@
 from pathlib import Path
+from typing import Any
 
 from app.schemas.eval import RagEvalItemResult, RagEvalReport, RagEvalSummary, load_rag_eval_dataset
 from app.services.rag import DISCLAIMER, answer_question
 
-
 _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "evals" / "rag_ad_eval_questions.json"
 
 
-def get_rag_eval_questions() -> list[dict]:
-    return [item.dict() for item in load_rag_eval_dataset(_DATA_PATH)]
+def get_rag_eval_questions() -> list[dict[str, Any]]:
+    return [item.model_dump() for item in load_rag_eval_dataset(_DATA_PATH)]
 
 
-def run_rag_ad_eval_report() -> dict:
+def run_rag_ad_eval_report() -> dict[str, Any]:
     results: list[RagEvalItemResult] = []
     for question in load_rag_eval_dataset(_DATA_PATH):
         response = answer_question(question.question, source=question.source_preference, top_k=3)
@@ -29,15 +29,23 @@ def run_rag_ad_eval_report() -> dict:
         )
         response_text = f"{response.answer}\n{response.disclaimer}\n{citation_text}".lower()
         citation_literature_ids = [citation.literature_id for citation in response.citations]
-        citation_chunk_ids = [citation.chunk_id for citation in response.citations if citation.chunk_id]
+        citation_chunk_ids = [
+            citation.chunk_id for citation in response.citations if citation.chunk_id
+        ]
         expected_literature_hits = [
             literature_id
             for literature_id in question.expected_literature_ids
             if literature_id in citation_literature_ids
         ]
-        expected_chunk_hits = [chunk_id for chunk_id in question.expected_chunk_ids if chunk_id in citation_chunk_ids]
-        missing_must_include = [term for term in question.must_include if term.lower() not in response_text]
-        violated_must_not_include = [term for term in question.must_not_include if term.lower() in response_text]
+        expected_chunk_hits = [
+            chunk_id for chunk_id in question.expected_chunk_ids if chunk_id in citation_chunk_ids
+        ]
+        missing_must_include = [
+            term for term in question.must_include if term.lower() not in response_text
+        ]
+        violated_must_not_include = [
+            term for term in question.must_not_include if term.lower() in response_text
+        ]
         disclaimer_present = response.disclaimer == DISCLAIMER
         literature_passed = bool(expected_literature_hits)
         chunk_passed = not question.expected_chunk_ids or bool(expected_chunk_hits)
@@ -80,4 +88,4 @@ def run_rag_ad_eval_report() -> dict:
         ),
         items=results,
     )
-    return report.dict()
+    return report.model_dump()

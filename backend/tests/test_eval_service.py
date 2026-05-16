@@ -5,7 +5,9 @@ from app.services.eval import get_rag_eval_questions, run_rag_ad_eval_report
 
 
 def test_load_rag_eval_dataset_returns_20_questions():
-    data_path = Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
+    data_path = (
+        Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
+    )
 
     items = load_rag_eval_dataset(data_path)
 
@@ -15,12 +17,18 @@ def test_load_rag_eval_dataset_returns_20_questions():
 
 
 def test_rag_eval_questions_cover_literature_and_compliance_fields():
-    data_path = Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
+    data_path = (
+        Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
+    )
 
     items = load_rag_eval_dataset(data_path)
     first = items[0]
 
-    assert first.expected_literature_ids == ["cn-ad-gbs-001", "cn-ad-microbiome-003", "pmid-40100002"]
+    assert first.expected_literature_ids == [
+        "cn-ad-gbs-001",
+        "cn-ad-microbiome-003",
+        "pmid-40100002",
+    ]
     assert "肠道菌群" in first.must_include
     assert "替代医生诊断" in first.must_not_include
     assert "不能给出诊断结论" in first.compliance_notes
