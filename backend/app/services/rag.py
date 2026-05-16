@@ -101,6 +101,16 @@ def _collect_topic_phrases(citations: list[CitationCard]) -> list[str]:
     return seen
 
 
+def _alias_tag_bonus(tags: list[str], query_tokens: list[str], weight: int) -> int:
+    if not tags:
+        return 0
+    matched = 0
+    for token in query_tokens:
+        if token in _KEYWORD_ALIASES and any(token in tag for tag in tags):
+            matched += 1
+    return matched * weight
+
+
 def build_answer(citations: list[CitationCard]) -> str:
     if not citations:
         return "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
@@ -142,10 +152,13 @@ def answer_question(
             chunks = [None]
         for chunk in chunks:
             score = score_item(item, chunk, query_tokens)
+            score += _alias_tag_bonus(item.evidence_tags, query_tokens, 2)
+            if chunk:
+                score += _alias_tag_bonus(chunk.evidence_tags, query_tokens, 7)
             language_bonus = 1 if item.source_type == preferred_source_type else 0
             ranked_items.append((score, language_bonus, item, chunk))
 
-    ranked_items.sort(key=lambda row: (row[0], row[1], row[2].year), reverse=True)
+    ranked_items.sort(key=lambda row: (row[1], row[0], row[2].year), reverse=True)
     available_citation_count = sum(1 for score, _, _, _ in ranked_items if score > 0)
     if available_citation_count == 0:
         available_citation_count = len(ranked_items)
