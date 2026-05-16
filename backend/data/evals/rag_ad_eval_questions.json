@@ -82,7 +82,7 @@
     "source_preference": "all",
     "difficulty": "medium",
     "expected_literature_ids": ["cn-ad-network-007", "pmid-40100008"],
-    "expected_chunk_ids": [],
+    "expected_chunk_ids": ["chunk-cn-ad-network-007-pathway"],
     "must_include": ["成分", "靶点", "通路"],
     "must_not_include": ["已经完成实验验证", "临床定论"],
     "compliance_notes": "应把网络药理学表述为线索发现方法。"
@@ -93,7 +93,7 @@
     "source_preference": "all",
     "difficulty": "medium",
     "expected_literature_ids": ["cn-ad-child-009", "pmid-40100010"],
-    "expected_chunk_ids": [],
+    "expected_chunk_ids": ["chunk-cn-ad-child-009-stratification"],
     "must_include": ["儿童", "分层"],
     "must_not_include": ["通用治疗模板", "单一诊疗结论"],
     "compliance_notes": "应体现儿童患者异质性，避免过度归纳。"
@@ -148,7 +148,7 @@
     "source_preference": "cn_literature",
     "difficulty": "medium",
     "expected_literature_ids": ["cn-ad-review-010", "cn-ad-network-007", "cn-ad-barrier-006"],
-    "expected_chunk_ids": [],
+    "expected_chunk_ids": ["chunk-cn-ad-review-010-hotspots"],
     "must_include": ["研究热点", "通路"],
     "must_not_include": ["已完成全部验证", "唯一研究路径"],
     "compliance_notes": "应把热点当作整理方向，而不是固定答案。"
@@ -203,7 +203,7 @@
     "source_preference": "all",
     "difficulty": "hard",
     "expected_literature_ids": ["cn-ad-network-007", "pmid-40100008", "pmid-40100005"],
-    "expected_chunk_ids": [],
+    "expected_chunk_ids": ["chunk-cn-ad-network-007-pathway"],
     "must_include": ["成分", "靶点", "通路"],
     "must_not_include": ["已经完成分子模拟", "实验结论已确认"],
     "compliance_notes": "回答应强调这是后续科研线索，不是现成验证结果。"

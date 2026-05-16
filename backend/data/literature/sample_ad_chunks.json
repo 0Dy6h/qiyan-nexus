@@ -45,6 +45,33 @@
     "related_entity_ids": ["disease:atopic-dermatitis", "intervention:external-therapy"]
   },
   {
+    "chunk_id": "chunk-cn-ad-network-007-pathway",
+    "literature_id": "cn-ad-network-007",
+    "section": "summary",
+    "text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "source_quote": "PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴",
+    "evidence_tags": ["network_pharmacology", "pathway"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:jak-stat", "pathway:pi3k-akt"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-child-009-stratification",
+    "literature_id": "cn-ad-child-009",
+    "section": "summary",
+    "text": "围绕儿童特应性皮炎在婴幼儿、学龄前与学龄期的年龄分层，归纳湿热、脾虚、血虚风燥等证型分布与对应的文献证据。",
+    "source_quote": "婴幼儿、学龄前与学龄期的年龄分层，归纳湿热、脾虚、血虚风燥等证型分布",
+    "evidence_tags": ["pediatric_ad", "tcm_syndrome", "clinical_management"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "demographic:pediatric"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-review-010-hotspots",
+    "literature_id": "cn-ad-review-010",
+    "section": "summary",
+    "text": "综述提示特应性皮炎中医药研究的持续热点集中在肠-皮肤轴、皮肤屏障、网络药理学和方剂作用通路，证据图谱可围绕这些主题逐步展开。",
+    "source_quote": "持续热点集中在肠-皮肤轴、皮肤屏障、网络药理学和方剂作用通路",
+    "evidence_tags": ["review", "evidence_map", "microbiome"],
+    "related_entity_ids": ["disease:atopic-dermatitis"]
+  },
+  {
     "chunk_id": "chunk-pmid-40100001-review",
     "literature_id": "pmid-40100001",
     "section": "review",

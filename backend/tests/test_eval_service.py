@@ -1,6 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 from app.schemas.eval import load_rag_eval_dataset
+from app.services import eval as eval_service
 from app.services.eval import get_rag_eval_questions, run_rag_ad_eval_report
 
 
@@ -60,19 +63,32 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     assert first["violated_must_not_include"] == []
 
 
-def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks():
+def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    synthetic_dataset = tmp_path / "synthetic_eval.json"
+    synthetic_dataset.write_text(
+        """[
+          {
+            "id": "synthetic-no-chunks",
+            "question": "特应性皮炎和肠-脑-皮肤轴之间有什么关系？",
+            "source_preference": "all",
+            "difficulty": "easy",
+            "expected_literature_ids": ["cn-ad-gbs-001"],
+            "expected_chunk_ids": [],
+            "must_include": ["肠道菌群"],
+            "must_not_include": ["确诊建议"],
+            "compliance_notes": "synthetic question covers the empty-chunk branch."
+          }
+        ]""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(eval_service, "_DATA_PATH", synthetic_dataset)
+
     report = run_rag_ad_eval_report()
 
-    item = next(
-        result
-        for result in report["items"]
-        if not result["expected_chunk_ids"]
-        and result["expected_literature_hits"]
-        and not result["missing_must_include"]
-        and not result["violated_must_not_include"]
-        and result["disclaimer_present"]
-    )
-
+    assert len(report["items"]) == 1
+    item = report["items"][0]
     assert item["expected_chunk_ids"] == []
     assert item["passed"] is True
 
@@ -93,8 +109,8 @@ def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
 def test_run_rag_ad_eval_report_chunk_hit_count_meets_target():
     report = run_rag_ad_eval_report()
 
-    assert report["summary"]["chunk_hit_count"] >= 16, (
-        "chunk_hit_count must stay >= 16 after the chunk dataset expansion."
+    assert report["summary"]["chunk_hit_count"] == 20, (
+        "chunk_hit_count must stay at 20/20 after the chunk dataset expansion."
         f" Current value: {report['summary']['chunk_hit_count']}."
         " Questions without chunk_hit but with expected_chunk_ids: "
         f"{[item['id'] for item in report['items'] if item['expected_chunk_ids'] and not item['expected_chunk_hits']]}"
