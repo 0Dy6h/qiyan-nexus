@@ -2,6 +2,8 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pypdf import PdfReader
+
 from app.repositories.literature import InMemoryLiteratureRepository
 from app.schemas.literature import (
     LiteratureItem,
@@ -11,6 +13,10 @@ from app.schemas.literature import (
     PdfParseResult,
 )
 from app.services.pdf_storage import resolve_stored_pdf_path
+
+_PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
+    "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
+)
 
 _SAMPLE_DATA_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
@@ -181,18 +187,30 @@ def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
     return "Mock parser completed successfully", started_at, finished_at
 
 
+def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | None:
+    try:
+        reader = PdfReader(str(storage_path))
+        text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
+    except Exception:
+        return None
+    if not text:
+        return None
+    return text[:max_chars]
+
+
 def build_pdf_parse_result(item: LiteratureItem) -> PdfParseResult | None:
     if item.pdf_parse_status != "parsed" or not item.pdf_upload_id or not item.pdf_file_name:
         return None
     storage_path = resolve_stored_pdf_path(item.pdf_upload_id)
     if storage_path is None:
         return None
+    preview_text = extract_pdf_preview_text(storage_path)
     return PdfParseResult(
         file_name=item.pdf_file_name,
         storage_path=str(storage_path),
         file_size=storage_path.stat().st_size,
-        preview_text="已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。",
-        extraction_method="file-metadata-placeholder",
+        preview_text=preview_text or _PDF_PARSE_RESULT_FALLBACK_PREVIEW,
+        extraction_method="pypdf-text-preview" if preview_text else "file-metadata-placeholder",
     )
 
 

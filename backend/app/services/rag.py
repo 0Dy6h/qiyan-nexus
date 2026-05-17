@@ -26,9 +26,21 @@ _KEYWORD_ALIASES = {
     "gut": ["肠", "肠道", "gut", "microbiome", "菌群"],
     "skin_barrier": ["屏障", "barrier", "filaggrin"],
     "immune": ["免疫", "inflammation", "immune", "th2", "jak", "cytokine"],
+    "targeted_therapy": ["后续", "线索", "therapeutic target", "targeted therapy"],
     "pruritus": ["瘙痒", "itch", "il-31"],
     "formula": ["复方", "方剂", "formula", "herbal"],
-    "network": ["网络药理学", "network pharmacology", "靶点", "通路", "target", "pathway"],
+    "network": [
+        "网络药理学",
+        "network pharmacology",
+        "分子对接",
+        "分子模拟",
+        "molecular docking",
+        "molecular simulation",
+        "靶点",
+        "通路",
+        "target",
+        "pathway",
+    ],
     "pediatric": ["儿童", "pediatric"],
 }
 
@@ -159,6 +171,17 @@ def answer_question(
             ranked_items.append((score, language_bonus, item, chunk))
 
     ranked_items.sort(key=lambda row: (row[1], row[0], row[2].year), reverse=True)
+    if source == "all" and "network" in query_tokens:
+        ranked_items.sort(
+            key=lambda row: (
+                "network_pharmacology" in row[2].evidence_tags,
+                "targeted_therapy" in row[2].evidence_tags,
+                row[1],
+                row[0],
+                row[2].year,
+            ),
+            reverse=True,
+        )
     available_citation_count = sum(1 for score, _, _, _ in ranked_items if score > 0)
     if available_citation_count == 0:
         available_citation_count = len(ranked_items)

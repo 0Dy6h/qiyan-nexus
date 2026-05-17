@@ -11,6 +11,7 @@ import {
   updatePdfParseStatus,
   uploadLiteraturePdf,
 } from "../lib/api/literature";
+import { getParseMethodLabel } from "../lib/literature/parseMethodLabel";
 import { getPdfActionLabels, getPdfStatusCopy, getPdfStatusTone } from "../lib/ui/status-card";
 import { getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardMetaRow } from "./CardMeta";
@@ -215,7 +216,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           </div>
           <CardMetaRow
             items={[
-              `解析方式 ${currentParseResult.extraction_method}`,
+              `解析方式 ${getParseMethodLabel(currentParseResult.extraction_method)}`,
               `文件大小 ${currentParseResult.file_size} 字节`,
             ]}
           />
