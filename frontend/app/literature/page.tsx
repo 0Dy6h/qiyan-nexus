@@ -1,3 +1,4 @@
+import DemoDataBanner from "../../components/DemoDataBanner";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
@@ -36,6 +37,8 @@ export default function LiteraturePage() {
             );
           })}
         </nav>
+
+        <DemoDataBanner />
 
         <article style={getSurfaceSectionStyle()}>
           <div style={{ display: "grid", gap: 8 }}>

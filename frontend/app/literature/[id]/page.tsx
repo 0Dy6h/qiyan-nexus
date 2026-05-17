@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
+import DemoDataBanner from "../../../components/DemoDataBanner";
 import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
 import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
 import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
@@ -50,6 +51,8 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
               );
             })}
           </nav>
+
+          <DemoDataBanner compact />
 
           <article style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
