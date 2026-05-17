@@ -19,6 +19,9 @@ coverage/
 # Backend runtime uploads
 backend/uploads/
 
+# Backend runtime literature state
+backend/data/runtime/
+
 # Environment / secrets
 .env
 .env.*

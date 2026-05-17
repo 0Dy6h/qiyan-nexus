@@ -5,6 +5,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 from app.repositories.literature import InMemoryLiteratureRepository
+from app.repositories.runtime_storage import resolve_literature_storage_path
 from app.schemas.literature import (
     LiteratureItem,
     LiteratureSearchResponse,
@@ -18,10 +19,7 @@ _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
     "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
 )
 
-_SAMPLE_DATA_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
-)
-_REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
+_REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
 DEFAULT_SEARCH_PAGE_SIZE = 10
 MAX_SEARCH_PAGE_SIZE = 50
 

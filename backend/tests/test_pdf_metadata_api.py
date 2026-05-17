@@ -19,7 +19,6 @@ def test_pdf_metadata_upload_endpoint_updates_literature_record(monkeypatch, tmp
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
@@ -62,7 +61,6 @@ def test_pdf_metadata_upload_endpoint_returns_404_for_unknown_literature_id(
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
