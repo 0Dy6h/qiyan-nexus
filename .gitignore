@@ -17,10 +17,12 @@ coverage/
 *.tsbuildinfo
 
 # Backend runtime uploads
-backend/uploads/
+backend/uploads/**
+!backend/uploads/README.md
 
 # Backend runtime literature state
-backend/data/runtime/
+backend/data/runtime/**
+!backend/data/runtime/README.md
 
 # Environment / secrets
 .env
