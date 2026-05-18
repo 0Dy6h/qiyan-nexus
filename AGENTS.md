@@ -1,6 +1,6 @@
 # AGENTS.md — Qiyan Nexus
 
-> 本文件是项目地图层。详细知识存放在 `docs/`、`CONTEXT.md` 和历史规划目录中。
+> 本文件是项目地图层。当前事实源优先读 `docs/current-state.md`、`README.md`、`CONTEXT.md`、`docs/adr/` 与最新 handoff；历史规划已归档到 `docs/archive/pre-dev-planning/`。
 
 ## 仓库性质
 
@@ -12,35 +12,24 @@
 - `infra/` — 本地基础设施说明与后续 Docker Compose 入口
 
 历史规划产物：
-- `Cursordos/` — Cursor 驱动的规划（前端设计、排期脚本、HTML 原型）
-- `Traedos/` — Trae 驱动的规划（`.trae/specs/` 内含 spec、tasks、checklist）
+- `docs/archive/pre-dev-planning/` — 早期 Cursor / Trae / Word / HTML 原型归档，仅作历史参考，不作为当前实现事实源。
 
 ## 快速导航
 
 | 层级 | 文件 | 读它来做什么 |
 |------|------|-------------|
+| 当前事实源 | `docs/current-state.md` | 当前能力边界、事实源优先级、标准验证命令 |
 | 入口 | `README.md` | 本地启动、测试、目录说明 |
 | 领域语言 | `CONTEXT.md` | TCM 术语表、共享语言 |
-| 需求 | `Traedos/.trae/specs/tcm-platform-mvp/spec.md` | 产品需求、验收标准 |
-| 任务 | `Traedos/.trae/specs/tcm-platform-mvp/tasks.md` | 8 大实现任务 + 依赖 + 测试要求 |
-| 验证 | `Traedos/.trae/specs/tcm-platform-mvp/checklist.md` | 验证清单 |
-| 设计 | `Cursordos/docs/tcm-platform-frontend-design.md` | 信息架构、色彩/字体、合规交互 |
-| 质量 | `docs/quality-score.md` | 各领域质量评分 |
-| 开发计划 | `docs/plans/2026-05-06-first-week-dev-start.md` | 第一周开发启动计划 |
 | 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留 |
-| 最近交接 | `docs/handoffs/2026-05-11-windows-codex-sync.md` | Windows Codex 进度同步回 WSL 后的当前事实源与下一步建议 |
-| 最近前端收口 | `docs/handoffs/2026-05-11-compliance-polish.md` | `/compliance` 两轮最小 UI polish、验证结果与下一步建议 |
-| 最新前端交接 | `docs/handoffs/2026-05-14-frontend-workbench-polish.md` | `/literature`、`/rag`、detail 与 PDF upload metadata 的 workbench polish 收口，以及电脑端接手顺序 |
+| 最近交接 | `docs/handoffs/` | 越新的 handoff 越接近当前事实，用于跨会话续接 |
+| 开发计划 | `docs/plans/` | 已落地或待执行的纵向切片计划 |
+| 质量 | `docs/quality-score.md` | 各领域质量评分 |
+| 历史归档 | `docs/archive/pre-dev-planning/` | 早期需求、任务、设计、Word 文档与 HTML 原型，仅作追溯参考 |
 
 ## 已冻结的技术决策
 
-- **前端**: Next.js + React + Ant Design + AntV G6
-- **后端**: FastAPI + Pydantic（Python 3.11+）
-- **数据**: PostgreSQL + pgvector（向量），Neo4j Aura（图谱）
-- **异步**: Celery + Redis + Flower；对象存储 MinIO（本地 Docker Compose，S3 兼容）
-- **认证**: NextAuth.js + 魔法链接 + 邀请白名单
-- **AI**: DeepSeek（日常问答）+ Claude Sonnet（医学推理与报告），按 endpoint 硬编码路由
-- **Embedding**: text2vec-base-chinese + PubMedBERT（中英分流）
+项目当前采用小步可验证的 MVP-A 边界：前端是 Next.js / React / Ant Design，后端是 FastAPI / Pydantic；本阶段使用本地 JSON seed、runtime state 与 deterministic retrieval，不提前接入 PostgreSQL、pgvector、Neo4j、Celery、Redis、MinIO、真实 LLM 或 embedding。上述重依赖保留为后续阶段的架构方向，而不是当前实现要求。
 
 ## 产品边界
 

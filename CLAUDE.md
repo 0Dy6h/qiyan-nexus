@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Qiyan Nexus — 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。仅医生/研究人员端，**不面向 C 端患者**，**不替代诊断**。所有 AI 输出必须附带免责声明 `非诊断结论、需结合临床。`
 
-仓库当前处于开发骨架阶段（MVP-A 证据工作台）：后端用本地 JSON 样本 + deterministic retrieval 模拟 RAG，PDF 解析是 fake parser。**当前不接真实 LLM、embedding、pgvector、Neo4j、对象存储或支付**；新工作不要绕过这条边界。
+仓库当前处于可运行的 MVP-A 证据工作台阶段：后端用本地 JSON seed + runtime state + deterministic retrieval 模拟 RAG；PDF 解析支持 `pypdf` 文本预览，无法抽取时回退到文件级占位说明。**当前不接真实 LLM、embedding、pgvector、Neo4j、Celery、Redis、MinIO、对象存储或支付**；新工作不要绕过这条边界。
 
 ## Commands
 
@@ -19,7 +19,7 @@ cd backend && python3 -m venv .venv && .venv/bin/python -m pip install -U pip &&
 # Dev server (http://127.0.0.1:8000)
 cd backend && .venv/bin/fastapi dev app/main.py
 
-# Tests (pytest, 85 tests)
+# Tests
 cd backend && .venv/bin/python -m pytest -q
 
 # Single test file / single test
@@ -41,7 +41,7 @@ cd backend && .\.venv\Scripts\python.exe -m pytest -q --basetemp .\.pytest-tmp
 ```bash
 cd frontend && pnpm install
 cd frontend && pnpm dev            # http://localhost:3000, expects backend at 127.0.0.1:8000
-cd frontend && pnpm test           # node --import tsx --test tests/*.test.ts (58 tests)
+cd frontend && pnpm test           # node --import tsx --test tests/*.test.ts
 cd frontend && pnpm typecheck      # tsc --noEmit (includes tests/)
 cd frontend && pnpm build          # next build --webpack
 
@@ -62,12 +62,13 @@ Routers are wired in `app/main.py`. CORS is restricted to `localhost:3000` / `12
 
 ### Sample-data substrate
 
-Authoritative mock data lives in `backend/data/`:
-- `literature/sample_ad_literature.json` — literature records (zh + en)
-- `literature/sample_ad_chunks.json` — chunk-level evidence; the fake parser **upserts** new `source_type=uploaded_pdf` chunks here on parse success
+Authoritative mock data lives in `backend/data/`, while runtime mutations are written under `backend/data/runtime/`:
+- `literature/sample_ad_literature.json` — seed literature records (zh + en)
+- `literature/sample_ad_chunks.json` — seed chunk-level evidence
 - `evals/rag_ad_eval_questions.json` — 20-question AD eval set with expected literature/chunk hits, forbidden phrases, required disclaimer
+- `runtime/literature_state.json` — runtime literature state generated from seed data; gitignored
 
-Repositories rewrite the JSON files on update (e.g. `update_pdf_metadata`, `update_pdf_parse_status`). Tests rely on this round-trip — if you change the file format, expect cascade failures.
+Repositories bootstrap from seed JSON and write runtime state on update (e.g. `update_pdf_metadata`, `update_pdf_parse_status`). Do not commit runtime state or uploaded PDFs as fixtures unless a task explicitly asks for new source data.
 
 ### RAG pipeline (deterministic, no LLM)
 
@@ -79,7 +80,7 @@ Two non-obvious invariants enforced by tests:
 
 ### PDF upload → RAG citation flow
 
-`POST /api/uploads/pdf` (multipart) writes the file under `UPLOAD_STORAGE_DIR` (default `backend/uploads/`, gitignored) and sets literature metadata to `pdf_parse_status=pending`. **The upload endpoint does not parse** — call `POST /api/uploads/pdf/auto-parse` (the fake parser) separately to transition `pending → parsed`/`failed`. On success the parser writes an `uploaded_pdf` chunk so RAG retrieval can cite it; on failure it only flips status and bumps `parse_attempt_count`.
+`POST /api/uploads/pdf` (multipart) writes the file under `UPLOAD_STORAGE_DIR` (default `backend/uploads/`, gitignored) and sets literature metadata to `pdf_parse_status=pending`. **The upload endpoint does not do heavy parsing** — call `POST /api/uploads/pdf/auto-parse` separately to transition `pending → parsed`/`failed`. Auto-parse builds `pdf_parse_result`: text-layer PDFs use `pypdf-text-preview`; scanned/empty/unreadable PDFs fall back to `file-metadata-placeholder`. On success the parser writes an `uploaded_pdf` chunk into runtime state so RAG retrieval can cite it; on failure it only flips status and bumps `parse_attempt_count`.
 
 Stable upload IDs are derived from `literature_id + file_name` so `GET /api/uploads/pdf/{pdf_upload_id}` is idempotent.
 
