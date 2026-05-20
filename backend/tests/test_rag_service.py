@@ -196,3 +196,12 @@ def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path
     assert response.citations[0].chunk_id == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
     assert response.citations[0].quote == "Mock parser 提取了特应性皮炎证据片段"
     assert response.citations[0].reason == "uploaded_pdf, pdf_parse"
+    assert response.citations[0].source_type == "uploaded_pdf"
+    assert response.citations[0].pdf_upload_id == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+
+
+def test_answer_question_leaves_sample_chunk_citation_without_upload_metadata():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.citations[0].source_type == "sample"
+    assert response.citations[0].pdf_upload_id is None

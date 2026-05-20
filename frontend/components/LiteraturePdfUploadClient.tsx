@@ -211,7 +211,9 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           <div style={{ display: "grid", gap: 4 }}>
             <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>解析结果预览</h3>
             <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-              文件级解析结果预览。当前仅展示文件级信息与预览提示，正文抽取与 OCR 能力将在后续接入。
+              {currentParseResult.extraction_method === "pypdf-text-preview"
+                ? "已抽取文本层预览，可对照原文做证据核对；扫描件与 OCR 能力将在后续接入。"
+                : "未能抽取文本层，已回退到文件级占位说明；正文抽取与 OCR 能力将在后续接入。"}
             </p>
           </div>
           <CardMetaRow

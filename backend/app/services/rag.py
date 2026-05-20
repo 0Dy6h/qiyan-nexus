@@ -219,6 +219,8 @@ def answer_question(
                 quote=chunk.source_quote if chunk else None,
                 reason=(", ".join(reason_tags[:2]) if reason_tags else None),
                 confidence=_CONFIDENCE_BY_SOURCE_TYPE[item.source_type],
+                source_type=chunk.source_type if chunk else None,
+                pdf_upload_id=chunk.pdf_upload_id if chunk else None,
             )
         )
 

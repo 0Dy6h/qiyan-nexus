@@ -2,10 +2,15 @@ export type RagSource = "all" | "cn_literature" | "pubmed";
 
 export type CitationCard = {
   literature_id: string;
+  chunk_id?: string | null;
   title: string;
   source: string;
   snippet: string;
+  quote?: string | null;
+  reason?: string | null;
   confidence: number;
+  source_type?: string | null;
+  pdf_upload_id?: string | null;
 };
 
 export type RetrievalMetadata = {

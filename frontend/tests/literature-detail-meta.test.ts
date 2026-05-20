@@ -17,5 +17,5 @@ test("pdf upload panel uses unified review-first labels for file identity and pa
   assert.doesNotMatch(uploadClientSource, /结果文件 \$\{currentParseResult\.file_name\}/);
   assert.match(uploadClientSource, /解析方式 \$\{getParseMethodLabel\(currentParseResult\.extraction_method\)\}/);
   assert.match(uploadClientSource, /预览说明 \$\{currentParseResult\.preview_text\}/);
-  assert.match(uploadClientSource, /当前仅展示文件级信息与预览提示，正文抽取与 OCR 能力将在后续接入/);
+  assert.match(uploadClientSource, /回退到文件级占位说明；正文抽取与 OCR 能力将在后续接入/);
 });

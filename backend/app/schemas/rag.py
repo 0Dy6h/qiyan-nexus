@@ -12,6 +12,8 @@ class CitationCard(BaseModel):
     quote: str | None = None
     reason: str | None = None
     confidence: float
+    source_type: str | None = None
+    pdf_upload_id: str | None = None
 
 
 class RetrievalMetadata(BaseModel):
