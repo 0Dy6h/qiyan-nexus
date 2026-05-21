@@ -50,6 +50,10 @@ cd frontend && node --import tsx --test tests/literature-api.test.ts
 
 # Override API base
 cd frontend && NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
+
+# E2E (A4 — Playwright). One-time host setup: pnpm exec playwright install chromium
+# plus sudo install-deps for libnspr4/libnss3/etc. See frontend/e2e/README.md.
+cd frontend && pnpm e2e            # spins up backend + frontend webServer, runs e2e/*.spec.ts
 ```
 
 ## Architecture
@@ -102,6 +106,7 @@ Only MVP-A (evidence workbench) is in scope right now. Concepts for MVP-B (netwo
 - **Disclaimer string**: `非诊断结论、需结合临床。` is load-bearing — referenced by tests, eval, and frontend assertions. Keep it byte-identical.
 - **Visual tokens**: 青黛绿 `#0d9488` ~ `#14b8a6` as primary; light-mode product surfaces; Noto Sans SC. Existing pages use inline styles with `clamp(20px, 4vw, 48px)` page padding — match that rather than introducing a new styling layer mid-slice.
 - **Lint/type gate**: every backend change must leave `ruff format --check app tests`, `ruff check app tests`, `mypy app`, and `pytest -q` all green. `[tool.mypy].strict = true` is enforced on `app/`; tests are excluded. `B008` is globally ignored because FastAPI uses `Body()` / `Form()` / `File()` / `Query()` as defaults.
+- **E2E gate (A4)**: `pnpm e2e` is the third frontend gauntlet stage but is NOT part of the per-commit gauntlet — it requires `playwright install chromium` + system libs (sudo). Run it before closed-beta walkthroughs and CI; treat failures as branch-level blockers, not commit-level.
 - **Secrets**: only `.env.example` is committed. `.env*` and `backend/uploads/` are gitignored.
 - **Access control (A2)**: `QIYAN_ACCESS_TOKENS` env (comma-separated allowlist) gates every API path except `/health` and CORS preflight. Empty value = open (dev default); set value requires `X-Access-Token` header. Middleware lives in `app/core/access_control.py`.
 - **TDD slice cadence**: per `AGENTS.md`, write failing test → implement → refactor; commit small vertical slices rather than batched refactors.
