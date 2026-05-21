@@ -1,4 +1,5 @@
 import DemoDataBanner from "../../components/DemoDataBanner";
+import LiteraturePubmedSyncClient from "../../components/LiteraturePubmedSyncClient";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
@@ -49,6 +50,8 @@ export default function LiteraturePage() {
             </p>
           </div>
         </article>
+
+        <LiteraturePubmedSyncClient />
 
         <LiteratureSearchClient />
 

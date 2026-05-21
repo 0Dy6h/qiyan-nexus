@@ -48,6 +48,21 @@ export type PdfUploadResponse = {
   pdf_parse_status: PdfParseStatus;
 };
 
+export type LiteratureSyncRequest = {
+  source: "pubmed";
+  q: string;
+  max_results: number;
+};
+
+export type LiteratureSyncResponse = {
+  source: "pubmed";
+  query: string;
+  fetched: number;
+  created: number;
+  updated: number;
+  items: LiteratureItem[];
+};
+
 export function getBackendBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 }
@@ -220,6 +235,41 @@ export async function updatePdfParseStatus(
 
   if (!response.ok) {
     throw new Error("PDF parse status update failed");
+  }
+
+  return response.json();
+}
+
+export const LITERATURE_SYNC_MAX_RESULTS_CAP = 50;
+
+export function buildLiteratureSyncUrl() {
+  return new URL("/api/literature/sync", getBackendBaseUrl()).toString();
+}
+
+export function buildLiteratureSyncRequest(query: string, maxResults: number): LiteratureSyncRequest {
+  const trimmed = query.trim();
+  const bounded = Math.max(1, Math.min(LITERATURE_SYNC_MAX_RESULTS_CAP, Math.floor(maxResults)));
+  return {
+    source: "pubmed",
+    q: trimmed,
+    max_results: bounded,
+  };
+}
+
+export async function syncLiteratureFromPubmed(
+  query: string,
+  maxResults: number,
+): Promise<LiteratureSyncResponse> {
+  const response = await fetch(buildLiteratureSyncUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(buildLiteratureSyncRequest(query, maxResults)),
+  });
+
+  if (!response.ok) {
+    throw new Error("Literature sync failed");
   }
 
   return response.json();
