@@ -6,6 +6,7 @@ from app.api.literature import router as literature_router
 from app.api.network import router as network_router
 from app.api.rag import router as rag_router
 from app.api.upload import router as upload_router
+from app.core.access_control import install_access_token_middleware
 
 app = FastAPI(title="Qiyan Nexus API")
 app.add_middleware(
@@ -14,6 +15,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+install_access_token_middleware(app)
 app.include_router(literature_router)
 app.include_router(rag_router)
 app.include_router(eval_router)

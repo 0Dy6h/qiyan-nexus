@@ -103,6 +103,7 @@ Only MVP-A (evidence workbench) is in scope right now. Concepts for MVP-B (netwo
 - **Visual tokens**: 青黛绿 `#0d9488` ~ `#14b8a6` as primary; light-mode product surfaces; Noto Sans SC. Existing pages use inline styles with `clamp(20px, 4vw, 48px)` page padding — match that rather than introducing a new styling layer mid-slice.
 - **Lint/type gate**: every backend change must leave `ruff format --check app tests`, `ruff check app tests`, `mypy app`, and `pytest -q` all green. `[tool.mypy].strict = true` is enforced on `app/`; tests are excluded. `B008` is globally ignored because FastAPI uses `Body()` / `Form()` / `File()` / `Query()` as defaults.
 - **Secrets**: only `.env.example` is committed. `.env*` and `backend/uploads/` are gitignored.
+- **Access control (A2)**: `QIYAN_ACCESS_TOKENS` env (comma-separated allowlist) gates every API path except `/health` and CORS preflight. Empty value = open (dev default); set value requires `X-Access-Token` header. Middleware lives in `app/core/access_control.py`.
 - **TDD slice cadence**: per `AGENTS.md`, write failing test → implement → refactor; commit small vertical slices rather than batched refactors.
 
 ## Where to look for context

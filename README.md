@@ -45,6 +45,13 @@ cd backend
 curl http://127.0.0.1:8000/health
 ```
 
+访问控制（可选，A2）：
+
+- 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
+- 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
+- 示例：`QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2" .venv/bin/fastapi dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
+- CORS 配置不变；前端如需带 token 调用，需要后续在 fetch wrapper 里加 header（A2 不动前端）。
+
 文献检索 API 数据来源：
 
 - seed 文献 JSON：`backend/data/literature/sample_ad_literature.json`
