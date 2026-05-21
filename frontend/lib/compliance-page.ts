@@ -2,7 +2,8 @@ export function getCompliancePageIntro() {
   return {
     eyebrow: "Qiyan Nexus · 合规说明",
     title: "合规与使用边界",
-    summary: "说明当前证据工作台的适用对象、输出边界、引用要求与隐私处理原则。",
+    summary:
+      "说明当前证据工作台的适用对象、输出边界、引用要求、隐私处理原则、数据来源与 PDF 版权边界。",
   };
 }
 
@@ -34,6 +35,22 @@ export function getComplianceHighlights() {
       items: [
         "当前 MVP-A 不要求上传患者隐私数据开展问答。",
         "后续接入 PDF 或病例材料前，应先完成脱敏、权限与留痕方案。",
+      ],
+    },
+    {
+      title: "数据来源说明",
+      items: [
+        "中文文献部分来自 seed sample 数据集，仅作演示与开发期回归用途，不代表 CNKI / 万方等数据库授权内容。",
+        "英文文献部分来自 PubMed 实时同步（NCBI E-utilities），使用须遵守 NCBI 服务条款与速率限制；同步结果会落入 runtime 状态，不会覆盖 seed。",
+        "用户上传 PDF 仅保存在本地 runtime 目录，用于解析预览与证据核对，不进入任何外部检索或训练流程。",
+      ],
+    },
+    {
+      title: "PDF 版权声明",
+      items: [
+        "上传的 PDF 仅在本地工作台用于研究、教学与证据核对，不公开、不再分发、不上传至任何第三方服务。",
+        "用户应自行确认对所上传 PDF 拥有合法访问与使用权利，版权归原出版方与作者所有。",
+        "若收到权利人下架请求，应在 runtime 目录与 literature 状态中删除对应文件与解析记录。",
       ],
     },
   ];
