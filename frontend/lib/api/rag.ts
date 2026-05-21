@@ -25,6 +25,7 @@ export type RagAnswerResponse = {
   disclaimer: string;
   retrieval: RetrievalMetadata;
   citations: CitationCard[];
+  answered_at: string;
 };
 
 export function getBackendBaseUrl() {

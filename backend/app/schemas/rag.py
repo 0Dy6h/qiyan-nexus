@@ -34,3 +34,4 @@ class RagAnswerResponse(BaseModel):
     disclaimer: str
     retrieval: RetrievalMetadata
     citations: list[CitationCard]
+    answered_at: str

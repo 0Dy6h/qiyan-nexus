@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
@@ -234,4 +235,5 @@ def answer_question(
             available_citation_count=available_citation_count,
         ),
         citations=citations,
+        answered_at=datetime.now(UTC).isoformat(),
     )

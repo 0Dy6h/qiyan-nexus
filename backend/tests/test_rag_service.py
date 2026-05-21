@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
@@ -6,6 +7,7 @@ from app.repositories.literature import InMemoryLiteratureRepository
 from app.services.rag import answer_question
 
 DISCLAIMER = "非诊断结论、需结合临床。"
+ISO_UTC_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00$")
 
 
 def test_answer_question_returns_ranked_citation_cards_for_gut_skin_axis_question():
@@ -205,3 +207,10 @@ def test_answer_question_leaves_sample_chunk_citation_without_upload_metadata():
 
     assert response.citations[0].source_type == "sample"
     assert response.citations[0].pdf_upload_id is None
+
+
+def test_answer_question_returns_iso_utc_answered_at_timestamp():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert isinstance(response.answered_at, str)
+    assert ISO_UTC_PATTERN.match(response.answered_at), response.answered_at
