@@ -69,7 +69,7 @@ Lock tests 防回归：
 - `backend/app/services/rag.py`（主要改动：alias bonus + sort key + diversity slot + topic map）
 - `backend/tests/test_rag_service.py`
 - `backend/tests/test_eval_service.py`
-- `docs/plans/2026-05-10-rag-eval-slice.md`（已更新基线段）
+- `docs/plans/archive/2026-05-10-rag-eval-slice.md`（已更新基线段）
 - `docs/handoffs/2026-05-16-rag-eval-baseline-100.md`（本文件）
 
 ## Recommended next step
@@ -87,5 +87,5 @@ Lock tests 防回归：
 1. `AGENTS.md`
 2. `CLAUDE.md`
 3. `docs/handoffs/2026-05-16-rag-eval-baseline-100.md`（本文件）
-4. `docs/plans/2026-05-10-rag-eval-slice.md`（已更新）
+4. `docs/plans/archive/2026-05-10-rag-eval-slice.md`（已更新）
 5. `backend/app/services/rag.py`、`backend/tests/test_rag_service.py`、`backend/tests/test_eval_service.py`
