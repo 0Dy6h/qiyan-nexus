@@ -11,6 +11,7 @@ Token comparison is case-sensitive and whitespace-stripped at parse time.
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Awaitable, Callable
 
@@ -24,6 +25,8 @@ from starlette.types import ASGIApp
 ACCESS_TOKEN_HEADER = "X-Access-Token"
 ACCESS_TOKENS_ENV = "QIYAN_ACCESS_TOKENS"
 _OPEN_PATHS: frozenset[str] = frozenset({"/health"})
+
+logger = logging.getLogger(__name__)
 
 
 def parse_access_tokens(raw: str | None) -> frozenset[str]:
@@ -46,6 +49,9 @@ class AccessTokenMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         if not self._allowed_tokens:
             return await call_next(request)
+        # CORS preflight is normally absorbed by CORSMiddleware (installed outer);
+        # this branch stays as a defensive net for OPTIONS requests that reach
+        # us anyway (e.g. without an Origin header).
         if request.method == "OPTIONS":
             return await call_next(request)
         if request.url.path in _OPEN_PATHS:
@@ -62,7 +68,22 @@ class AccessTokenMiddleware(BaseHTTPMiddleware):
 
 
 def install_access_token_middleware(app: FastAPI) -> None:
-    """Install ``AccessTokenMiddleware`` reading the env at call time."""
+    """Install ``AccessTokenMiddleware`` reading the env at call time.
+
+    Emits an INFO log line so an empty env does not silently leave the API
+    fully open in production. Token values are never logged.
+    """
 
     allowed = parse_access_tokens(os.getenv(ACCESS_TOKENS_ENV))
+    if not allowed:
+        logger.info(
+            "access control disabled: %s unset or empty (open mode)",
+            ACCESS_TOKENS_ENV,
+        )
+    else:
+        logger.info(
+            "access control enabled with %d token(s) via %s",
+            len(allowed),
+            ACCESS_TOKENS_ENV,
+        )
     app.add_middleware(AccessTokenMiddleware, allowed_tokens=allowed)

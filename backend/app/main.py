@@ -9,13 +9,17 @@ from app.api.upload import router as upload_router
 from app.core.access_control import install_access_token_middleware
 
 app = FastAPI(title="Qiyan Nexus API")
+# Order matters: Starlette installs middleware via `insert(0, ...)` and builds
+# the stack with `reversed(middleware)`, so the LAST one added is OUTERMOST.
+# We want CORS outermost so that 401 responses from the access-control middleware
+# still carry Access-Control-Allow-Origin headers for browser callers.
+install_access_token_middleware(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-install_access_token_middleware(app)
 app.include_router(literature_router)
 app.include_router(rag_router)
 app.include_router(eval_router)
