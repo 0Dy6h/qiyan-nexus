@@ -60,3 +60,18 @@ class PdfMetadataUploadRequest(BaseModel):
 class PdfParseStatusUpdateRequest(BaseModel):
     literature_id: str = Field(min_length=1)
     pdf_parse_status: Literal["parsed", "failed"]
+
+
+class LiteratureSyncRequest(BaseModel):
+    source: Literal["pubmed"]
+    q: str = Field(min_length=1)
+    max_results: int = Field(default=10, ge=1, le=50)
+
+
+class LiteratureSyncResponse(BaseModel):
+    source: Literal["pubmed"]
+    query: str
+    fetched: int
+    created: int
+    updated: int
+    items: list[LiteratureItem]

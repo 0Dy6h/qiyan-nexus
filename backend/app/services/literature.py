@@ -11,9 +11,11 @@ from app.schemas.literature import (
     LiteratureSearchResponse,
     LiteratureSearchSort,
     LiteratureSource,
+    LiteratureSyncResponse,
     PdfParseResult,
 )
 from app.services.pdf_storage import resolve_stored_pdf_path
+from app.services.pubmed import PubmedClient, PubmedFetcher, PubmedRecord
 
 _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
     "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
@@ -239,4 +241,54 @@ def update_pdf_parse_status(
         pdf_parse_finished_at=pdf_parse_finished_at,
         pdf_parse_result=build_pdf_parse_result(next_item),
         last_parse_trigger=trigger,
+    )
+
+
+def _default_pubmed_fetcher() -> PubmedFetcher:
+    return PubmedClient()
+
+
+def _pubmed_record_to_item_dict(record: PubmedRecord) -> dict[str, object]:
+    title = record.title
+    abstract = record.abstract or ""
+    snippet = abstract[:280] if abstract else title
+    return {
+        "id": f"pmid-{record.pmid}",
+        "title": title,
+        "language": "en",
+        "source_type": "pubmed",
+        "source": "PubMed live sync",
+        "year": record.year if record.year is not None else 0,
+        "snippet": snippet,
+        "abstract": abstract or None,
+        "authors": list(record.authors),
+        "keywords": list(record.keywords),
+        "evidence_tags": [],
+        "pubmed_id": record.pmid,
+        "doi": record.doi,
+        "citation_url": f"https://pubmed.ncbi.nlm.nih.gov/{record.pmid}/",
+    }
+
+
+def sync_pubmed(
+    query: str, max_results: int, fetcher: PubmedFetcher | None = None
+) -> LiteratureSyncResponse:
+    client = fetcher if fetcher is not None else _default_pubmed_fetcher()
+    pmids = client.esearch(query.strip(), max_results=max_results)
+    if not pmids:
+        return LiteratureSyncResponse(
+            source="pubmed", query=query.strip(), fetched=0, created=0, updated=0, items=[]
+        )
+    records = client.efetch(pmids)
+    payload = [_pubmed_record_to_item_dict(record) for record in records]
+    created, updated = _REPOSITORY.bulk_upsert_pubmed_items(payload)
+    refreshed_ids = {entry["id"] for entry in payload}
+    items = [item for item in _REPOSITORY.list_items() if item.id in refreshed_ids]
+    return LiteratureSyncResponse(
+        source="pubmed",
+        query=query.strip(),
+        fetched=len(records),
+        created=created,
+        updated=updated,
+        items=items,
     )

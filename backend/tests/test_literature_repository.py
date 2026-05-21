@@ -104,3 +104,105 @@ def test_repository_raises_validation_error_for_missing_required_fields(tmp_path
 
     with pytest.raises(ValidationError):
         InMemoryLiteratureRepository(data_path).list_items()
+
+
+def test_repository_bulk_upsert_pubmed_items_inserts_new_items_and_preserves_existing(
+    tmp_path: Path,
+):
+    data_path = tmp_path / "sample_ad_literature.json"
+    write_sample_data(data_path, SAMPLE_ITEMS)
+    repository = InMemoryLiteratureRepository(data_path)
+
+    incoming = [
+        {
+            "id": "pmid-39000003",
+            "title": "Targeted therapy for atopic dermatitis: JAK inhibitors review",
+            "language": "en",
+            "source_type": "pubmed",
+            "source": "PubMed live sync",
+            "year": 2025,
+            "snippet": "Targeted therapy for atopic dermatitis: JAK inhibitors review",
+            "abstract": "A systematic review of JAK inhibitors in atopic dermatitis.",
+            "authors": ["Liu Wei"],
+            "keywords": ["JAK", "atopic dermatitis"],
+            "pubmed_id": "39000003",
+            "doi": "10.1000/ad.2025.003",
+            "citation_url": "https://pubmed.ncbi.nlm.nih.gov/39000003/",
+        },
+        {
+            "id": "pmid-40100001",
+            "title": "Atopic dermatitis, skin barrier dysfunction (refreshed 2025)",
+            "language": "en",
+            "source_type": "pubmed",
+            "source": "PubMed live sync",
+            "year": 2025,
+            "snippet": "Atopic dermatitis, skin barrier dysfunction (refreshed 2025)",
+            "abstract": "Refreshed abstract with new mechanistic data.",
+            "authors": ["Emily Carter"],
+            "keywords": ["atopic dermatitis", "barrier"],
+            "pubmed_id": "40100001",
+            "doi": "10.1000/ad.2024.001",
+            "citation_url": "https://pubmed.ncbi.nlm.nih.gov/40100001/",
+        },
+    ]
+
+    created, updated = repository.bulk_upsert_pubmed_items(incoming)
+
+    assert created == 1
+    assert updated == 1
+    items_by_id = {item.id: item for item in repository.list_items()}
+    new_item = items_by_id["pmid-39000003"]
+    assert new_item.title.startswith("Targeted therapy")
+    assert new_item.source == "PubMed live sync"
+    assert new_item.year == 2025
+    refreshed = items_by_id["pmid-40100001"]
+    assert refreshed.title.endswith("(refreshed 2025)")
+    assert refreshed.year == 2025
+    assert "肠-脑-皮肤轴与特应性皮炎中医证候研究" == items_by_id["cn-ad-gbs-001"].title
+
+
+def test_repository_bulk_upsert_pubmed_items_preserves_pdf_metadata_on_update(tmp_path: Path):
+    data_path = tmp_path / "sample_ad_literature.json"
+    existing = [
+        {
+            "id": "pmid-40100001",
+            "title": "Old title",
+            "language": "en",
+            "source_type": "pubmed",
+            "source": "PubMed curated AD sample",
+            "year": 2024,
+            "snippet": "Old snippet",
+            "pdf_upload_id": "pdf-pmid-40100001-evidence-pdf",
+            "pdf_file_name": "evidence.pdf",
+            "pdf_parse_status": "parsed",
+            "pdf_parse_message": "Mock parser completed successfully",
+            "parse_attempt_count": 2,
+        },
+    ]
+    write_sample_data(data_path, existing)
+    repository = InMemoryLiteratureRepository(data_path)
+
+    repository.bulk_upsert_pubmed_items(
+        [
+            {
+                "id": "pmid-40100001",
+                "title": "Refreshed title",
+                "language": "en",
+                "source_type": "pubmed",
+                "source": "PubMed live sync",
+                "year": 2025,
+                "snippet": "Refreshed snippet",
+                "abstract": "Refreshed abstract",
+                "pubmed_id": "40100001",
+            },
+        ]
+    )
+
+    item = repository.get_item_by_id("pmid-40100001")
+    assert item is not None
+    assert item.title == "Refreshed title"
+    assert item.pdf_upload_id == "pdf-pmid-40100001-evidence-pdf"
+    assert item.pdf_file_name == "evidence.pdf"
+    assert item.pdf_parse_status == "parsed"
+    assert item.pdf_parse_message == "Mock parser completed successfully"
+    assert item.parse_attempt_count == 2
