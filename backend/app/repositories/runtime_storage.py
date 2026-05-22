@@ -56,3 +56,28 @@ def resolve_chunk_storage_path() -> Path:
         target.write_bytes(_CHUNK_SAMPLE_PATH.read_bytes())
 
     return target
+
+
+def resolve_network_tasks_storage_path() -> Path:
+    """
+    Return absolute path to runtime network task state file:
+    backend/data/runtime/network_tasks_state.json
+
+    Network tasks are mutation-only state with no tracked seed, so first-call
+    bootstrap writes an empty list "[]\n" instead of copying a sample file.
+
+    Env override: NETWORK_TASKS_RUNTIME_STATE_PATH.
+    """
+    env_path = os.environ.get("NETWORK_TASKS_RUNTIME_STATE_PATH")
+    if env_path:
+        target = Path(env_path)
+    else:
+        target = (
+            Path(__file__).resolve().parents[2] / "data" / "runtime" / "network_tasks_state.json"
+        )
+
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("[]\n", encoding="utf-8")
+
+    return target

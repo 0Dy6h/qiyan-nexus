@@ -39,3 +39,14 @@ class NetworkResultResponse(BaseModel):
     status: TaskStatus
     progress: int = Field(ge=0, le=100)
     result: NetworkAnalysisResult | None = None
+
+
+class NetworkTaskRecord(BaseModel):
+    task_id: str
+    query: str
+    analysis_type: AnalysisType
+    status: TaskStatus
+    progress: int = Field(ge=0, le=100)
+    poll_count: int = Field(ge=0)
+    result: NetworkAnalysisResult | None = None
+    created_at: str

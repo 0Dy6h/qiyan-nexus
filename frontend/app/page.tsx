@@ -52,6 +52,22 @@ export default function HomePage() {
             进入 RAG 问答
           </a>
           <a
+            href="/network"
+            style={{
+              display: "inline-block",
+              borderRadius: 8,
+              background: "#ecfeff",
+              border: "1px solid #99f6e4",
+              color: "#115e59",
+              fontSize: 16,
+              fontWeight: 700,
+              padding: "12px 20px",
+              textDecoration: "none",
+            }}
+          >
+            进入网络药理学
+          </a>
+          <a
             href="/compliance"
             style={{
               display: "inline-block",
