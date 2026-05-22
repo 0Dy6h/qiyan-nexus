@@ -215,7 +215,6 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     )
 
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -284,7 +283,6 @@ def test_fake_parser_endpoint_uses_extracted_pdf_text_for_parse_result_preview(
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
     get_settings.cache_clear()
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -338,7 +336,6 @@ def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
     get_settings.cache_clear()
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -387,7 +384,6 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     )
 
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -476,7 +472,6 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
     )
 
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",

@@ -1,10 +1,12 @@
 import re
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
 from app.repositories.literature import InMemoryLiteratureRepository
-from app.repositories.runtime_storage import resolve_literature_storage_path
+from app.repositories.runtime_storage import (
+    resolve_chunk_storage_path,
+    resolve_literature_storage_path,
+)
 from app.schemas.chunk import LiteratureChunk
 from app.schemas.literature import LiteratureItem, LiteratureSource
 from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
@@ -12,11 +14,8 @@ from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
 
 DISCLAIMER = "非诊断结论、需结合临床。"
-_CHUNK_DATA_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
-)
 _REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
-_CHUNK_REPOSITORY = InMemoryChunkRepository(_CHUNK_DATA_PATH)
+_CHUNK_REPOSITORY = InMemoryChunkRepository(resolve_chunk_storage_path())
 _CONFIDENCE_BY_SOURCE_TYPE = {
     "cn_literature": 0.86,
     "pubmed": 0.74,

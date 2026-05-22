@@ -1,11 +1,18 @@
 import json
 from pathlib import Path
 
-from app.repositories.runtime_storage import resolve_literature_storage_path
+from app.repositories.runtime_storage import (
+    resolve_chunk_storage_path,
+    resolve_literature_storage_path,
+)
 
 
 def _sample_path() -> Path:
     return Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+
+
+def _chunk_sample_path() -> Path:
+    return Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
 
 
 def _read_json(path: Path) -> list[dict]:
@@ -63,6 +70,46 @@ def test_env_override_bootstraps_only_once(tmp_path: Path, monkeypatch):
     mtime1 = custom.stat().st_mtime
 
     resolve_literature_storage_path()
+    mtime2 = custom.stat().st_mtime
+
+    assert mtime2 == mtime1
+
+
+def test_chunk_bootstrap_when_runtime_file_does_not_exist(tmp_path: Path, monkeypatch):
+    target = tmp_path / "chunk_state.json"
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(target))
+
+    assert not target.exists()
+    result = resolve_chunk_storage_path()
+
+    assert result == target
+    assert target.exists()
+    assert _read_json(target) == _read_json(_chunk_sample_path())
+
+
+def test_chunk_idempotent_when_runtime_file_already_exists(tmp_path: Path, monkeypatch):
+    target = tmp_path / "chunk_state.json"
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(target))
+
+    resolve_chunk_storage_path()
+
+    mutated = [{"chunk_id": "custom-runtime-only"}]
+    _write_json(target, mutated)
+
+    result = resolve_chunk_storage_path()
+
+    assert result == target
+    assert _read_json(target) == mutated
+
+
+def test_chunk_env_override_bootstraps_only_once(tmp_path: Path, monkeypatch):
+    custom = tmp_path / "chunk_only_once.json"
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(custom))
+
+    resolve_chunk_storage_path()
+    mtime1 = custom.stat().st_mtime
+
+    resolve_chunk_storage_path()
     mtime2 = custom.stat().st_mtime
 
     assert mtime2 == mtime1

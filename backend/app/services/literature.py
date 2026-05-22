@@ -1,3 +1,4 @@
+import hashlib
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -167,6 +168,14 @@ def get_literature_item(item_id: str) -> LiteratureItem | None:
 
 def build_pdf_upload_id(literature_id: str, file_name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", file_name.lower()).strip("-")
+    # When the slug collapses to empty or the bare extension (typical for
+    # pure-CJK filenames), fold a short content-addressed digest of the original
+    # file_name into the slug so two distinct Chinese uploads on the same
+    # literature_id do not produce the same upload_id (and thus overwrite each
+    # other on disk + in runtime state).
+    if not slug or slug == "pdf":
+        digest = hashlib.sha1(file_name.encode("utf-8")).hexdigest()[:8]
+        slug = f"pdf-{digest}"
     return f"pdf-{literature_id}-{slug}"
 
 
