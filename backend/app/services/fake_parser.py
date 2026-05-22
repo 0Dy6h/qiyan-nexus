@@ -1,13 +1,9 @@
-from pathlib import Path
-
 from app.repositories.chunk import InMemoryChunkRepository
+from app.repositories.runtime_storage import resolve_chunk_storage_path
 from app.schemas.literature import LiteratureItem
 from app.services.literature import update_pdf_parse_status
 
-_CHUNK_DATA_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
-)
-_CHUNK_REPOSITORY = InMemoryChunkRepository(_CHUNK_DATA_PATH)
+_CHUNK_REPOSITORY = InMemoryChunkRepository(resolve_chunk_storage_path())
 
 
 def resolve_fake_parse_status(file_name: str) -> str:

@@ -16,8 +16,19 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Playwright artifacts (A4 E2E)
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+
 # Backend runtime uploads
-backend/uploads/
+backend/uploads/**
+!backend/uploads/README.md
+
+# Backend runtime literature state
+backend/data/runtime/**
+!backend/data/runtime/README.md
 
 # Environment / secrets
 .env

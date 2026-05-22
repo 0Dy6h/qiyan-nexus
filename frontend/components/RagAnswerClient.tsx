@@ -9,6 +9,8 @@ import {
   RagAnswerResponse,
   RagSource,
 } from "../lib/api/rag";
+import { buildPdfDownloadUrl } from "../lib/api/literature";
+import { buildAnswerMarkdown, buildAnswerMarkdownFileName } from "../lib/rag-export";
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
@@ -28,14 +30,29 @@ function formatConfidence(value: number) {
 }
 
 function CitationListItem({ citation }: { citation: CitationCard }) {
+  const isUploadedPdf = citation.source_type === "uploaded_pdf";
+  const pdfPreviewUrl = isUploadedPdf && citation.pdf_upload_id ? buildPdfDownloadUrl(citation.pdf_upload_id) : null;
   return (
     <article style={getSurfaceCardStyle()}>
-      <CardMetaRow items={[`来源 ${citation.source}`, `置信度 ${formatConfidence(citation.confidence)}`]} />
+      <CardMetaRow
+        items={[
+          `来源 ${citation.source}`,
+          `置信度 ${formatConfidence(citation.confidence)}`,
+          isUploadedPdf ? "证据片段 来自上传 PDF" : null,
+        ]}
+      />
       <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
       <CardBodyText>{citation.snippet}</CardBodyText>
-      <a href={`/literature/${encodeURIComponent(citation.literature_id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
-        查看文献详情 →
-      </a>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <a href={`/literature/${encodeURIComponent(citation.literature_id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
+          查看文献详情 →
+        </a>
+        {pdfPreviewUrl ? (
+          <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" style={{ color: "#0d9488", fontWeight: 700 }}>
+            预览原文 PDF ↗
+          </a>
+        ) : null}
+      </div>
     </article>
   );
 }
@@ -81,6 +98,23 @@ export default function RagAnswerClient() {
         isLoading: false,
       });
     }
+  }
+
+  function onExportAnswer() {
+    if (!state.result) {
+      return;
+    }
+    const markdown = buildAnswerMarkdown(state.result);
+    const fileName = buildAnswerMarkdownFileName(state.result.answered_at);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -194,7 +228,25 @@ export default function RagAnswerClient() {
             <CardMetaRow items={[`应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `应用 top_k ${state.result.retrieval.applied_top_k}`]} />
             <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
             <CardBodyText>{state.result.answer}</CardBodyText>
-            <p style={{ color: "#64748b", marginBottom: 0, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
+            <p style={{ color: "#64748b", marginBottom: 12, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
+            <button
+              type="button"
+              onClick={onExportAnswer}
+              aria-label="导出答案为 Markdown"
+              style={{
+                border: "1px solid #0d9488",
+                borderRadius: 8,
+                background: "white",
+                color: "#0d9488",
+                fontSize: 15,
+                fontWeight: 700,
+                padding: "10px 18px",
+                minHeight: 44,
+                cursor: "pointer",
+              }}
+            >
+              导出答案为 Markdown ↓
+            </button>
           </section>
 
           <section style={getSurfaceSectionStyle()}>

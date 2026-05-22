@@ -116,7 +116,7 @@ Lock tests 防回归：
 - `backend/data/evals/rag_ad_eval_questions.json` — 9 道空 expected_chunk_ids 题全部补完
 - `backend/tests/test_eval_service.py` — 新 chunk_hit lock + 重写的空 chunk 分支测试
 - `docs/handoffs/2026-05-17-chunk-dataset-expansion.md`（本文件）
-- `docs/plans/2026-05-10-rag-eval-slice.md`（基线段已 sync 到 chunk_hit 20/20）
+- `docs/plans/archive/2026-05-10-rag-eval-slice.md`（基线段已 sync 到 chunk_hit 20/20）
 
 ## Recommended next step
 
@@ -133,6 +133,6 @@ Lock tests 防回归：
 1. `AGENTS.md` + `CLAUDE.md`
 2. `docs/handoffs/2026-05-17-chunk-dataset-expansion.md`（本文件）
 3. `docs/handoffs/2026-05-16-rag-eval-baseline-100.md`（上一颗 slice 的成果）
-4. `docs/plans/2026-05-10-rag-eval-slice.md`（基线段已更新）
+4. `docs/plans/archive/2026-05-10-rag-eval-slice.md`（基线段已更新）
 5. `backend/data/literature/sample_ad_chunks.json`（12 条 chunk 现状）
 6. `backend/tests/test_eval_service.py`（锁定测试集合）

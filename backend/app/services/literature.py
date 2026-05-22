@@ -1,21 +1,28 @@
+import hashlib
 import re
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pypdf import PdfReader
+
 from app.repositories.literature import InMemoryLiteratureRepository
+from app.repositories.runtime_storage import resolve_literature_storage_path
 from app.schemas.literature import (
     LiteratureItem,
     LiteratureSearchResponse,
     LiteratureSearchSort,
     LiteratureSource,
+    LiteratureSyncResponse,
     PdfParseResult,
 )
 from app.services.pdf_storage import resolve_stored_pdf_path
+from app.services.pubmed import PubmedClient, PubmedFetcher, PubmedRecord
 
-_SAMPLE_DATA_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+_PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
+    "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
 )
-_REPOSITORY = InMemoryLiteratureRepository(_SAMPLE_DATA_PATH)
+
+_REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
 DEFAULT_SEARCH_PAGE_SIZE = 10
 MAX_SEARCH_PAGE_SIZE = 50
 
@@ -161,6 +168,14 @@ def get_literature_item(item_id: str) -> LiteratureItem | None:
 
 def build_pdf_upload_id(literature_id: str, file_name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", file_name.lower()).strip("-")
+    # When the slug collapses to empty or the bare extension (typical for
+    # pure-CJK filenames), fold a short content-addressed digest of the original
+    # file_name into the slug so two distinct Chinese uploads on the same
+    # literature_id do not produce the same upload_id (and thus overwrite each
+    # other on disk + in runtime state).
+    if not slug or slug == "pdf":
+        digest = hashlib.sha1(file_name.encode("utf-8")).hexdigest()[:8]
+        slug = f"pdf-{digest}"
     return f"pdf-{literature_id}-{slug}"
 
 
@@ -181,18 +196,30 @@ def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
     return "Mock parser completed successfully", started_at, finished_at
 
 
+def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | None:
+    try:
+        reader = PdfReader(str(storage_path))
+        text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
+    except Exception:
+        return None
+    if not text:
+        return None
+    return text[:max_chars]
+
+
 def build_pdf_parse_result(item: LiteratureItem) -> PdfParseResult | None:
     if item.pdf_parse_status != "parsed" or not item.pdf_upload_id or not item.pdf_file_name:
         return None
     storage_path = resolve_stored_pdf_path(item.pdf_upload_id)
     if storage_path is None:
         return None
+    preview_text = extract_pdf_preview_text(storage_path)
     return PdfParseResult(
         file_name=item.pdf_file_name,
         storage_path=str(storage_path),
         file_size=storage_path.stat().st_size,
-        preview_text="已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。",
-        extraction_method="file-metadata-placeholder",
+        preview_text=preview_text or _PDF_PARSE_RESULT_FALLBACK_PREVIEW,
+        extraction_method="pypdf-text-preview" if preview_text else "file-metadata-placeholder",
     )
 
 
@@ -223,4 +250,54 @@ def update_pdf_parse_status(
         pdf_parse_finished_at=pdf_parse_finished_at,
         pdf_parse_result=build_pdf_parse_result(next_item),
         last_parse_trigger=trigger,
+    )
+
+
+def _default_pubmed_fetcher() -> PubmedFetcher:
+    return PubmedClient()
+
+
+def _pubmed_record_to_item_dict(record: PubmedRecord) -> dict[str, object]:
+    title = record.title
+    abstract = record.abstract or ""
+    snippet = abstract[:280] if abstract else title
+    return {
+        "id": f"pmid-{record.pmid}",
+        "title": title,
+        "language": "en",
+        "source_type": "pubmed",
+        "source": "PubMed live sync",
+        "year": record.year if record.year is not None else 0,
+        "snippet": snippet,
+        "abstract": abstract or None,
+        "authors": list(record.authors),
+        "keywords": list(record.keywords),
+        "evidence_tags": [],
+        "pubmed_id": record.pmid,
+        "doi": record.doi,
+        "citation_url": f"https://pubmed.ncbi.nlm.nih.gov/{record.pmid}/",
+    }
+
+
+def sync_pubmed(
+    query: str, max_results: int, fetcher: PubmedFetcher | None = None
+) -> LiteratureSyncResponse:
+    client = fetcher if fetcher is not None else _default_pubmed_fetcher()
+    pmids = client.esearch(query.strip(), max_results=max_results)
+    if not pmids:
+        return LiteratureSyncResponse(
+            source="pubmed", query=query.strip(), fetched=0, created=0, updated=0, items=[]
+        )
+    records = client.efetch(pmids)
+    payload = [_pubmed_record_to_item_dict(record) for record in records]
+    created, updated = _REPOSITORY.bulk_upsert_pubmed_items(payload)
+    refreshed_ids = {entry["id"] for entry in payload}
+    items = [item for item in _REPOSITORY.list_items() if item.id in refreshed_ids]
+    return LiteratureSyncResponse(
+        source="pubmed",
+        query=query.strip(),
+        fetched=len(records),
+        created=created,
+        updated=updated,
+        items=items,
     )

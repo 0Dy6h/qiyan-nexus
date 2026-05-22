@@ -1,90 +1,92 @@
 # 架构约束 — Harness Engineering 支柱二
 
-> 机械强制执行，非建议。Linter 报错即修复指令。
+> 本文件记录当前可运行骨架的开发约束。长期架构方向见 `docs/adr/`；当前事实源见 `docs/current-state.md`。
 
-## 依赖方向分层
+## 当前阶段边界
 
+当前只做 MVP-A 证据工作台：文献检索、deterministic RAG、citation cards、PDF 上传与文本预览、RAG eval 和合规展示。
+
+当前不提前接入：
+
+- 真实 LLM / embedding
+- PostgreSQL / pgvector
+- Neo4j
+- Celery / Redis / Flower
+- MinIO / 外部对象存储
+- NextAuth / 生产认证
+- 网络药理学、分子对接或分子动力学真实计算
+
+上述能力如需启动，应先写 ADR 或 slice plan，不应混入 UI polish、文档清理或小型 bugfix。
+
+## 后端依赖方向
+
+```text
+api router → service → repository → data/runtime storage
+                ↓
+              schemas
 ```
-Types → Config → Repo → Service → Runtime → UI
-   ↑                        ↑
-   └── Providers ───────────┘
-       (auth, connectors, telemetry, feature-flags)
-```
 
-**规则：**
-- 代码只能「向前」依赖（从左到右）
-- 跨领域关注点（认证、连接器、遥测）只能通过 `Providers` 入口进入
-- 其他任何方式都不允许
+规则：
+
+- `backend/app/api/*.py` 只做路由、参数绑定和调用 service。
+- `backend/app/services/*.py` 承载业务逻辑、ranking、parse result 与免责声明组合。
+- `backend/app/repositories/*.py` 负责 seed/runtime 数据读取与写入。
+- `backend/app/schemas/*.py` 定义 Pydantic 契约。
+- API 层不直接读写 JSON 文件。
+- Service 层不引入 FastAPI router 细节。
+- seed 数据在 `backend/data/literature/`，运行态写入 `backend/data/runtime/`。
 
 ## 前端架构约束
 
-### 目录结构（Next.js 15 App Router）
-```
-src/
-├── app/              ← 路由层（仅页面组合，不写业务逻辑）
-│   ├── (marketing)/  ← 营销首页
-│   └── (app)/        ← 认证后应用壳
-├── components/       ← 通用 UI 组件（Ant Design 封装）
-│   ├── ui/           ← 原子组件
-│   └── features/     ← 功能组合组件
-├── lib/              ← 工具函数、API 客户端
-├── hooks/            ← 自定义 hooks
-└── types/            ← TypeScript 类型定义
+当前前端是 Next.js App Router，目录在 `frontend/` 下：
+
+```text
+frontend/
+├── app/          ← 路由层与页面组合
+├── components/   ← 页面客户端组件与复用展示组件
+├── lib/          ← API 客户端、UI helper、领域 helper
+└── tests/        ← node:test + tsx 的轻量 source/contract tests
 ```
 
-- 组件最大 300 行；超过时拆分
-- `app/` 目录下文件只做路由组合，不写业务逻辑
+规则：
 
-### 命名规范
-- 组件文件：`PascalCase.tsx`
-- Hook 文件：`useCamelCase.ts`
-- 类型文件：`camelCase.types.ts`
-- API 端点：`kebab-case`
-
-## 后端架构约束
-
-### 目录结构（FastAPI）
-```
-backend/
-├── app/
-│   ├── api/          ← 路由层（薄层，参数校验 + 调用 service）
-│   ├── services/     ← 业务逻辑层
-│   ├── repositories/ ← 数据访问层
-│   ├── models/       ← SQLAlchemy ORM 模型
-│   ├── schemas/      ← Pydantic v2 schema
-│   └── core/         ← 配置、依赖注入
-├── tasks/            ← Celery 异步任务
-└── tests/            ← pytest
-```
-
-- API 层不写业务逻辑，只做参数校验和调用 service
-- Service 层不直接操作数据库，通过 Repository
-- 所有外部 API 调用（DeepSeek/Claude）必须通过统一 Client 封装
+- 页面和组件保持现有 inline style / helper 风格，避免在小切片中引入新 styling layer。
+- API 调用优先通过 `frontend/lib/api/` 客户端封装。
+- 医学证据展示优先清晰、克制、可追溯，不做消费级健康 app 视觉风格。
+- `/literature`、`/literature/[id]`、`/rag`、`/compliance` 的合规文案和 evidence hierarchy 不应被隐藏。
 
 ## 工具链约束
 
-| 层级 | 工具 | 执行命令 |
-|------|------|---------|
-| L1 格式 | Prettier + Ruff | `pnpm format` / `ruff format` |
-| L2 类型 | tsc + Pyright | `pnpm typecheck` / `pyright` |
-| L2 Lint | ESLint + Ruff | `pnpm lint` / `ruff check` |
-| L3 架构 | 自定义 ESLint 规则 | `pnpm lint:arch` |
-| L3 测试 | Vitest + pytest | `pnpm test` / `pytest` |
-| L4 品味 | 命名/文件大小检查 | `pnpm lint:taste` |
+Backend:
 
-## 不可做规则（机械强制）
+```bash
+cd backend
+.venv/bin/python -m ruff format --check app tests
+.venv/bin/python -m ruff check app tests
+.venv/bin/python -m mypy app
+.venv/bin/python -m pytest -q
+```
 
-- ❌ 前端组件直接调用 API（必须通过 `lib/api/` 客户端）
-- ❌ 后端 API 层直接操作数据库（必须通过 Repository）
-- ❌ 硬编码 API Key / Secret（必须在 `.env`）
-- ❌ 同步调用 LLM（必须通过 Celery 异步任务或带超时封装）
-- ❌ AI 输出不带免责声明
-- ❌ 跳过类型检查提交代码
+Frontend:
+
+```bash
+cd frontend
+pnpm test
+pnpm typecheck
+pnpm build
+```
+
+## 不可做规则
+
+- ❌ 硬编码 API Key / Secret；只提交 `.env.example`。
+- ❌ AI 输出缺少 `非诊断结论、需结合临床。` 免责声明。
+- ❌ 将 `backend/uploads/` PDF 或 `backend/data/runtime/` 运行态 JSON 作为普通源码提交。
+- ❌ 在未写计划/ADR 的情况下接入重基础设施或真实外部服务。
+- ❌ 跳过类型检查和测试后提交行为代码。
+- ❌ 把 `docs/archive/pre-dev-planning/` 中的早期规划当作当前实现边界。
 
 ## 环境
 
-| 环境 | 用途 |
-|------|------|
-| `dev` | 本地 Docker Compose 开发栈 |
-| `staging` | 阿里云测试环境 |
-| `prod` | 阿里云生产环境（内测 50 用户） |
+- 本地开发主事实源：WSL 路径 `/home/dyh2026/Projects/Tcm_tech`。
+- Windows 副本或历史路径只在明确同步时使用。
+- `backend/uploads/` 与 `backend/data/runtime/` 是本地运行态目录，可清空并重新生成。

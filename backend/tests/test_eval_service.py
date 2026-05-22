@@ -97,7 +97,7 @@ def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
     report = run_rag_ad_eval_report()
 
     assert report["summary"]["passed_questions"] == 20, (
-        "RAG eval baseline must hold at 20/20 — see docs/plans/2026-05-10-rag-eval-slice.md."
+        "RAG eval baseline must hold at 20/20 — see docs/plans/archive/2026-05-10-rag-eval-slice.md."
         f" Current failing items: "
         f"{[item['id'] for item in report['items'] if not item['passed']]}"
     )
@@ -115,3 +115,14 @@ def test_run_rag_ad_eval_report_chunk_hit_count_meets_target():
         " Questions without chunk_hit but with expected_chunk_ids: "
         f"{[item['id'] for item in report['items'] if item['expected_chunk_ids'] and not item['expected_chunk_hits']]}"
     )
+
+
+def test_rag_eval_q019_returns_all_expected_molecular_research_literature_hits():
+    report = run_rag_ad_eval_report()
+    q019 = next(item for item in report["items"] if item["id"] == "rag-eval-019")
+
+    assert q019["expected_literature_hits"] == [
+        "cn-ad-network-007",
+        "pmid-40100008",
+        "pmid-40100005",
+    ]

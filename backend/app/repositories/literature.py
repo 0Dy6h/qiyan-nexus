@@ -73,3 +73,47 @@ class InMemoryLiteratureRepository:
                 )
                 return LiteratureItem(**item)
         return None
+
+    def bulk_upsert_pubmed_items(self, incoming_items: list[dict[str, Any]]) -> tuple[int, int]:
+        """Insert new PubMed items and refresh existing ones in-place.
+
+        PubMed-owned fields (title/abstract/authors/year/keywords/source/snippet/
+        citation_url/doi/pubmed_id/language/source_type) are overwritten.
+        PDF upload + parse fields are preserved on existing rows so user uploads
+        are not clobbered by a sync.
+        """
+        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
+        index_by_id: dict[str, int] = {item["id"]: idx for idx, item in enumerate(raw_items)}
+        pubmed_fields = {
+            "title",
+            "abstract",
+            "authors",
+            "year",
+            "keywords",
+            "evidence_tags",
+            "source",
+            "snippet",
+            "citation_url",
+            "doi",
+            "pubmed_id",
+            "language",
+            "source_type",
+        }
+        created = 0
+        updated = 0
+        for incoming in incoming_items:
+            item_id = incoming["id"]
+            if item_id in index_by_id:
+                existing = raw_items[index_by_id[item_id]]
+                for field_name, value in incoming.items():
+                    if field_name in pubmed_fields:
+                        existing[field_name] = value
+                updated += 1
+            else:
+                raw_items.append(incoming)
+                index_by_id[item_id] = len(raw_items) - 1
+                created += 1
+        self.data_path.write_text(
+            json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return created, updated

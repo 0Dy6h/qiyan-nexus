@@ -1,4 +1,9 @@
-from app.services.literature import detect_query_language, get_literature_item, search_literature
+from app.services.literature import (
+    build_pdf_upload_id,
+    detect_query_language,
+    get_literature_item,
+    search_literature,
+)
 
 
 def test_detect_query_language_returns_zh_for_chinese_query():
@@ -107,3 +112,42 @@ def test_get_literature_item_returns_item_by_id():
 
 def test_get_literature_item_returns_none_for_unknown_id():
     assert get_literature_item("unknown") is None
+
+
+def test_build_pdf_upload_id_preserves_ascii_slug():
+    assert (
+        build_pdf_upload_id("cn-ad-gbs-001", "ad-evidence.pdf")
+        == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    )
+
+
+def test_build_pdf_upload_id_disambiguates_pure_chinese_filename():
+    upload_id = build_pdf_upload_id(
+        "cn-ad-gbs-001", "除湿糊剂治疗特应性皮炎的实验与临床观察_王琼.pdf"
+    )
+
+    assert upload_id != "pdf-cn-ad-gbs-001-pdf"
+    assert upload_id.startswith("pdf-cn-ad-gbs-001-pdf-")
+    suffix = upload_id.removeprefix("pdf-cn-ad-gbs-001-pdf-")
+    assert len(suffix) == 8
+    assert all(c in "0123456789abcdef" for c in suffix)
+
+
+def test_build_pdf_upload_id_two_distinct_chinese_filenames_do_not_collide():
+    a = build_pdf_upload_id("cn-ad-gbs-001", "除湿糊剂治疗特应性皮炎_王琼.pdf")
+    b = build_pdf_upload_id("cn-ad-gbs-001", "中医内外合治特应性皮炎疗效观察_刘汉长.pdf")
+
+    assert a != b
+
+
+def test_build_pdf_upload_id_same_chinese_filename_is_idempotent():
+    a = build_pdf_upload_id("cn-ad-gbs-001", "中医内外合治特应性皮炎疗效观察_刘汉长.pdf")
+    b = build_pdf_upload_id("cn-ad-gbs-001", "中医内外合治特应性皮炎疗效观察_刘汉长.pdf")
+
+    assert a == b
+
+
+def test_build_pdf_upload_id_disambiguates_empty_slug():
+    upload_id = build_pdf_upload_id("cn-ad-gbs-001", "中医内外合治特应性皮炎疗效观察_刘汉长")
+
+    assert upload_id.startswith("pdf-cn-ad-gbs-001-pdf-")

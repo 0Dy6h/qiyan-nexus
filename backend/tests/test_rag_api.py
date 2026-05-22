@@ -26,6 +26,8 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
     assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"
     assert payload["citations"][0]["chunk_id"] == "chunk-cn-ad-gbs-001-abstract"
     assert "deterministic retrieval" in payload["answer"]
+    assert isinstance(payload["answered_at"], str)
+    assert payload["answered_at"].endswith("+00:00")
 
 
 def test_rag_answer_endpoint_rejects_empty_question():

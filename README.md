@@ -2,17 +2,17 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到开发骨架启动阶段。当前已有多条已验证的纵向切片：文献检索使用本地 JSON 样本文献库 + repository 层 + FastAPI 搜索接口；文献详情接口可按 ID 返回单条样本文献；RAG endpoint 已升级为基于 literature + chunk 样本的 deterministic retrieval，并返回带引用卡片与 retrieval metadata 的合规问答响应；PDF upload endpoint 已支持本地文件存储、稳定 upload id 下载/预览，并返回 storage metadata。另已为文献记录补上 PDF metadata 契约字段（`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`），fake parser 成功后会写入 `uploaded_pdf` chunk，使上传 PDF mock 解析结果可进入 RAG 检索与 citation cards。RAG 评估 endpoint 可运行 20 个 AD 问题集，统计引用命中、chunk 命中、必含词缺口、禁用语风险与免责声明覆盖。当前仍不接真实 PDF parser、LLM、embedding、pgvector 或外部服务。
+当前状态：已从纯规划仓库切换到可运行的 MVP-A 证据工作台骨架。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata 与 parse 状态写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 当前采用 deterministic retrieval，返回 answer、citation cards、retrieval metadata 与“非诊断结论、需结合临床”免责声明。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前仍不接真实 LLM、embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
 
-正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/projects/Tcm_tech`，避免破坏已有路径和脚本。
+当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/Projects/Tcm_tech`，避免破坏已有路径和脚本。
 
 ## 目录
 
 - `frontend/` — Next.js 前端应用
 - `backend/` — FastAPI 后端应用
 - `infra/` — 本地基础设施说明与后续 Docker Compose 入口
-- `docs/` — 规划、ADR、设计与开发计划
-- `Traedos/`、`Cursordos/` — 历史 AI 工具链规划产物
+- `docs/` — 当前状态、ADR、计划、交接与历史归档
+- `docs/archive/pre-dev-planning/` — 早期 AI 工具链规划、Word 文档与 HTML 原型，仅作历史参考
 
 ## 后端
 
@@ -22,7 +22,7 @@
 cd backend
 python3 -m venv .venv
 .venv/bin/python -m pip install -U pip
-.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
 运行测试：
@@ -45,14 +45,24 @@ cd backend
 curl http://127.0.0.1:8000/health
 ```
 
+访问控制（可选，A2）：
+
+- 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
+- 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
+- 示例：`QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2" .venv/bin/fastapi dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
+- CORS 配置不变；前端如需带 token 调用，需要后续在 fetch wrapper 里加 header（A2 不动前端）。
+
 文献检索 API 数据来源：
 
-- 样本文献 JSON：`backend/data/literature/sample_ad_literature.json`
+- seed 文献 JSON：`backend/data/literature/sample_ad_literature.json`
+- seed chunk JSON：`backend/data/literature/sample_ad_chunks.json`
+- runtime 文献状态：`backend/data/runtime/literature_state.json`（gitignored，可从 seed bootstrap）
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
-- 当前已预留 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`
-- 当前已支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
-- 当前已支持本地 PDF 下载/预览：`GET /api/uploads/pdf/{pdf_upload_id}`，按稳定 upload id 读取 `UPLOAD_STORAGE_DIR` 下的 PDF 文件
+- 当前 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`、`pdf_parse_result`
+- 当前支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
+- 当前支持本地 PDF 下载/预览：`GET /api/uploads/pdf/{pdf_upload_id}`，按稳定 upload id 读取 `UPLOAD_STORAGE_DIR` 下的 PDF 文件
+- 当前支持文本型 PDF 预览：parse result 可返回 `extraction_method="pypdf-text-preview"` 与 `preview_text`；无法抽取文本时返回 `file-metadata-placeholder`
 
 文献检索 API：
 
@@ -97,10 +107,9 @@ curl -L "http://127.0.0.1:8000/api/uploads/pdf/pdf-cn-ad-gbs-001-ad-evidence-pdf
   -o ad-evidence.pdf
 ```
 
-说明：upload endpoint 只负责落盘与写入 `pending`；真正的 mock 解析推进由独立 fake parser API 完成，并补充 `pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`。
-fake parser 成功时还会向 `backend/data/literature/sample_ad_chunks.json` upsert 一个 `source_type=uploaded_pdf` 的 chunk；失败时只更新解析状态，不生成 chunk。RAG deterministic retrieval 会按 chunk 粒度检索，因此上传 PDF 的 mock 解析片段可被引用卡片回指。
+说明：upload endpoint 负责落盘与写入 `pending`；独立 auto-parse endpoint 负责推进 parse 状态，并补充 `pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count` 与 `pdf_parse_result`。解析成功后会向 runtime chunk 状态补充 `source_type=uploaded_pdf` 的 chunk，使上传 PDF 的解析片段可进入 RAG 检索与 citation cards。
 
-Fake parser API（独立 mock 解析步骤）：
+Auto-parse API：
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/uploads/pdf/auto-parse" \
@@ -124,7 +133,7 @@ curl -X POST "http://127.0.0.1:8000/api/literature/pdf-parse-status" \
   -d '{"literature_id":"cn-ad-gbs-001","pdf_parse_status":"parsed"}'
 ```
 
-RAG mock API：
+RAG API：
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
@@ -132,7 +141,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 当前采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。当前仍不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试已保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+当前 RAG endpoint 采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。当前仍不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
 
 RAG eval API：
 
@@ -140,14 +149,17 @@ RAG eval API：
 curl "http://127.0.0.1:8000/api/evals/rag-ad/report"
 ```
 
-当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 20 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。当前本地结果：20 题中 15 题通过，20 题有预期文献命中，9 题有预期 chunk 命中，20 题覆盖免责声明，禁用语违规 0。
+当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 20 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。当前基线目标：20/20 passed，citation_hit 20/20，chunk_hit 20/20，disclaimer 20/20，must_not violations 0。以本地测试输出与最新 handoff 为准。
 
-当前验证结果：
+标准后端验证：
 
-- 后端：`cd backend && .\.venv\Scripts\python.exe -m pytest -q --basetemp .\.pytest-tmp` → 69 passed
-- 前端：`cd frontend && pnpm test` → 45 passed
-- 前端：`cd frontend && pnpm typecheck` → 通过
-- 前端：`cd frontend && pnpm build` → 通过
+```bash
+cd backend
+.venv/bin/python -m ruff format --check app tests
+.venv/bin/python -m ruff check app tests
+.venv/bin/python -m mypy app
+.venv/bin/python -m pytest -q
+```
 
 ## 前端
 
@@ -184,6 +196,8 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
 ```bash
 cd frontend
 pnpm test
+pnpm typecheck
+pnpm build
 ```
 
 页面：
@@ -193,15 +207,16 @@ pnpm test
 - RAG 问答页：`/rag`
 - 文献详情页：`/literature/[id]`
 - RAG 评估页：`/evals/rag-ad`
+- 合规说明页：`/compliance`
 
 当前前端能力：
 
-- `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页
-- `/rag`：支持 question、source、top_k 输入，展示 answer、retrieval metadata、citation cards 与免责声明
-- `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status 展示、parse message/时间戳/触发来源/尝试次数展示，以及 pending→parsed/failed 的手动 mock 推进按钮
-- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 20 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖和禁用语检查
-- `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一
-- 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区
+- `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示。
+- `/rag`：支持 question、source、top_k 输入，展示 answer、retrieval metadata、citation cards 与免责声明。
+- `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
+- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 20 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖和禁用语检查。
+- `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一。
+- 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区。
 
 ## 合规底线
 

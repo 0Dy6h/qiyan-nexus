@@ -3,11 +3,39 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from app.main import app
 
 
 def reset_sample_data(original_path: Path, temp_path: Path) -> None:
     temp_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def write_extractable_pdf(path: Path, text: str) -> None:
+    from pypdf import PdfWriter
+    from pypdf.generic import DictionaryObject, NameObject, NumberObject, StreamObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(612, 792)
+    content_bytes = f"BT /F1 12 Tf 100 700 Td ({text}) Tj ET".encode("ascii")
+    content_stream = StreamObject()
+    content_stream._data = content_bytes
+    content_stream[NameObject("/Length")] = NumberObject(len(content_bytes))
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    page[NameObject("/Contents")] = writer._add_object(content_stream)
+    page[NameObject("/Resources")] = writer._add_object(
+        DictionaryObject(
+            {NameObject("/Font"): DictionaryObject({NameObject("/F1"): writer._add_object(font)})}
+        )
+    )
+    with path.open("wb") as file:
+        writer.write(file)
 
 
 def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tmp_path: Path):
@@ -20,6 +48,7 @@ def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tm
     reset_sample_data(original_path, temp_data_path)
 
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
+    get_settings.cache_clear()
     literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
@@ -185,9 +214,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -222,6 +249,115 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     assert "上传 PDF ad-evidence.pdf 已完成解析" in uploaded_chunk["text"]
 
 
+def test_fake_parser_endpoint_uses_extracted_pdf_text_for_parse_result_preview(
+    monkeypatch, tmp_path: Path
+):
+    from app.services import fake_parser as fake_parser_service
+    from app.services import literature as literature_service
+
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
+    reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
+
+    upload_dir = tmp_path / "uploads"
+    pdf_upload_id = "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    stored_pdf_path = upload_dir / f"{pdf_upload_id}.pdf"
+    upload_dir.mkdir()
+    write_extractable_pdf(stored_pdf_path, "Atopic dermatitis PDF preview evidence text")
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id=pdf_upload_id,
+        pdf_file_name="ad-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    get_settings.cache_clear()
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "ad-evidence.pdf"},
+    )
+
+    assert response.status_code == 200
+    parse_result = response.json()["pdf_parse_result"]
+    assert parse_result["preview_text"] == "Atopic dermatitis PDF preview evidence text"
+    assert parse_result["extraction_method"] == "pypdf-text-preview"
+
+
+def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction_fails(
+    monkeypatch, tmp_path: Path
+):
+    from app.services import fake_parser as fake_parser_service
+    from app.services import literature as literature_service
+
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
+    reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
+
+    upload_dir = tmp_path / "uploads"
+    pdf_upload_id = "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+    stored_pdf_path = upload_dir / f"{pdf_upload_id}.pdf"
+    upload_dir.mkdir()
+    stored_pdf_path.write_bytes(b"%PDF-1.4\nnot enough structure for pypdf text extraction\n")
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id=pdf_upload_id,
+        pdf_file_name="ad-evidence.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    get_settings.cache_clear()
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "ad-evidence.pdf"},
+    )
+
+    assert response.status_code == 200
+    parse_result = response.json()["pdf_parse_result"]
+    assert (
+        parse_result["preview_text"]
+        == "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
+    )
+    assert parse_result["extraction_method"] == "file-metadata-placeholder"
+
+
 def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(
     monkeypatch, tmp_path: Path
 ):
@@ -247,9 +383,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
@@ -296,7 +430,6 @@ def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
 
     client = TestClient(app)
@@ -338,9 +471,7 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_data_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
-    monkeypatch.setattr(fake_parser_service, "_CHUNK_DATA_PATH", temp_chunk_path)
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",

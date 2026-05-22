@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">39000001</PMID>
+      <Article PubModel="Print-Electronic">
+        <Journal>
+          <ISSN IssnType="Print">0190-9622</ISSN>
+          <JournalIssue CitedMedium="Print">
+            <PubDate>
+              <Year>2025</Year>
+              <Month>Mar</Month>
+            </PubDate>
+          </JournalIssue>
+          <Title>Journal of the American Academy of Dermatology</Title>
+        </Journal>
+        <ArticleTitle>Skin barrier dysfunction in atopic dermatitis: mechanisms and therapeutic targets.</ArticleTitle>
+        <Abstract>
+          <AbstractText Label="BACKGROUND">Atopic dermatitis is a chronic inflammatory skin disease.</AbstractText>
+          <AbstractText Label="METHODS">We review filaggrin loss-of-function and Th2 cytokine signaling.</AbstractText>
+          <AbstractText Label="CONCLUSIONS">Targeting barrier and IL-4/IL-13 axis improves outcomes.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Smith</LastName>
+            <ForeName>Jane A</ForeName>
+          </Author>
+          <Author ValidYN="Y">
+            <LastName>Wang</LastName>
+            <ForeName>Li</ForeName>
+          </Author>
+          <Author ValidYN="Y">
+            <CollectiveName>Atopic Dermatitis Consortium</CollectiveName>
+          </Author>
+        </AuthorList>
+        <ArticleDate DateType="Electronic">
+          <Year>2025</Year>
+          <Month>03</Month>
+          <Day>14</Day>
+        </ArticleDate>
+      </Article>
+      <KeywordList Owner="NOTNLM">
+        <Keyword MajorTopicYN="Y">atopic dermatitis</Keyword>
+        <Keyword MajorTopicYN="N">filaggrin</Keyword>
+        <Keyword MajorTopicYN="N">Th2 cytokines</Keyword>
+      </KeywordList>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">39000001</ArticleId>
+        <ArticleId IdType="doi">10.1016/j.jaad.2025.01.001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">39000002</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2024</Year>
+              <Month>Oct</Month>
+            </PubDate>
+          </JournalIssue>
+          <Title>British Journal of Dermatology</Title>
+        </Journal>
+        <ArticleTitle>Gut microbiome and atopic dermatitis severity: a longitudinal cohort.</ArticleTitle>
+        <Abstract>
+          <AbstractText>Pediatric AD cases show altered gut microbiota composition.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Garcia</LastName>
+            <ForeName>Maria</ForeName>
+          </Author>
+        </AuthorList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">39000002</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>

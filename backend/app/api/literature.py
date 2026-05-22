@@ -5,6 +5,8 @@ from app.schemas.literature import (
     LiteratureSearchResponse,
     LiteratureSearchSort,
     LiteratureSource,
+    LiteratureSyncRequest,
+    LiteratureSyncResponse,
     PdfMetadataUploadRequest,
     PdfParseStatusUpdateRequest,
 )
@@ -12,6 +14,7 @@ from app.services.literature import (
     attach_pdf_metadata,
     get_literature_item,
     search_literature,
+    sync_pubmed,
     update_pdf_parse_status,
 )
 
@@ -48,6 +51,11 @@ def update_pdf_parse_status_endpoint(
         raise HTTPException(status_code=409, detail="PDF metadata not attached")
     assert item is not None
     return item
+
+
+@router.post("/sync", response_model=LiteratureSyncResponse)
+def sync_literature_endpoint(request: LiteratureSyncRequest = Body()) -> LiteratureSyncResponse:
+    return sync_pubmed(request.q, request.max_results)
 
 
 @router.get("/{item_id}", response_model=LiteratureItem)

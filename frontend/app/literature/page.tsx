@@ -1,3 +1,5 @@
+import DemoDataBanner from "../../components/DemoDataBanner";
+import LiteraturePubmedSyncClient from "../../components/LiteraturePubmedSyncClient";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
@@ -37,6 +39,8 @@ export default function LiteraturePage() {
           })}
         </nav>
 
+        <DemoDataBanner />
+
         <article style={getSurfaceSectionStyle()}>
           <div style={{ display: "grid", gap: 8 }}>
             <p style={{ color: "#0d9488", fontWeight: 700, margin: 0 }}>Evidence workbench</p>
@@ -46,6 +50,8 @@ export default function LiteraturePage() {
             </p>
           </div>
         </article>
+
+        <LiteraturePubmedSyncClient />
 
         <LiteratureSearchClient />
 

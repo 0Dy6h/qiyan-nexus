@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from app.repositories.chunk import InMemoryChunkRepository
@@ -6,6 +7,7 @@ from app.repositories.literature import InMemoryLiteratureRepository
 from app.services.rag import answer_question
 
 DISCLAIMER = "非诊断结论、需结合临床。"
+ISO_UTC_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00$")
 
 
 def test_answer_question_returns_ranked_citation_cards_for_gut_skin_axis_question():
@@ -196,3 +198,37 @@ def test_answer_question_can_cite_uploaded_pdf_chunk(monkeypatch, tmp_path: Path
     assert response.citations[0].chunk_id == "chunk-pdf-cn-ad-gbs-001-ad-evidence-pdf-uploaded"
     assert response.citations[0].quote == "Mock parser 提取了特应性皮炎证据片段"
     assert response.citations[0].reason == "uploaded_pdf, pdf_parse"
+    assert response.citations[0].source_type == "uploaded_pdf"
+    assert response.citations[0].pdf_upload_id == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+
+
+def test_answer_question_leaves_sample_chunk_citation_without_upload_metadata():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.citations[0].source_type == "sample"
+    assert response.citations[0].pdf_upload_id is None
+
+
+def test_answer_question_returns_iso_utc_answered_at_timestamp():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert isinstance(response.answered_at, str)
+    assert ISO_UTC_PATTERN.match(response.answered_at), response.answered_at
+
+
+def test_answer_question_swaps_to_mock_claude_provider_via_env(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "mock_claude")
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("【模拟 Claude 草稿】")
+    assert "deterministic retrieval" not in response.answer
+    assert response.disclaimer == DISCLAIMER
+    assert len(response.citations) == 2
+
+
+def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):
+    monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert "deterministic retrieval" in response.answer
+    assert not response.answer.startswith("【模拟 Claude 草稿】")

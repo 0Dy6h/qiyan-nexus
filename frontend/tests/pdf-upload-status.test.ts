@@ -56,3 +56,26 @@ test("pdf upload metadata uses explicit labeled review-first copy", () => {
   assert.doesNotMatch(source, /state\.fileName \? <CardMetaRow items=\{\[`当前文件 \$\{state\.fileName\}`\]\} \/> : null/);
   assert.doesNotMatch(source, /Upload ID/);
 });
+
+test("parse result description branches on extraction_method", () => {
+  const source = getSource("components/LiteraturePdfUploadClient.tsx");
+
+  // pypdf success branch: describes that a real text-layer preview is shown,
+  // and must NOT claim the capability is still upcoming.
+  assert.match(source, /已抽取文本层预览/);
+
+  // placeholder fallback branch: keeps the honest "still upcoming" copy
+  // anchored on the file-level placeholder situation.
+  assert.match(source, /回退到文件级占位说明/);
+  assert.match(source, /OCR 能力将在后续接入/);
+
+  // The previous unconditional sentence must not survive verbatim — it
+  // contradicted the pypdf success path.
+  assert.doesNotMatch(
+    source,
+    /当前仅展示文件级信息与预览提示，正文抽取与 OCR 能力将在后续接入。/,
+  );
+
+  // Must actually switch on the extraction_method discriminator.
+  assert.match(source, /extraction_method === "pypdf-text-preview"/);
+});

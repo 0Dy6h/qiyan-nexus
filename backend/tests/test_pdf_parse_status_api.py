@@ -27,7 +27,6 @@ def test_pdf_parse_status_endpoint_updates_existing_pending_record(monkeypatch, 
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
 
     client = TestClient(app)
@@ -75,7 +74,6 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(
         pdf_parse_status="pending",
     )
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
     monkeypatch.setattr(
         literature_service, "resolve_stored_pdf_path", lambda pdf_upload_id: storage_path
@@ -123,7 +121,6 @@ def test_pdf_parse_status_endpoint_rejects_record_without_pending_upload(
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
-    monkeypatch.setattr(literature_service, "_SAMPLE_DATA_PATH", temp_path)
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
