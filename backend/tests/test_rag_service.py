@@ -214,3 +214,21 @@ def test_answer_question_returns_iso_utc_answered_at_timestamp():
 
     assert isinstance(response.answered_at, str)
     assert ISO_UTC_PATTERN.match(response.answered_at), response.answered_at
+
+
+def test_answer_question_swaps_to_mock_claude_provider_via_env(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "mock_claude")
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("【模拟 Claude 草稿】")
+    assert "deterministic retrieval" not in response.answer
+    assert response.disclaimer == DISCLAIMER
+    assert len(response.citations) == 2
+
+
+def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):
+    monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert "deterministic retrieval" in response.answer
+    assert not response.answer.startswith("【模拟 Claude 草稿】")
