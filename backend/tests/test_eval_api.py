@@ -3,16 +3,16 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_rag_ad_eval_endpoint_returns_20_items():
+def test_rag_ad_eval_endpoint_returns_50_items():
     client = TestClient(app)
 
     response = client.get("/api/evals/rag-ad")
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload["items"]) == 20
+    assert len(payload["items"]) == 50
     assert payload["items"][0]["id"] == "rag-eval-001"
-    assert payload["items"][-1]["id"] == "rag-eval-020"
+    assert payload["items"][-1]["id"] == "rag-eval-050"
 
 
 def test_rag_ad_eval_endpoint_exposes_expected_contract_fields():
@@ -38,10 +38,10 @@ def test_rag_ad_eval_report_endpoint_returns_reproducible_summary():
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["summary"]["total_questions"] == 20
-    assert payload["summary"]["disclaimer_coverage_count"] == 20
+    assert payload["summary"]["total_questions"] == 50
+    assert payload["summary"]["disclaimer_coverage_count"] == 50
     assert payload["summary"]["must_not_violation_count"] == 0
-    assert len(payload["items"]) == 20
+    assert len(payload["items"]) == 50
 
     first = payload["items"][0]
     assert first["id"] == "rag-eval-001"
