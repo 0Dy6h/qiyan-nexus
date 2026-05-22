@@ -1,0 +1,30 @@
+[
+  {
+    "id": "pathway-pi3k-akt",
+    "name": "PI3K-Akt signaling pathway",
+    "kegg_id": "hsa04151",
+    "category": "signal_transduction",
+    "target_ids": ["target-il6", "target-stat3"]
+  },
+  {
+    "id": "pathway-nfkb",
+    "name": "NF-kappa B signaling pathway",
+    "kegg_id": "hsa04064",
+    "category": "signal_transduction",
+    "target_ids": ["target-tnf", "target-il6"]
+  },
+  {
+    "id": "pathway-jak-stat",
+    "name": "JAK-STAT signaling pathway",
+    "kegg_id": "hsa04630",
+    "category": "signal_transduction",
+    "target_ids": ["target-stat3", "target-tslp"]
+  },
+  {
+    "id": "pathway-skin-barrier",
+    "name": "Skin barrier formation",
+    "kegg_id": null,
+    "category": "epidermal_homeostasis",
+    "target_ids": ["target-flg"]
+  }
+]

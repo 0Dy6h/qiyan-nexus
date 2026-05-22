@@ -1,0 +1,37 @@
+[
+  {
+    "id": "target-il6",
+    "symbol": "IL6",
+    "name": "Interleukin 6",
+    "uniprot_id": "P05231",
+    "disease_ids": ["disease-ad"]
+  },
+  {
+    "id": "target-tnf",
+    "symbol": "TNF",
+    "name": "Tumor Necrosis Factor",
+    "uniprot_id": "P01375",
+    "disease_ids": ["disease-ad"]
+  },
+  {
+    "id": "target-stat3",
+    "symbol": "STAT3",
+    "name": "Signal Transducer And Activator Of Transcription 3",
+    "uniprot_id": "P40763",
+    "disease_ids": ["disease-ad"]
+  },
+  {
+    "id": "target-tslp",
+    "symbol": "TSLP",
+    "name": "Thymic Stromal Lymphopoietin",
+    "uniprot_id": "Q969D9",
+    "disease_ids": ["disease-ad"]
+  },
+  {
+    "id": "target-flg",
+    "symbol": "FLG",
+    "name": "Filaggrin",
+    "uniprot_id": "P20930",
+    "disease_ids": ["disease-ad"]
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "herb-jingjie",
+    "name": "荆芥",
+    "pinyin": "jingjie",
+    "latin_name": "Schizonepeta tenuifolia",
+    "category": "解表药",
+    "evidence_tags": ["formula", "pruritus"]
+  },
+  {
+    "id": "herb-fangfeng",
+    "name": "防风",
+    "pinyin": "fangfeng",
+    "latin_name": "Saposhnikovia divaricata",
+    "category": "解表药",
+    "evidence_tags": ["formula", "skin_barrier"]
+  },
+  {
+    "id": "herb-niubangzi",
+    "name": "牛蒡子",
+    "pinyin": "niubangzi",
+    "latin_name": "Arctium lappa",
+    "category": "清热解毒药",
+    "evidence_tags": ["formula", "immune_pathway"]
+  },
+  {
+    "id": "herb-baixianpi",
+    "name": "白鲜皮",
+    "pinyin": "baixianpi",
+    "latin_name": "Dictamnus dasycarpus",
+    "category": "清热燥湿药",
+    "evidence_tags": ["pruritus", "skin_barrier"]
+  },
+  {
+    "id": "herb-huangqi",
+    "name": "黄芪",
+    "pinyin": "huangqi",
+    "latin_name": "Astragalus membranaceus",
+    "category": "补气药",
+    "evidence_tags": ["immune_pathway"]
+  }
+]

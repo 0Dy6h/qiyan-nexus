@@ -19,6 +19,7 @@ class NetworkAnalyzeAccepted(BaseModel):
 
 class NetworkChain(BaseModel):
     herb: str
+    formula: str | None = None
     compound: str
     target: str
     pathway: str

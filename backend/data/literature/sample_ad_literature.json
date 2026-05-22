@@ -56,7 +56,13 @@
     "citation_url": "https://example.org/wanfang/cn-ad-formula-002",
     "pdf_upload_id": null,
     "pdf_file_name": null,
-    "pdf_parse_status": null
+    "pdf_parse_status": null,
+    "related_entity_ids": [
+      "formula-xiaofengsan",
+      "formula-danggui-yinzi",
+      "herb-jingjie",
+      "herb-fangfeng"
+    ]
   },
   {
     "id": "cn-ad-microbiome-003",
@@ -171,7 +177,12 @@
     "citation_url": "https://example.org/wanfang/cn-ad-barrier-006",
     "pdf_upload_id": null,
     "pdf_file_name": null,
-    "pdf_parse_status": null
+    "pdf_parse_status": null,
+    "related_entity_ids": [
+      "target-flg",
+      "pathway-skin-barrier",
+      "compound-dictamnine"
+    ]
   },
   {
     "id": "cn-ad-network-007",
@@ -200,7 +211,15 @@
     "citation_url": "https://example.org/netpharm/cn-ad-network-007",
     "pdf_upload_id": null,
     "pdf_file_name": null,
-    "pdf_parse_status": null
+    "pdf_parse_status": null,
+    "related_entity_ids": [
+      "pathway-pi3k-akt",
+      "pathway-nfkb",
+      "pathway-jak-stat",
+      "target-il6",
+      "target-tnf",
+      "target-stat3"
+    ]
   },
   {
     "id": "cn-ad-external-008",

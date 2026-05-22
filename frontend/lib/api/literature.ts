@@ -21,6 +21,7 @@ export type LiteratureItem = {
   } | null;
   last_parse_trigger?: "auto" | "manual" | null;
   parse_attempt_count?: number | null;
+  related_entity_ids?: string[];
 };
 
 export type LiteratureSource = "all" | "cn_literature" | "pubmed";

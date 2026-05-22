@@ -1,0 +1,18 @@
+[
+  {
+    "id": "formula-xiaofengsan",
+    "name": "消风散",
+    "pinyin": "xiaofengsan",
+    "indication_tags": ["pruritus", "formula", "tcm_syndrome"],
+    "herb_ids": ["herb-jingjie", "herb-fangfeng", "herb-niubangzi"],
+    "summary": "祛风清热，养血润燥，治疗风热血燥型特应性皮炎的常用复方。"
+  },
+  {
+    "id": "formula-danggui-yinzi",
+    "name": "当归饮子",
+    "pinyin": "dangguiyinzi",
+    "indication_tags": ["formula", "skin_barrier"],
+    "herb_ids": ["herb-fangfeng", "herb-huangqi"],
+    "summary": "养血润燥、祛风止痒，适用于血虚风燥型 AD 病程偏久者。"
+  }
+]
