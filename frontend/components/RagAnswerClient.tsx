@@ -14,6 +14,7 @@ import { buildAnswerMarkdown, buildAnswerMarkdownFileName } from "../lib/rag-exp
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
+import EntityChips from "./EntityChips";
 import StatusPanel from "./StatusPanel";
 
 type RagState = {
@@ -43,6 +44,7 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
       />
       <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
       <CardBodyText>{citation.snippet}</CardBodyText>
+      <EntityChips ids={citation.related_entity_ids ?? []} />
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <a href={`/literature/${encodeURIComponent(citation.literature_id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
           查看文献详情 →
