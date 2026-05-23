@@ -129,6 +129,7 @@ def search_literature(
     page: int = 1,
     page_size: int = DEFAULT_SEARCH_PAGE_SIZE,
     sort: LiteratureSearchSort = "relevance",
+    has_pdf_upload: bool | None = None,
 ) -> LiteratureSearchResponse:
     normalized_query = query.strip()
     query_language = detect_query_language(normalized_query)
@@ -137,6 +138,10 @@ def search_literature(
     items = _REPOSITORY.list_items()
     if source != "all":
         items = [item for item in items if item.source_type == source]
+    if has_pdf_upload is True:
+        items = [item for item in items if item.pdf_upload_id]
+    elif has_pdf_upload is False:
+        items = [item for item in items if not item.pdf_upload_id]
     scored_items = [
         (score, 1 if item.source_type == preferred_source_type else 0, index, item)
         for index, item in enumerate(items)

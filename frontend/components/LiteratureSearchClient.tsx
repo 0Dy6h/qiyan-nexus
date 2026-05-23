@@ -3,21 +3,23 @@
 import { FormEvent, useState } from "react";
 
 import {
+  getLiteratureDataSourceFilter,
   getPdfParseStatusLabel,
   getLiteratureSourceLabel,
+  LiteratureDataSourceView,
   LiteratureItem,
   LiteratureSearchSort,
-  LiteratureSource,
   searchLiterature,
 } from "../lib/api/literature";
 import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
+import LiteratureDataSourceBanner from "./LiteratureDataSourceBanner";
 import StatusPanel from "./StatusPanel";
 
 type SearchState = {
   query: string;
-  source: LiteratureSource;
+  view: LiteratureDataSourceView;
   sort: LiteratureSearchSort;
   page: number;
   pageSize: number;
@@ -46,7 +48,7 @@ const fieldControlStyle = {
 export default function LiteratureSearchClient() {
   const [state, setState] = useState<SearchState>({
     query: "特应性皮炎",
-    source: "all",
+    view: "all",
     sort: "relevance",
     page: 1,
     pageSize: 10,
@@ -62,7 +64,7 @@ export default function LiteratureSearchClient() {
 
   async function runSearch(
     query: string,
-    source: LiteratureSource,
+    view: LiteratureDataSourceView,
     page: number,
     pageSize: number,
     sort: LiteratureSearchSort,
@@ -70,7 +72,7 @@ export default function LiteratureSearchClient() {
     setState((current) => ({
       ...current,
       query,
-      source,
+      view,
       sort,
       page,
       pageSize,
@@ -80,11 +82,19 @@ export default function LiteratureSearchClient() {
       hasSearched: true,
     }));
 
+    const filter = getLiteratureDataSourceFilter(view);
     try {
-      const result = await searchLiterature(query, source, page, pageSize, sort);
+      const result = await searchLiterature(
+        query,
+        filter.source,
+        page,
+        pageSize,
+        sort,
+        filter.hasPdfUpload,
+      );
       setState({
         query: result.query,
-        source: result.source,
+        view,
         sort: result.sort,
         page: result.page,
         pageSize: result.page_size,
@@ -98,7 +108,7 @@ export default function LiteratureSearchClient() {
     } catch {
       setState({
         query,
-        source,
+        view,
         sort,
         page,
         pageSize,
@@ -116,7 +126,7 @@ export default function LiteratureSearchClient() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const query = String(form.get("q") ?? "").trim();
-    const source = String(form.get("source") ?? "all") as LiteratureSource;
+    const view = String(form.get("view") ?? "all") as LiteratureDataSourceView;
     const sort = String(form.get("sort") ?? "relevance") as LiteratureSearchSort;
     const pageSize = Number(form.get("page_size") ?? state.pageSize);
 
@@ -124,7 +134,7 @@ export default function LiteratureSearchClient() {
       setState((current) => ({
         ...current,
         query,
-        source,
+        view,
         sort,
         items: [],
         error: "请输入检索关键词。",
@@ -133,11 +143,13 @@ export default function LiteratureSearchClient() {
       return;
     }
 
-    await runSearch(query, source, 1, pageSize, sort);
+    await runSearch(query, view, 1, pageSize, sort);
   }
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
+      <LiteratureDataSourceBanner view={state.view} />
+
       <section style={getSurfaceSectionStyle()}>
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
           <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索条件</h2>
@@ -164,10 +176,16 @@ export default function LiteratureSearchClient() {
           <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
             <label style={fieldLabelStyle}>
               文献来源
-              <select name="source" defaultValue={state.source} aria-label="文献来源" style={{ ...fieldControlStyle, minWidth: 180 }}>
-                <option value="all">全部文献</option>
-                <option value="cn_literature">中文文献</option>
-                <option value="pubmed">PubMed</option>
+              <select
+                name="view"
+                defaultValue={state.view}
+                aria-label="文献来源"
+                style={{ ...fieldControlStyle, minWidth: 180 }}
+              >
+                <option value="all">全部来源</option>
+                <option value="pubmed_live">PubMed 实时</option>
+                <option value="cnki_sample">CNKI sample</option>
+                <option value="uploaded_pdf">上传 PDF</option>
               </select>
             </label>
             <label style={fieldLabelStyle}>
@@ -232,7 +250,7 @@ export default function LiteratureSearchClient() {
               <button
                 type="button"
                 disabled={state.isLoading || state.page <= 1}
-                onClick={() => runSearch(state.query, state.source, state.page - 1, state.pageSize, state.sort)}
+                onClick={() => runSearch(state.query, state.view, state.page - 1, state.pageSize, state.sort)}
                 style={{
                   border: "1px solid #cbd5e1",
                   borderRadius: 8,
@@ -249,7 +267,7 @@ export default function LiteratureSearchClient() {
               <button
                 type="button"
                 disabled={state.isLoading || state.page >= state.totalPages}
-                onClick={() => runSearch(state.query, state.source, state.page + 1, state.pageSize, state.sort)}
+                onClick={() => runSearch(state.query, state.view, state.page + 1, state.pageSize, state.sort)}
                 style={{
                   border: 0,
                   borderRadius: 8,

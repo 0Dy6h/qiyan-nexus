@@ -1,6 +1,35 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+
+def _seed_one_pdf_upload(monkeypatch, tmp_path: Path) -> None:
+    """Bootstrap an isolated runtime fixture and attach a fake PDF to cn-ad-gbs-001."""
+    from app.services import literature as literature_service
+
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    temp_path = tmp_path / "sample_ad_literature.json"
+    temp_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_path),
+    )
+    client = TestClient(app)
+    response = client.post(
+        "/api/literature/pdf-metadata",
+        json={
+            "literature_id": "cn-ad-gbs-001",
+            "file_name": "ad-evidence.pdf",
+            "source_type": "uploaded_pdf",
+        },
+    )
+    assert response.status_code == 200
 
 
 def test_literature_search_returns_curated_results_for_keyword():
@@ -112,3 +141,48 @@ def test_literature_search_requires_non_empty_query():
     response = client.get("/api/literature/search", params={"q": ""})
 
     assert response.status_code == 422
+
+
+def test_literature_search_filters_to_items_with_pdf_upload_when_has_pdf_upload_true(
+    monkeypatch, tmp_path: Path
+):
+    _seed_one_pdf_upload(monkeypatch, tmp_path)
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/literature/search",
+        params={"q": "特应性皮炎", "has_pdf_upload": "true"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert [item["id"] for item in payload["items"]] == ["cn-ad-gbs-001"]
+    assert payload["items"][0]["pdf_upload_id"] == "pdf-cn-ad-gbs-001-ad-evidence-pdf"
+
+
+def test_literature_search_excludes_items_with_pdf_upload_when_has_pdf_upload_false(
+    monkeypatch, tmp_path: Path
+):
+    _seed_one_pdf_upload(monkeypatch, tmp_path)
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/literature/search",
+        params={"q": "特应性皮炎", "has_pdf_upload": "false"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 19
+    assert "cn-ad-gbs-001" not in [item["id"] for item in payload["items"]]
+
+
+def test_literature_search_ignores_pdf_filter_when_param_omitted(monkeypatch, tmp_path: Path):
+    _seed_one_pdf_upload(monkeypatch, tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/api/literature/search", params={"q": "特应性皮炎"})
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 20
