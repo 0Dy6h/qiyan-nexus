@@ -11,6 +11,7 @@ export type CitationCard = {
   confidence: number;
   source_type?: string | null;
   pdf_upload_id?: string | null;
+  related_entity_ids?: string[];
 };
 
 export type RetrievalMetadata = {
