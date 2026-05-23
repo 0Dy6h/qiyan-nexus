@@ -35,3 +35,4 @@ class RagAnswerResponse(BaseModel):
     retrieval: RetrievalMetadata
     citations: list[CitationCard]
     answered_at: str
+    provider_name: str

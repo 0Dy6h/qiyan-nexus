@@ -35,6 +35,7 @@ class RagEvalItemResult(BaseModel):
     violated_must_not_include: list[str]
     disclaimer_present: bool
     citation_count: int
+    provider_name: str
     passed: bool
 
 
@@ -46,6 +47,7 @@ class RagEvalSummary(BaseModel):
     chunk_hit_count: int
     disclaimer_coverage_count: int
     must_not_violation_count: int
+    provider_name: str
 
 
 class RagEvalReport(BaseModel):

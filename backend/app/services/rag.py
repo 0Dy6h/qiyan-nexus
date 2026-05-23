@@ -190,4 +190,5 @@ def answer_question(
         ),
         citations=citations,
         answered_at=datetime.now(UTC).isoformat(),
+        provider_name=draft.provider_name,
     )

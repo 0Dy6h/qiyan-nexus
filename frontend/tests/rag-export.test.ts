@@ -9,6 +9,7 @@ const SAMPLE_RESULT: RagAnswerResponse = {
   answer: "基于当前检索到的证据片段，已优先返回与问题最相关的文献。",
   disclaimer: "非诊断结论、需结合临床。",
   answered_at: "2026-05-21T07:42:11.123456+00:00",
+  provider_name: "deterministic",
   retrieval: {
     applied_source: "all",
     applied_top_k: 2,

@@ -20,7 +20,7 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
     assert payload["retrieval"] == {
         "applied_source": "all",
         "applied_top_k": 2,
-        "available_citation_count": 16,
+        "available_citation_count": 17,
     }
     assert payload["citations"][0]["literature_id"] == "cn-ad-gbs-001"
     assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"

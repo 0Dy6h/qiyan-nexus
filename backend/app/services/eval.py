@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from app.schemas.eval import RagEvalItemResult, RagEvalReport, RagEvalSummary, load_rag_eval_dataset
+from app.services.llm.provider import DEFAULT_PROVIDER_NAME
 from app.services.rag import DISCLAIMER, answer_question
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "evals" / "rag_ad_eval_questions.json"
@@ -13,8 +14,10 @@ def get_rag_eval_questions() -> list[dict[str, Any]]:
 
 def run_rag_ad_eval_report() -> dict[str, Any]:
     results: list[RagEvalItemResult] = []
+    run_provider_name = DEFAULT_PROVIDER_NAME
     for question in load_rag_eval_dataset(_DATA_PATH):
         response = answer_question(question.question, source=question.source_preference, top_k=3)
+        run_provider_name = response.provider_name
         citation_text = "\n".join(
             "\n".join(
                 [
@@ -70,6 +73,7 @@ def run_rag_ad_eval_report() -> dict[str, Any]:
                 violated_must_not_include=violated_must_not_include,
                 disclaimer_present=disclaimer_present,
                 citation_count=len(response.citations),
+                provider_name=response.provider_name,
                 passed=passed,
             )
         )
@@ -85,6 +89,7 @@ def run_rag_ad_eval_report() -> dict[str, Any]:
             chunk_hit_count=sum(1 for item in results if item.expected_chunk_hits),
             disclaimer_coverage_count=sum(1 for item in results if item.disclaimer_present),
             must_not_violation_count=sum(1 for item in results if item.violated_must_not_include),
+            provider_name=run_provider_name,
         ),
         items=results,
     )

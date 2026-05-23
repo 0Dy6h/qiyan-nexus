@@ -106,5 +106,77 @@
     "source_quote": "JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis",
     "evidence_tags": ["immune_pathway", "pathway", "targeted_therapy"],
     "related_entity_ids": ["disease:atopic-dermatitis", "pathway:jak-stat"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "literature_id": "cn-ad-pruritus-005",
+    "section": "summary",
+    "text": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "source_quote": "IL-31、神经肽与瘙痒-搔抓循环之间的相互作用",
+    "evidence_tags": ["pruritus", "immune_pathway", "neuroimmune"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "target:IL31"]
+  },
+  {
+    "chunk_id": "chunk-cn-ad-barrier-006-repair",
+    "literature_id": "cn-ad-barrier-006",
+    "section": "summary",
+    "text": "总结 filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色，并讨论中药复方与单体在改善角质层功能、调节炎症因子方面的实验证据。",
+    "source_quote": "filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色",
+    "evidence_tags": ["skin_barrier", "filaggrin", "formula"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "target:filaggrin"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100004-systematic",
+    "literature_id": "pmid-40100004",
+    "section": "review",
+    "text": "The systematic review evaluates herbal formula trials for atopic dermatitis across eczema severity, itch relief, and quality of life outcomes, noting heterogeneous study quality and the need for standardised outcome measures.",
+    "source_quote": "herbal formula trials for atopic dermatitis across eczema severity, itch relief, and quality of life outcomes",
+    "evidence_tags": ["formula", "systematic_review", "clinical_management"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "intervention:herbal-formula"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100006-filaggrin",
+    "literature_id": "pmid-40100006",
+    "section": "review",
+    "text": "Filaggrin loss-of-function variants drive transepidermal water loss and weaken the epidermal barrier in atopic dermatitis, enabling allergen penetration and downstream type 2 inflammation.",
+    "source_quote": "Filaggrin loss-of-function variants drive transepidermal water loss and weaken the epidermal barrier",
+    "evidence_tags": ["skin_barrier", "filaggrin", "pathogenesis"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "target:filaggrin"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100007-probiotic",
+    "literature_id": "pmid-40100007",
+    "section": "review",
+    "text": "Probiotic and prebiotic interventions show subgroup-dependent effects on atopic dermatitis severity, with responder heterogeneity and inconsistent strain selection limiting generalisable conclusions across trials.",
+    "source_quote": "Probiotic and prebiotic interventions show subgroup-dependent effects on atopic dermatitis severity",
+    "evidence_tags": ["microbiome", "intervention", "gut_skin_axis"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "intervention:probiotics"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100008-network",
+    "literature_id": "pmid-40100008",
+    "section": "review",
+    "text": "Network pharmacology workflows for atopic dermatitis herbal formulas prioritise active compounds, predicted targets, and enriched pathways such as PI3K-Akt and NF-kB, framing these as hypothesis-generating leads that still require experimental validation.",
+    "source_quote": "Network pharmacology workflows for atopic dermatitis herbal formulas prioritise active compounds, predicted targets, and enriched pathways",
+    "evidence_tags": ["network_pharmacology", "formula", "pathway"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "pathway:pi3k-akt"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100009-staph",
+    "literature_id": "pmid-40100009",
+    "section": "review",
+    "text": "Skin microbiome dysbiosis with Staphylococcus aureus dominance correlates with atopic dermatitis flares, barrier injury, and reduced microbial diversity, supporting microbial balance as a therapeutic consideration.",
+    "source_quote": "Staphylococcus aureus dominance correlates with atopic dermatitis flares, barrier injury, and reduced microbial diversity",
+    "evidence_tags": ["microbiome", "skin_barrier", "flare"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "organism:s-aureus"]
+  },
+  {
+    "chunk_id": "chunk-pmid-40100010-pediatric",
+    "literature_id": "pmid-40100010",
+    "section": "review",
+    "text": "Pediatric atopic dermatitis phenotypes vary across infancy, preschool, and school-age stages, with longitudinal management emphasising barrier maintenance, flare prevention, and developmentally appropriate care strategies.",
+    "source_quote": "Pediatric atopic dermatitis phenotypes vary across infancy, preschool, and school-age stages",
+    "evidence_tags": ["pediatric_ad", "clinical_management", "review"],
+    "related_entity_ids": ["disease:atopic-dermatitis", "demographic:pediatric"]
   }
 ]
