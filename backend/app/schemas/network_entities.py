@@ -60,3 +60,17 @@ class CompoundTargetPathway(BaseModel):
 
 
 EntityKind = Literal["herb", "formula", "compound", "target", "pathway"]
+
+
+class NetworkEntitiesResponse(BaseModel):
+    """Flat lookup payload exposing every seed entity in one round-trip.
+
+    Frontend caches this on first load so citation chips and /network focus
+    prefill can map entity ids to display names without per-id round-trips.
+    """
+
+    herbs: list[Herb]
+    formulas: list[Formula]
+    compounds: list[Compound]
+    targets: list[Target]
+    pathways: list[Pathway]
