@@ -143,4 +143,8 @@ def test_network_task_state_is_persisted_to_runtime_file(tmp_path: Path, monkeyp
     after_second_poll = json.loads(runtime_file.read_text(encoding="utf-8"))
     assert after_second_poll[0]["status"] == "completed"
     assert after_second_poll[0]["poll_count"] == 2
-    assert after_second_poll[0]["result"]["chains"][0]["herb"] == "消风散"
+    first_chain = after_second_poll[0]["result"]["chains"][0]
+    # Formula query now expands to constituent herbs via the seed entity graph;
+    # the formula label is carried on the chain.formula field instead of herb.
+    assert first_chain["formula"] == "消风散"
+    assert first_chain["herb"] in {"荆芥", "防风", "牛蒡子"}

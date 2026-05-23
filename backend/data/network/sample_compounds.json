@@ -1,0 +1,37 @@
+[
+  {
+    "id": "compound-quercetin",
+    "name": "槲皮素",
+    "english_name": "Quercetin",
+    "pubchem_cid": "5280343",
+    "herb_ids": ["herb-jingjie", "herb-niubangzi"]
+  },
+  {
+    "id": "compound-luteolin",
+    "name": "木犀草素",
+    "english_name": "Luteolin",
+    "pubchem_cid": "5280445",
+    "herb_ids": ["herb-jingjie", "herb-fangfeng"]
+  },
+  {
+    "id": "compound-kaempferol",
+    "name": "山奈酚",
+    "english_name": "Kaempferol",
+    "pubchem_cid": "5280863",
+    "herb_ids": ["herb-niubangzi", "herb-huangqi"]
+  },
+  {
+    "id": "compound-astragaloside-iv",
+    "name": "黄芪甲苷",
+    "english_name": "Astragaloside IV",
+    "pubchem_cid": "13943297",
+    "herb_ids": ["herb-huangqi"]
+  },
+  {
+    "id": "compound-dictamnine",
+    "name": "白鲜碱",
+    "english_name": "Dictamnine",
+    "pubchem_cid": "68085",
+    "herb_ids": ["herb-baixianpi"]
+  }
+]

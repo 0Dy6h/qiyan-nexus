@@ -48,6 +48,7 @@ def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
         "last_parse_trigger": None,
         "parse_attempt_count": None,
         "pdf_parse_result": None,
+        "related_entity_ids": [],
     }
 
 
@@ -71,3 +72,32 @@ def test_literature_detail_returns_404_for_unknown_id(monkeypatch, tmp_path: Pat
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Literature item not found"}
+
+
+def test_literature_detail_carries_related_entity_ids_for_linked_records(
+    monkeypatch, tmp_path: Path
+):
+    from app.services import literature as literature_service
+
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_data_path.write_text(original_path.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(
+        literature_service,
+        "_REPOSITORY",
+        literature_service.InMemoryLiteratureRepository(temp_data_path),
+    )
+
+    client = TestClient(app)
+
+    formula_response = client.get("/api/literature/cn-ad-formula-002")
+    assert formula_response.status_code == 200
+    assert "formula-xiaofengsan" in formula_response.json()["related_entity_ids"]
+
+    network_response = client.get("/api/literature/cn-ad-network-007")
+    assert network_response.status_code == 200
+    network_links = network_response.json()["related_entity_ids"]
+    assert "target-il6" in network_links
+    assert "pathway-pi3k-akt" in network_links

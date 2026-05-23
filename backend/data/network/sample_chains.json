@@ -1,0 +1,44 @@
+[
+  {
+    "compound_id": "compound-quercetin",
+    "target_id": "target-il6",
+    "pathway_id": "pathway-pi3k-akt",
+    "disease": "Atopic dermatitis",
+    "score": 0.87
+  },
+  {
+    "compound_id": "compound-luteolin",
+    "target_id": "target-tnf",
+    "pathway_id": "pathway-nfkb",
+    "disease": "Atopic dermatitis",
+    "score": 0.82
+  },
+  {
+    "compound_id": "compound-kaempferol",
+    "target_id": "target-stat3",
+    "pathway_id": "pathway-jak-stat",
+    "disease": "Atopic dermatitis",
+    "score": 0.79
+  },
+  {
+    "compound_id": "compound-astragaloside-iv",
+    "target_id": "target-tslp",
+    "pathway_id": "pathway-jak-stat",
+    "disease": "Atopic dermatitis",
+    "score": 0.74
+  },
+  {
+    "compound_id": "compound-dictamnine",
+    "target_id": "target-flg",
+    "pathway_id": "pathway-skin-barrier",
+    "disease": "Atopic dermatitis",
+    "score": 0.71
+  },
+  {
+    "compound_id": "compound-luteolin",
+    "target_id": "target-il6",
+    "pathway_id": "pathway-nfkb",
+    "disease": "Atopic dermatitis",
+    "score": 0.70
+  }
+]

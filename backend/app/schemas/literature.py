@@ -38,6 +38,7 @@ class LiteratureItem(BaseModel):
     pdf_parse_result: PdfParseResult | None = None
     last_parse_trigger: Literal["auto", "manual"] | None = None
     parse_attempt_count: int | None = None
+    related_entity_ids: list[str] = Field(default_factory=list)
 
 
 class LiteratureSearchResponse(BaseModel):
