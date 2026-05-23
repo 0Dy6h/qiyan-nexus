@@ -247,3 +247,17 @@ def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):
 
     assert "deterministic retrieval" in response.answer
     assert not response.answer.startswith("【模拟 Claude 草稿】")
+
+
+def test_retrieval_metadata_strategy_defaults_to_keyword(monkeypatch):
+    monkeypatch.delenv("QIYAN_RETRIEVAL_PROVIDER", raising=False)
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+    assert response.retrieval.strategy == "keyword"
+
+
+def test_retrieval_metadata_strategy_reflects_env_override(monkeypatch):
+    monkeypatch.setenv("QIYAN_RETRIEVAL_PROVIDER", "hybrid")
+    monkeypatch.setenv("QIYAN_EMBEDDING_BACKEND", "hashing")
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+    assert response.retrieval.strategy == "hybrid"
+    assert response.disclaimer == DISCLAIMER

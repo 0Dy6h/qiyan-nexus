@@ -179,6 +179,10 @@ def _resolve_provider_class(candidate: str) -> type[RetrievalProvider] | None:
         from app.services.retrieval.vector_provider import VectorRetrievalProvider
 
         return VectorRetrievalProvider
+    if candidate == "hybrid":
+        from app.services.retrieval.hybrid_provider import HybridRetrievalProvider
+
+        return HybridRetrievalProvider
     return None
 
 

@@ -126,6 +126,7 @@ def answer_question(
             applied_source=source,
             applied_top_k=top_k,
             available_citation_count=available_citation_count,
+            strategy=retrieval_provider.name,
         ),
         citations=citations,
         answered_at=datetime.now(UTC).isoformat(),
