@@ -28,6 +28,19 @@ export type LiteratureSource = "all" | "cn_literature" | "pubmed";
 export type LiteratureSearchSort = "relevance" | "year_desc" | "year_asc";
 export type PdfParseStatus = "pending" | "parsed" | "failed";
 
+export type LiteratureDataSourceView = "all" | "pubmed_live" | "cnki_sample" | "uploaded_pdf";
+
+export type LiteratureDataSourceFilter = {
+  source: LiteratureSource;
+  hasPdfUpload?: boolean;
+};
+
+export type LiteratureDataSourceBanner = {
+  tone: "info" | "live" | "sample" | "upload";
+  title: string;
+  summary: string;
+};
+
 export type LiteratureSearchResponse = {
   query: string;
   source: LiteratureSource;
@@ -78,6 +91,64 @@ export function getLiteratureSourceLabel(source: LiteratureSource) {
   return "全部";
 }
 
+export function getLiteratureDataSourceLabel(view: LiteratureDataSourceView) {
+  if (view === "pubmed_live") {
+    return "PubMed 实时";
+  }
+  if (view === "cnki_sample") {
+    return "CNKI sample";
+  }
+  if (view === "uploaded_pdf") {
+    return "上传 PDF";
+  }
+  return "全部来源";
+}
+
+export function getLiteratureDataSourceFilter(view: LiteratureDataSourceView): LiteratureDataSourceFilter {
+  if (view === "pubmed_live") {
+    return { source: "pubmed" };
+  }
+  if (view === "cnki_sample") {
+    return { source: "cn_literature" };
+  }
+  if (view === "uploaded_pdf") {
+    return { source: "all", hasPdfUpload: true };
+  }
+  return { source: "all" };
+}
+
+export function getLiteratureDataSourceBanner(view: LiteratureDataSourceView): LiteratureDataSourceBanner {
+  if (view === "pubmed_live") {
+    return {
+      tone: "live",
+      title: "PubMed 实时同步",
+      summary:
+        "结果来自 NCBI E-utilities 实时同步，遵守 NCBI / PubMed 使用条款；摘要仅为预览，原文请通过来源链接核对。",
+    };
+  }
+  if (view === "cnki_sample") {
+    return {
+      tone: "sample",
+      title: "CNKI sample（演示）",
+      summary:
+        "当前中文条目为合成 seed 样本，用于演示证据工作台骨架，未对接知网/万方真实授权数据库。",
+    };
+  }
+  if (view === "uploaded_pdf") {
+    return {
+      tone: "upload",
+      title: "上传 PDF（仅本地）",
+      summary:
+        "上传 PDF 仅在本地解析与展示，不公开、不分发；请确保对原文具有合法访问权，并自行承担引用合规责任。",
+    };
+  }
+  return {
+    tone: "info",
+    title: "全部来源",
+    summary: "已汇总 CNKI sample、PubMed 实时同步与上传 PDF 三类来源；切换上方选项可查看分类口径与合规边界。",
+  };
+}
+
 export function getParseTriggerLabel(trigger: LiteratureItem["last_parse_trigger"]) {
   if (trigger === "auto") {
     return "自动触发";
@@ -114,6 +185,7 @@ export function buildLiteratureSearchUrl(
   page = 1,
   pageSize = 10,
   sort: LiteratureSearchSort = "relevance",
+  hasPdfUpload?: boolean,
 ) {
   const url = new URL("/api/literature/search", getBackendBaseUrl());
   url.searchParams.set("q", query.trim());
@@ -128,6 +200,9 @@ export function buildLiteratureSearchUrl(
   }
   if (sort !== "relevance") {
     url.searchParams.set("sort", sort);
+  }
+  if (hasPdfUpload !== undefined) {
+    url.searchParams.set("has_pdf_upload", hasPdfUpload ? "true" : "false");
   }
   return url.toString();
 }
@@ -166,8 +241,11 @@ export async function searchLiterature(
   page = 1,
   pageSize = 10,
   sort: LiteratureSearchSort = "relevance",
+  hasPdfUpload?: boolean,
 ): Promise<LiteratureSearchResponse> {
-  const response = await fetch(buildLiteratureSearchUrl(query, source, page, pageSize, sort));
+  const response = await fetch(
+    buildLiteratureSearchUrl(query, source, page, pageSize, sort, hasPdfUpload),
+  );
 
   if (!response.ok) {
     throw new Error("Literature search failed");
