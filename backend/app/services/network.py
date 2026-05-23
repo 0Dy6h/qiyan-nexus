@@ -14,6 +14,7 @@ from app.schemas.network import (
 )
 from app.schemas.network_entities import (
     Compound,
+    NetworkEntitiesResponse,
     Pathway,
     Target,
 )
@@ -199,3 +200,16 @@ def get_network_analysis_result(task_id: str) -> tuple[str, NetworkResultRespons
         return "not_found", None
     _, response = _advance(record)
     return "ok", response
+
+
+def list_all_entities(
+    entity_repo: NetworkEntityRepository | None = None,
+) -> NetworkEntitiesResponse:
+    repo = entity_repo or NetworkEntityRepository()
+    return NetworkEntitiesResponse(
+        herbs=repo.list_herbs(),
+        formulas=repo.list_formulas(),
+        compounds=repo.list_compounds(),
+        targets=repo.list_targets(),
+        pathways=repo.list_pathways(),
+    )

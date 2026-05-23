@@ -1,4 +1,7 @@
+import { Suspense } from "react";
+
 import NetworkAnalysisClient from "../../components/NetworkAnalysisClient";
+import StatusPanel from "../../components/StatusPanel";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
@@ -49,7 +52,9 @@ export default function NetworkPage() {
           </div>
         </article>
 
-        <NetworkAnalysisClient />
+        <Suspense fallback={<StatusPanel message="加载网药分析面板..." />}>
+          <NetworkAnalysisClient />
+        </Suspense>
 
         <section
           aria-label="使用提醒"

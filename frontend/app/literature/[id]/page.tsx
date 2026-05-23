@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
 import DemoDataBanner from "../../../components/DemoDataBanner";
+import EntityChips from "../../../components/EntityChips";
 import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
 import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
 import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
@@ -70,6 +71,10 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
                 `年份 ${String(item.year)}`,
                 `文献 ID ${item.id}`,
               ]}
+            />
+            <EntityChips
+              ids={item.related_entity_ids ?? []}
+              emptyHint="该文献尚未挂载网药实体；如需跳转 /network 请使用相关词查询。"
             />
             <h1 style={{ color: "#1e293b", fontSize: 36, lineHeight: 1.3 }}>{item.title}</h1>
             <div style={{ display: "grid", gap: 12, color: "#334155", fontSize: 17, lineHeight: 1.7 }}>

@@ -148,3 +148,40 @@ def test_network_task_state_is_persisted_to_runtime_file(tmp_path: Path, monkeyp
     # the formula label is carried on the chain.formula field instead of herb.
     assert first_chain["formula"] == "消风散"
     assert first_chain["herb"] in {"荆芥", "防风", "牛蒡子"}
+
+
+def test_network_entities_endpoint_returns_grouped_lookup_payload():
+    client = TestClient(app)
+
+    response = client.get("/api/network/entities")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload.keys()) == {"herbs", "formulas", "compounds", "targets", "pathways"}
+    assert len(payload["herbs"]) == 5
+    assert len(payload["formulas"]) == 2
+    assert len(payload["compounds"]) == 5
+    assert len(payload["targets"]) == 5
+    assert len(payload["pathways"]) == 4
+
+    formula_ids = {f["id"] for f in payload["formulas"]}
+    assert "formula-xiaofengsan" in formula_ids
+    target_ids = {t["id"] for t in payload["targets"]}
+    assert "target-flg" in target_ids
+
+
+def test_network_entities_endpoint_each_entry_has_id_and_display_name():
+    client = TestClient(app)
+
+    payload = client.get("/api/network/entities").json()
+
+    for herb in payload["herbs"]:
+        assert herb["id"] and herb["name"]
+    for formula in payload["formulas"]:
+        assert formula["id"] and formula["name"]
+    for compound in payload["compounds"]:
+        assert compound["id"] and compound["name"]
+    for target in payload["targets"]:
+        assert target["id"] and target["symbol"] and target["name"]
+    for pathway in payload["pathways"]:
+        assert pathway["id"] and pathway["name"]
