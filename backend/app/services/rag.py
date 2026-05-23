@@ -174,6 +174,7 @@ def answer_question(
                 confidence=_CONFIDENCE_BY_SOURCE_TYPE[item.source_type],
                 source_type=chunk.source_type if chunk else None,
                 pdf_upload_id=chunk.pdf_upload_id if chunk else None,
+                related_entity_ids=list(item.related_entity_ids),
             )
         )
 

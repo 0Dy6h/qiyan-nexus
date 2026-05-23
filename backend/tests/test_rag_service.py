@@ -209,6 +209,21 @@ def test_answer_question_leaves_sample_chunk_citation_without_upload_metadata():
     assert response.citations[0].pdf_upload_id is None
 
 
+def test_answer_question_propagates_related_entity_ids_from_literature():
+    response = answer_question("消风散与当归饮子治疗特应性皮炎的复方研究", top_k=1)
+
+    assert response.citations[0].literature_id == "cn-ad-formula-002"
+    assert "formula-xiaofengsan" in response.citations[0].related_entity_ids
+    assert "herb-jingjie" in response.citations[0].related_entity_ids
+
+
+def test_answer_question_returns_empty_related_entity_ids_when_literature_has_none():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.citations[0].literature_id == "cn-ad-gbs-001"
+    assert response.citations[0].related_entity_ids == []
+
+
 def test_answer_question_returns_iso_utc_answered_at_timestamp():
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
 
