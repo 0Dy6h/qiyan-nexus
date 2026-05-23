@@ -134,3 +134,30 @@ def test_rag_eval_report_tags_default_provider_name():
 
     assert report["summary"]["provider_name"] == "deterministic"
     assert all(item["provider_name"] == "deterministic" for item in report["items"])
+
+
+def test_rag_eval_report_default_strategy_is_keyword():
+    report = run_rag_ad_eval_report()
+    assert report["summary"]["retrieval_strategy"] == "keyword"
+    assert report["summary"]["pass_rate"] >= 0.95
+
+
+def test_rag_eval_report_explicit_keyword_matches_default(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("QIYAN_RETRIEVAL_PROVIDER", raising=False)
+    default_report = run_rag_ad_eval_report()
+    explicit_report = run_rag_ad_eval_report(strategy="keyword")
+    assert explicit_report["summary"]["pass_rate"] == default_report["summary"]["pass_rate"]
+    assert explicit_report["summary"]["retrieval_strategy"] == "keyword"
+
+
+def test_rag_eval_report_hybrid_with_hashing_backend_meets_relaxed_threshold(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("QIYAN_EMBEDDING_BACKEND", "hashing")
+    report = run_rag_ad_eval_report(strategy="hybrid")
+    assert report["summary"]["retrieval_strategy"] == "hybrid"
+    assert report["summary"]["pass_rate"] >= 0.90, (
+        "Hybrid + hashing backend should still clear the relaxed 90% bar (bge"
+        " gets the full ≥95%). Failing items:"
+        f" {[item['id'] for item in report['items'] if not item['passed']]}"
+    )
