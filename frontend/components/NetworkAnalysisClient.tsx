@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import {
   fetchNetworkResult,
@@ -9,6 +10,7 @@ import {
   NetworkAnalysisType,
   submitNetworkAnalysis,
 } from "../lib/api/network";
+import { fetchNetworkEntities, type NetworkEntity } from "../lib/api/network-entities";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import StatusPanel from "./StatusPanel";
 
@@ -22,6 +24,8 @@ function formatScore(value: number) {
 }
 
 export default function NetworkAnalysisClient() {
+  const searchParams = useSearchParams();
+  const focusEntityId = searchParams.get("focus");
   const [query, setQuery] = useState("消风散");
   const [analysisType, setAnalysisType] = useState<NetworkAnalysisType>("formula");
   const [phase, setPhase] = useState<NetworkPhase>("idle");
@@ -29,6 +33,7 @@ export default function NetworkAnalysisClient() {
   const [result, setResult] = useState<NetworkAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const appliedFocusRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -78,13 +83,17 @@ export default function NetworkAnalysisClient() {
       return;
     }
 
+    await runAnalysis(trimmedQuery, analysisType);
+  }
+
+  async function runAnalysis(submitQuery: string, submitType: NetworkAnalysisType) {
     setErrorMessage(null);
     setResult(null);
     setProgress(0);
     setPhase("submitting");
 
     try {
-      const accepted = await submitNetworkAnalysis(trimmedQuery, analysisType);
+      const accepted = await submitNetworkAnalysis(submitQuery, submitType);
       if (!mountedRef.current) {
         return;
       }
@@ -99,6 +108,39 @@ export default function NetworkAnalysisClient() {
       setPhase("error");
     }
   }
+
+  useEffect(() => {
+    if (!focusEntityId) {
+      return;
+    }
+    if (appliedFocusRef.current === focusEntityId) {
+      return;
+    }
+    appliedFocusRef.current = focusEntityId;
+
+    fetchNetworkEntities()
+      .then((lookup) => {
+        if (!mountedRef.current) {
+          return;
+        }
+        const entity: NetworkEntity | undefined = lookup[focusEntityId];
+        const nextQuery = entity?.name ?? focusEntityId;
+        const nextType: NetworkAnalysisType = entity?.kind === "herb" ? "herb" : "formula";
+        setQuery(nextQuery);
+        setAnalysisType(nextType);
+        void runAnalysis(nextQuery, nextType);
+      })
+      .catch(() => {
+        if (!mountedRef.current) {
+          return;
+        }
+        setErrorMessage("加载网药实体失败，无法解析 focus 参数。");
+        setPhase("error");
+      });
+    // runAnalysis is stable enough for this one-shot prefill; we intentionally
+    // depend only on focusEntityId so re-renders do not re-submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusEntityId]);
 
   const isBusy = phase === "submitting" || phase === "polling";
   const submitLabel = isBusy
