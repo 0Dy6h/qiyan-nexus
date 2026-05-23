@@ -28,8 +28,16 @@ def search_literature_endpoint(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
     sort: LiteratureSearchSort = "relevance",
+    has_pdf_upload: bool | None = Query(default=None),
 ) -> LiteratureSearchResponse:
-    return search_literature(q, source=source, page=page, page_size=page_size, sort=sort)
+    return search_literature(
+        q,
+        source=source,
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        has_pdf_upload=has_pdf_upload,
+    )
 
 
 @router.post("/pdf-metadata", response_model=LiteratureItem)
