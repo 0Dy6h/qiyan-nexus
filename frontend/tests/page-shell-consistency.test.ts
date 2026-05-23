@@ -14,6 +14,7 @@ test("rag and literature page shells align with compliance shell navigation, int
   const pages = [
     ["app/rag/page.tsx", "/rag"],
     ["app/literature/page.tsx", "/literature"],
+    ["app/network/page.tsx", "/network"],
   ];
 
   for (const [pagePath, currentHref] of pages) {

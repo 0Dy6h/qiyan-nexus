@@ -4,6 +4,7 @@ from pathlib import Path
 from app.repositories.runtime_storage import (
     resolve_chunk_storage_path,
     resolve_literature_storage_path,
+    resolve_network_tasks_storage_path,
 )
 
 
@@ -110,6 +111,45 @@ def test_chunk_env_override_bootstraps_only_once(tmp_path: Path, monkeypatch):
     mtime1 = custom.stat().st_mtime
 
     resolve_chunk_storage_path()
+    mtime2 = custom.stat().st_mtime
+
+    assert mtime2 == mtime1
+
+
+def test_network_tasks_storage_bootstraps_to_empty_list(tmp_path: Path, monkeypatch):
+    target = tmp_path / "network_tasks_state.json"
+    monkeypatch.setenv("NETWORK_TASKS_RUNTIME_STATE_PATH", str(target))
+
+    assert not target.exists()
+    result = resolve_network_tasks_storage_path()
+
+    assert result == target
+    assert target.exists()
+    assert _read_json(target) == []
+
+
+def test_network_tasks_storage_preserves_existing_runtime_file(tmp_path: Path, monkeypatch):
+    target = tmp_path / "network_tasks_state.json"
+    monkeypatch.setenv("NETWORK_TASKS_RUNTIME_STATE_PATH", str(target))
+
+    resolve_network_tasks_storage_path()
+    seeded = [{"task_id": "network-keep-me"}]
+    _write_json(target, seeded)
+
+    result = resolve_network_tasks_storage_path()
+
+    assert result == target
+    assert _read_json(target) == seeded
+
+
+def test_network_tasks_storage_env_override_bootstraps_only_once(tmp_path: Path, monkeypatch):
+    custom = tmp_path / "network_only_once.json"
+    monkeypatch.setenv("NETWORK_TASKS_RUNTIME_STATE_PATH", str(custom))
+
+    resolve_network_tasks_storage_path()
+    mtime1 = custom.stat().st_mtime
+
+    resolve_network_tasks_storage_path()
     mtime2 = custom.stat().st_mtime
 
     assert mtime2 == mtime1

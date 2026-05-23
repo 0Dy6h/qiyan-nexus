@@ -1,27 +1,21 @@
-from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import uuid4
 
+from app.repositories.network_tasks import NetworkTaskRepository
+from app.repositories.runtime_storage import resolve_network_tasks_storage_path
 from app.schemas.network import (
     AnalysisType,
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkChain,
     NetworkResultResponse,
+    NetworkTaskRecord,
 )
 from app.services.rag import DISCLAIMER
 
 
-@dataclass
-class _NetworkTaskState:
-    query: str
-    analysis_type: AnalysisType
-    poll_count: int = 0
-
-
-# Mock-only in-memory task store for the current MVP slice.
-# This intentionally simulates a queued/running/completed flow inside one process
-# and is not a durable multi-worker async backend.
-_TASKS: dict[str, _NetworkTaskState] = {}
+def _get_repository() -> NetworkTaskRepository:
+    return NetworkTaskRepository(resolve_network_tasks_storage_path())
 
 
 def _build_mock_chains(query: str, analysis_type: AnalysisType) -> list[NetworkChain]:
@@ -54,47 +48,81 @@ def _build_mock_chains(query: str, analysis_type: AnalysisType) -> list[NetworkC
     ]
 
 
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
 def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> NetworkAnalyzeAccepted:
     task_id = f"network-{uuid4().hex[:12]}"
-    _TASKS[task_id] = _NetworkTaskState(
+    repo = _get_repository()
+    repo.upsert(
+        task_id=task_id,
         query=query.strip(),
         analysis_type=analysis_type,
+        status="queued",
+        progress=0,
         poll_count=0,
+        result=None,
+        created_at=_now_iso(),
     )
     return NetworkAnalyzeAccepted(task_id=task_id, status="queued", progress=0)
 
 
-def get_network_analysis_result(task_id: str) -> tuple[str, NetworkResultResponse | None]:
-    task = _TASKS.get(task_id)
-    if task is None:
-        return "not_found", None
-
-    if task.poll_count == 0:
-        task.poll_count += 1
+def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResultResponse]:
+    repo = _get_repository()
+    if record.poll_count == 0:
+        next_record = repo.upsert(
+            task_id=record.task_id,
+            query=record.query,
+            analysis_type=record.analysis_type,
+            status="running",
+            progress=60,
+            poll_count=record.poll_count + 1,
+            result=None,
+            created_at=record.created_at,
+        )
         return (
-            "ok",
+            next_record,
             NetworkResultResponse(
-                task_id=task_id,
+                task_id=next_record.task_id,
                 status="running",
                 progress=60,
                 result=None,
             ),
         )
 
-    task.poll_count += 1
-    result = NetworkAnalysisResult(
-        task_id=task_id,
-        query=task.query,
-        analysis_type=task.analysis_type,
-        chains=_build_mock_chains(task.query, task.analysis_type),
+    result_payload = NetworkAnalysisResult(
+        task_id=record.task_id,
+        query=record.query,
+        analysis_type=record.analysis_type,
+        chains=_build_mock_chains(record.query, record.analysis_type),
         disclaimer=DISCLAIMER,
     )
+    next_record = repo.upsert(
+        task_id=record.task_id,
+        query=record.query,
+        analysis_type=record.analysis_type,
+        status="completed",
+        progress=100,
+        poll_count=record.poll_count + 1,
+        result=result_payload,
+        created_at=record.created_at,
+    )
     return (
-        "ok",
+        next_record,
         NetworkResultResponse(
-            task_id=task_id,
+            task_id=next_record.task_id,
             status="completed",
             progress=100,
-            result=result,
+            result=result_payload,
         ),
     )
+
+
+def get_network_analysis_result(task_id: str) -> tuple[str, NetworkResultResponse | None]:
+    repo = _get_repository()
+    record = repo.get(task_id)
+    if record is None:
+        return "not_found", None
+    _, response = _advance(record)
+    return "ok", response
