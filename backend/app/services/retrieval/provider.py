@@ -170,6 +170,18 @@ _PROVIDERS: dict[str, type[RetrievalProvider]] = {
 }
 
 
+def _resolve_provider_class(candidate: str) -> type[RetrievalProvider] | None:
+    """Resolve a provider class, lazy-importing heavy ones (vector, hybrid)."""
+
+    if candidate in _PROVIDERS:
+        return _PROVIDERS[candidate]
+    if candidate == "vector":
+        from app.services.retrieval.vector_provider import VectorRetrievalProvider
+
+        return VectorRetrievalProvider
+    return None
+
+
 def select_retrieval_provider(name: str | None = None) -> RetrievalProvider:
     """Return the configured retrieval provider, falling back to keyword on misconfig.
 
@@ -182,7 +194,7 @@ def select_retrieval_provider(name: str | None = None) -> RetrievalProvider:
     candidate = raw.strip().lower()
     if not candidate:
         return KeywordRetrievalProvider()
-    provider_cls = _PROVIDERS.get(candidate)
+    provider_cls = _resolve_provider_class(candidate)
     if provider_cls is None:
         _LOGGER.warning(
             "Unknown %s=%r; falling back to %s",
