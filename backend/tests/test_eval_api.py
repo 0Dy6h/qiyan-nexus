@@ -52,7 +52,7 @@ def test_rag_ad_eval_report_endpoint_returns_reproducible_summary():
 def test_rag_ad_eval_report_endpoint_returns_503_when_report_generation_fails(monkeypatch):
     from app.api import eval as eval_api
 
-    def broken_report() -> dict:
+    def broken_report(**_kwargs) -> dict:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(eval_api, "run_rag_ad_eval_report", broken_report)
@@ -62,3 +62,22 @@ def test_rag_ad_eval_report_endpoint_returns_503_when_report_generation_fails(mo
 
     assert response.status_code == 503
     assert response.json() == {"detail": "RAG eval report unavailable"}
+
+
+def test_rag_ad_eval_report_endpoint_honours_strategy_query_param(monkeypatch):
+    monkeypatch.setenv("QIYAN_EMBEDDING_BACKEND", "hashing")
+    client = TestClient(app)
+
+    response = client.get("/api/evals/rag-ad/report", params={"strategy": "hybrid"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["retrieval_strategy"] == "hybrid"
+
+
+def test_rag_ad_eval_report_endpoint_rejects_unknown_strategy():
+    client = TestClient(app)
+
+    response = client.get("/api/evals/rag-ad/report", params={"strategy": "bogus"})
+
+    assert response.status_code == 422

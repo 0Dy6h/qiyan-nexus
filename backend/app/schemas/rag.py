@@ -21,6 +21,7 @@ class RetrievalMetadata(BaseModel):
     applied_source: Literal["all", "cn_literature", "pubmed"]
     applied_top_k: int
     available_citation_count: int
+    strategy: str = "keyword"
 
 
 class RagAnswerRequest(BaseModel):

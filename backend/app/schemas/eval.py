@@ -48,6 +48,7 @@ class RagEvalSummary(BaseModel):
     disclaimer_coverage_count: int
     must_not_violation_count: int
     provider_name: str
+    retrieval_strategy: str = "keyword"
 
 
 class RagEvalReport(BaseModel):

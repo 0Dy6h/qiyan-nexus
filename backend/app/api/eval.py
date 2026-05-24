@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.services.eval import get_rag_eval_questions, run_rag_ad_eval_report
 
@@ -13,8 +13,10 @@ def rag_ad_eval_questions() -> dict[str, list[dict[str, Any]]]:
 
 
 @router.get("/rag-ad/report")
-def rag_ad_eval_report() -> dict[str, Any]:
+def rag_ad_eval_report(
+    strategy: str | None = Query(default=None, pattern="^(keyword|vector|hybrid)$"),
+) -> dict[str, Any]:
     try:
-        return run_rag_ad_eval_report()
+        return run_rag_ad_eval_report(strategy=strategy)
     except Exception as exc:
         raise HTTPException(status_code=503, detail="RAG eval report unavailable") from exc

@@ -21,6 +21,7 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
         "applied_source": "all",
         "applied_top_k": 2,
         "available_citation_count": 17,
+        "strategy": "keyword",
     }
     assert payload["citations"][0]["literature_id"] == "cn-ad-gbs-001"
     assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"
@@ -103,4 +104,5 @@ def test_rag_answer_endpoint_returns_retrieval_metadata_for_positive_matches():
         "applied_source": "pubmed",
         "applied_top_k": 1,
         "available_citation_count": 2,
+        "strategy": "keyword",
     }

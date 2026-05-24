@@ -81,3 +81,23 @@ def resolve_network_tasks_storage_path() -> Path:
         target.write_text("[]\n", encoding="utf-8")
 
     return target
+
+
+def resolve_vector_index_cache_path() -> Path:
+    """
+    Return absolute path to the chunk vector index cache file:
+    backend/data/runtime/vector_index_state.npy
+
+    Unlike literature/chunk runtime files, the vector index is a *derived*
+    artifact — first build writes it; missing cache is normal. The companion
+    metadata file lives next to it as ``vector_index_state.meta.json``.
+
+    Env override: VECTOR_INDEX_RUNTIME_CACHE_PATH.
+    """
+    env_path = os.environ.get("VECTOR_INDEX_RUNTIME_CACHE_PATH")
+    if env_path:
+        target = Path(env_path)
+    else:
+        target = Path(__file__).resolve().parents[2] / "data" / "runtime" / "vector_index_state.npy"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
