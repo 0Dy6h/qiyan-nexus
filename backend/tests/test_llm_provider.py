@@ -106,3 +106,21 @@ def test_select_provider_accepts_explicit_name_overriding_env(monkeypatch):
     monkeypatch.setenv("QIYAN_LLM_PROVIDER", "mock_claude")
     provider = select_provider("deterministic")
     assert provider.name == "deterministic"
+
+
+def test_select_provider_returns_anthropic_when_env_set(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "anthropic")
+    provider = select_provider()
+    assert provider.name == "anthropic"
+
+
+def test_select_provider_anthropic_is_case_insensitive(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "Anthropic")
+    provider = select_provider()
+    assert provider.name == "anthropic"
+
+
+def test_select_provider_anthropic_via_explicit_name(monkeypatch):
+    monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
+    provider = select_provider("anthropic")
+    assert provider.name == "anthropic"

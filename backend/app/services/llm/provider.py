@@ -148,6 +148,16 @@ _PROVIDERS: dict[str, type[LLMProvider]] = {
     MockClaudeProvider.name: MockClaudeProvider,
 }
 
+ANTHROPIC_PROVIDER_NAME = "anthropic"
+
+
+def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
+    if candidate == ANTHROPIC_PROVIDER_NAME:
+        from app.services.llm.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider
+    return None
+
 
 def select_provider(name: str | None = None) -> LLMProvider:
     """Return the configured provider, falling back to deterministic on misconfig.
@@ -161,7 +171,7 @@ def select_provider(name: str | None = None) -> LLMProvider:
     candidate = raw.strip().lower()
     if not candidate:
         return DeterministicProvider()
-    provider_cls = _PROVIDERS.get(candidate)
+    provider_cls = _PROVIDERS.get(candidate) or _resolve_extra_provider_class(candidate)
     if provider_cls is None:
         _LOGGER.warning(
             "Unknown %s=%r; falling back to %s",
