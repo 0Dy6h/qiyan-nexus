@@ -1,7 +1,11 @@
 from unittest.mock import MagicMock
 
+import pytest
+from anthropic import APIError, APITimeoutError, AuthenticationError, RateLimitError
+
 from app.schemas.rag import CitationCard
 from app.services.llm.anthropic_provider import AnthropicProvider
+from app.services.llm.provider import AnswerDraft, DeterministicProvider
 
 _SAMPLE_CITATIONS: list[CitationCard] = [
     CitationCard(
@@ -95,3 +99,99 @@ def test_generate_answer_extracts_text_from_multiple_content_blocks():
 
     assert draft.text == "第一段。第二段。"
     assert draft.provider_name == "anthropic"
+
+
+def test_fallback_on_authentication_error():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = AuthenticationError(
+        message="401 invalid key", response=MagicMock(), body=None
+    )
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+
+
+def test_fallback_on_rate_limit_error():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = RateLimitError(
+        message="429 too many requests", response=MagicMock(), body=None
+    )
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+
+
+def test_fallback_on_api_timeout_error():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = APITimeoutError(request=MagicMock())
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+
+
+def test_fallback_on_generic_api_error():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = APIError(
+        message="generic api error", request=MagicMock(), body=None
+    )
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+
+
+def test_non_anthropic_exception_propagates():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = ValueError("boom")
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    with pytest.raises(ValueError, match="boom"):
+        provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_not_called()
+
+
+def test_default_fallback_is_deterministic():
+    provider = AnthropicProvider(client=MagicMock())
+
+    assert isinstance(provider._fallback, DeterministicProvider)  # type: ignore[arg-type]

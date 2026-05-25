@@ -13,6 +13,7 @@ anthropic SDK import cost. Implementation lands across C1 slices 1-4:
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from app.schemas.rag import CitationCard
@@ -20,6 +21,10 @@ from app.services.llm.provider import AnswerDraft
 
 if TYPE_CHECKING:
     from anthropic import Anthropic
+
+    from app.services.llm.provider import LLMProvider
+
+_LOGGER = logging.getLogger(__name__)
 
 
 _EMPTY_CITATIONS_FALLBACK = (
@@ -63,12 +68,21 @@ class AnthropicProvider:
     MODEL = "claude-haiku-4-5"
     MAX_TOKENS = 1024
 
-    def __init__(self, client: Anthropic | None = None) -> None:
+    def __init__(
+        self, client: Anthropic | None = None, fallback: LLMProvider | None = None
+    ) -> None:
         if client is None:
             from anthropic import Anthropic as _Anthropic
 
             client = _Anthropic()
         self._client = client
+
+        if fallback is None:
+            from app.services.llm.provider import DeterministicProvider
+
+            self._fallback: LLMProvider = DeterministicProvider()
+        else:
+            self._fallback = fallback
 
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
         if not citations:
@@ -77,17 +91,31 @@ class AnthropicProvider:
                 provider_name=self.name,
             )
 
-        response = self._client.messages.create(
-            model=self.MODEL,
-            max_tokens=self.MAX_TOKENS,
-            system=_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"问题：{question}\n\n引用片段：\n\n{_build_citation_text(citations)}",
-                },
-            ],
-        )
+        try:
+            response = self._client.messages.create(
+                model=self.MODEL,
+                max_tokens=self.MAX_TOKENS,
+                system=_SYSTEM_PROMPT,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"问题：{question}\n\n引用片段：\n\n{_build_citation_text(citations)}",
+                    },
+                ],
+            )
+        except Exception as exc:
+            from anthropic import APIError
+
+            if not isinstance(exc, APIError):
+                raise
+            error_type = type(exc).__name__
+            _LOGGER.warning(
+                "AnthropicProvider falling back to %s: %s=%s",
+                self._fallback.name,
+                error_type,
+                str(exc)[:200],
+            )
+            return self._fallback.generate_answer(question, citations)
 
         return AnswerDraft(
             text=_extract_text_from_response(response),
