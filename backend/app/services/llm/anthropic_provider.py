@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from app.core.config import get_settings
 from app.schemas.rag import CitationCard
 from app.services.llm.provider import AnswerDraft
 
@@ -65,8 +66,6 @@ def _extract_text_from_response(response: object) -> str:
 
 class AnthropicProvider:
     name = "anthropic"
-    MODEL = "claude-haiku-4-5"
-    MAX_TOKENS = 1024
 
     def __init__(
         self, client: Anthropic | None = None, fallback: LLMProvider | None = None
@@ -85,6 +84,8 @@ class AnthropicProvider:
             self._fallback = fallback
 
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
+        settings = get_settings()
+
         if not citations:
             return AnswerDraft(
                 text=_EMPTY_CITATIONS_FALLBACK,
@@ -93,8 +94,8 @@ class AnthropicProvider:
 
         try:
             response = self._client.messages.create(
-                model=self.MODEL,
-                max_tokens=self.MAX_TOKENS,
+                model=settings.anthropic_model,
+                max_tokens=settings.anthropic_max_tokens,
                 system=_SYSTEM_PROMPT,
                 messages=[
                     {
@@ -117,7 +118,13 @@ class AnthropicProvider:
             )
             return self._fallback.generate_answer(question, citations)
 
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+
         return AnswerDraft(
             text=_extract_text_from_response(response),
             provider_name=self.name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )

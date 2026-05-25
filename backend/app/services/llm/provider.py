@@ -58,6 +58,8 @@ _EVIDENCE_TAG_TOPIC_CN: dict[str, str] = {
 class AnswerDraft(BaseModel):
     text: str
     provider_name: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @runtime_checkable

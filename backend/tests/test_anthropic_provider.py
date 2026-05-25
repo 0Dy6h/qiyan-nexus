@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -195,3 +196,130 @@ def test_default_fallback_is_deterministic():
     provider = AnthropicProvider(client=MagicMock())
 
     assert isinstance(provider._fallback, DeterministicProvider)  # type: ignore[arg-type]
+
+
+def test_settings_override_model_and_max_tokens(monkeypatch):
+    monkeypatch.setenv("QIYAN_ANTHROPIC_MODEL", "claude-opus-test")
+    monkeypatch.setenv("QIYAN_ANTHROPIC_MAX_TOKENS", "2048")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _make_mock_response("override test")
+        provider = AnthropicProvider(client=mock_client)
+        provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+        call_kwargs = mock_client.messages.create.call_args.kwargs
+        assert call_kwargs["model"] == "claude-opus-test"
+        assert call_kwargs["max_tokens"] == 2048
+    finally:
+        get_settings.cache_clear()
+
+
+def test_default_settings_model_and_max_tokens():
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _make_mock_response("default test")
+        provider = AnthropicProvider(client=mock_client)
+        provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+        call_kwargs = mock_client.messages.create.call_args.kwargs
+        assert call_kwargs["model"] == "claude-haiku-4-5"
+        assert call_kwargs["max_tokens"] == 1024
+    finally:
+        get_settings.cache_clear()
+
+
+def test_token_usage_extracted_from_response():
+    mock_response = _make_mock_response("token test")
+    mock_usage = MagicMock()
+    mock_usage.input_tokens = 123
+    mock_usage.output_tokens = 456
+    mock_response.usage = mock_usage
+
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_response
+    provider = AnthropicProvider(client=mock_client)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    assert draft.input_tokens == 123
+    assert draft.output_tokens == 456
+
+
+def test_token_usage_none_when_usage_missing():
+    mock_response = _make_mock_response("no usage")
+    mock_response.usage = None
+
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_response
+    provider = AnthropicProvider(client=mock_client)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    assert draft.input_tokens is None
+    assert draft.output_tokens is None
+
+
+def test_fallback_draft_has_none_tokens():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = APIError(
+        message="error", request=MagicMock(), body=None
+    )
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    assert draft.input_tokens is None
+    assert draft.output_tokens is None
+
+
+def _make_auth_error():
+    return AuthenticationError(message="401 invalid key", response=MagicMock(), body=None)
+
+
+def _make_rate_limit_error():
+    return RateLimitError(message="429 too many requests", response=MagicMock(), body=None)
+
+
+def _make_timeout_error():
+    return APITimeoutError(request=MagicMock())
+
+
+def _make_generic_api_error():
+    return APIError(message="generic api error", request=MagicMock(), body=None)
+
+
+@pytest.mark.parametrize(
+    "error_factory,error_type_name",
+    [
+        (_make_auth_error, "AuthenticationError"),
+        (_make_rate_limit_error, "RateLimitError"),
+        (_make_timeout_error, "APITimeoutError"),
+        (_make_generic_api_error, "APIError"),
+    ],
+)
+def test_fallback_logs_warning_with_error_type_and_message(caplog, error_factory, error_type_name):
+    caplog.set_level(logging.WARNING)
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = error_factory()
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="fallback", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    assert "AnthropicProvider falling back to deterministic" in caplog.text
+    assert error_type_name in caplog.text
