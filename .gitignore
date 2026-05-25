@@ -47,3 +47,6 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# CodeGraph local index (per-machine, never commit)
+.codegraph/
