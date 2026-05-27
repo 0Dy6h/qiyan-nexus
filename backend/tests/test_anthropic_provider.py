@@ -198,6 +198,67 @@ def test_default_fallback_is_deterministic():
     assert isinstance(provider._fallback, DeterministicProvider)  # type: ignore[arg-type]
 
 
+def test_missing_anthropic_api_key_falls_back_before_client_call(monkeypatch, caplog):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    caplog.set_level(logging.WARNING)
+    try:
+        provider = AnthropicProvider(fallback=mock_fallback)
+
+        draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+    finally:
+        get_settings.cache_clear()
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+    assert "missing API key" in caplog.text
+
+
+def test_anthropic_auth_resolution_type_error_falls_back(caplog):
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = TypeError(
+        "Could not resolve authentication method. Expected api_key or auth_token."
+    )
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    caplog.set_level(logging.WARNING)
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_called_once_with(_QUESTION, _SAMPLE_CITATIONS)
+    assert draft.text == "FALLBACK_TEXT"
+    assert draft.provider_name == "deterministic"
+    assert "TypeError" in caplog.text
+
+
+def test_non_auth_type_error_propagates():
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = TypeError("unexpected local bug")
+    mock_fallback = MagicMock()
+    mock_fallback.name = "deterministic"
+    mock_fallback.generate_answer.return_value = AnswerDraft(
+        text="FALLBACK_TEXT", provider_name="deterministic"
+    )
+    provider = AnthropicProvider(client=mock_client, fallback=mock_fallback)
+
+    with pytest.raises(TypeError, match="unexpected local bug"):
+        provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    mock_fallback.generate_answer.assert_not_called()
+
+
 def test_settings_override_model_and_max_tokens(monkeypatch):
     monkeypatch.setenv("QIYAN_ANTHROPIC_MODEL", "claude-opus-test")
     monkeypatch.setenv("QIYAN_ANTHROPIC_MAX_TOKENS", "2048")

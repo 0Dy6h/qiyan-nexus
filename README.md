@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到可运行的 MVP-A 证据工作台骨架。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata 与 parse 状态写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 当前采用 deterministic retrieval，返回 answer、citation cards、retrieval metadata 与“非诊断结论、需结合临床”免责声明。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前仍不接真实 LLM、embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
+当前状态：已从纯规划仓库切换到可运行的 MVP-A 证据工作台骨架。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata 与 parse 状态写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic retrieval，返回 answer、citation cards、retrieval metadata 与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 OpenCode Go provider 做外部 LLM smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前仍不接 embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/Projects/Tcm_tech`，避免破坏已有路径和脚本。
 
@@ -141,7 +141,34 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。当前仍不接真实 LLM、embedding、pgvector 或外部服务。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+当前 RAG endpoint 默认采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+
+可选 OpenCode Go LLM provider（本地 smoke 用，默认不启用）：
+
+- `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
+- API key 只从 `QIYAN_OPENCODE_GO_API_KEY` 读取，不能写入仓库、README、handoff 或测试。
+- 默认 endpoint 与模型：`QIYAN_OPENCODE_GO_BASE_URL="https://opencode.ai/zen/go/v1"`，`QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"`。
+- 建议 smoke 时把 `QIYAN_OPENCODE_GO_MAX_TOKENS` 降到 `160` 左右，避免不必要的余额消耗。
+- 未设置 key、HTTP 错误、网关失败或响应结构异常时，provider 会记录不含 secret 的 warning，并回退到 deterministic answer。
+
+PowerShell 本地 smoke 示例：
+
+```powershell
+cd backend
+$env:QIYAN_LLM_PROVIDER="opencode_go"
+$env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
+$env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="160"
+fastapi dev app/main.py
+```
+
+另开终端调用：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/rag/answer" `
+  -ContentType "application/json" `
+  -Body '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":1}'
+```
 
 RAG eval API：
 

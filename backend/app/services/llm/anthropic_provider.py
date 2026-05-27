@@ -64,16 +64,19 @@ def _extract_text_from_response(response: object) -> str:
     return "".join(text_parts)
 
 
+def _is_auth_resolution_type_error(exc: Exception) -> bool:
+    if not isinstance(exc, TypeError):
+        return False
+    message = str(exc).lower()
+    return "could not resolve authentication method" in message
+
+
 class AnthropicProvider:
     name = "anthropic"
 
     def __init__(
         self, client: Anthropic | None = None, fallback: LLMProvider | None = None
     ) -> None:
-        if client is None:
-            from anthropic import Anthropic as _Anthropic
-
-            client = _Anthropic()
         self._client = client
 
         if fallback is None:
@@ -83,6 +86,17 @@ class AnthropicProvider:
         else:
             self._fallback = fallback
 
+    def _log_and_fallback(
+        self, question: str, citations: list[CitationCard], error_type: str, message: str
+    ) -> AnswerDraft:
+        _LOGGER.warning(
+            "AnthropicProvider falling back to %s: %s=%s",
+            self._fallback.name,
+            error_type,
+            message[:200],
+        )
+        return self._fallback.generate_answer(question, citations)
+
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
         settings = get_settings()
 
@@ -91,6 +105,19 @@ class AnthropicProvider:
                 text=_EMPTY_CITATIONS_FALLBACK,
                 provider_name=self.name,
             )
+
+        if self._client is None and not settings.anthropic_api_key:
+            return self._log_and_fallback(
+                question,
+                citations,
+                "MissingCredentials",
+                "missing API key",
+            )
+
+        if self._client is None:
+            from anthropic import Anthropic as _Anthropic
+
+            self._client = _Anthropic(api_key=settings.anthropic_api_key)
 
         try:
             response = self._client.messages.create(
@@ -107,16 +134,21 @@ class AnthropicProvider:
         except Exception as exc:
             from anthropic import APIError
 
+            if _is_auth_resolution_type_error(exc):
+                return self._log_and_fallback(
+                    question,
+                    citations,
+                    type(exc).__name__,
+                    str(exc),
+                )
             if not isinstance(exc, APIError):
                 raise
-            error_type = type(exc).__name__
-            _LOGGER.warning(
-                "AnthropicProvider falling back to %s: %s=%s",
-                self._fallback.name,
-                error_type,
-                str(exc)[:200],
+            return self._log_and_fallback(
+                question,
+                citations,
+                type(exc).__name__,
+                str(exc),
             )
-            return self._fallback.generate_answer(question, citations)
 
         usage = getattr(response, "usage", None)
         input_tokens = getattr(usage, "input_tokens", None)

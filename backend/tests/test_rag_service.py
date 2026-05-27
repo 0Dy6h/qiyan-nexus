@@ -241,6 +241,30 @@ def test_answer_question_swaps_to_mock_claude_provider_via_env(monkeypatch):
     assert len(response.citations) == 2
 
 
+def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text=f"opencode answer for {len(citations)} citations",
+            provider_name=self.name,
+            input_tokens=12,
+            output_tokens=6,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer == "opencode answer for 2 citations"
+    assert response.provider_name == "opencode_go"
+    assert response.disclaimer == DISCLAIMER
+    assert len(response.citations) == 2
+
+
 def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):
     monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)

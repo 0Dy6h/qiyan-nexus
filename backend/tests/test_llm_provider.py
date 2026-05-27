@@ -124,3 +124,21 @@ def test_select_provider_anthropic_via_explicit_name(monkeypatch):
     monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
     provider = select_provider("anthropic")
     assert provider.name == "anthropic"
+
+
+def test_select_provider_returns_opencode_go_when_env_set(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    provider = select_provider()
+    assert provider.name == "opencode_go"
+
+
+def test_select_provider_opencode_go_is_case_insensitive(monkeypatch):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "OpenCode_Go")
+    provider = select_provider()
+    assert provider.name == "opencode_go"
+
+
+def test_select_provider_opencode_go_via_explicit_name(monkeypatch):
+    monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
+    provider = select_provider("opencode_go")
+    assert provider.name == "opencode_go"

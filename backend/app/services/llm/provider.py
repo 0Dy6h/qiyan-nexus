@@ -151,6 +151,7 @@ _PROVIDERS: dict[str, type[LLMProvider]] = {
 }
 
 ANTHROPIC_PROVIDER_NAME = "anthropic"
+OPENCODE_GO_PROVIDER_NAME = "opencode_go"
 
 
 def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
@@ -158,6 +159,10 @@ def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
         from app.services.llm.anthropic_provider import AnthropicProvider
 
         return AnthropicProvider
+    if candidate == OPENCODE_GO_PROVIDER_NAME:
+        from app.services.llm.opencode_go_provider import OpenCodeGoProvider
+
+        return OpenCodeGoProvider
     return None
 
 

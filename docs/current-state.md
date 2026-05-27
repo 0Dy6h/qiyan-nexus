@@ -18,10 +18,10 @@
 - 当前阶段：MVP-A 证据工作台。
 - 数据：本地 JSON seed + `backend/data/runtime/` 运行态副本。
 - 文献：本地样本文献、chunk 与 eval 数据集。
-- RAG：deterministic retrieval，返回 answer、citation cards、retrieval metadata 与免责声明。
+- RAG：默认 deterministic retrieval，返回 answer、citation cards、retrieval metadata 与免责声明；后端可通过本地 env 显式切换 `QIYAN_LLM_PROVIDER=opencode_go` 调用 OpenCode Go OpenAI-compatible provider 做 LLM smoke，失败时回退 deterministic。
 - PDF：本地上传存储；文本型 PDF 通过 `pypdf` 提供预览；扫描件/OCR 暂不支持，失败时回退到文件级占位说明。
 - 前端：Next.js App Router + React + Ant Design，页面包括 `/`、`/literature`、`/literature/[id]`、`/rag`、`/evals/rag-ad`、`/compliance`。
-- 暂不接入真实 LLM、embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
+- 默认运行不接入真实 LLM、embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；OpenCode Go provider 仅在显式本地 env 配置 key 后启用。
 
 ## 当前目录分层
 
