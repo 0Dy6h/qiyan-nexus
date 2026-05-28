@@ -18,6 +18,7 @@ export type LiteratureItem = {
     file_size: number;
     preview_text: string;
     extraction_method: string;
+    quality_warning?: string | null;
   } | null;
   last_parse_trigger?: "auto" | "manual" | null;
   parse_attempt_count?: number | null;

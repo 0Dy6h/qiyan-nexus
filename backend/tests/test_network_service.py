@@ -35,3 +35,14 @@ def test_unknown_query_returns_echo_fallback_chains():
 def test_chain_count_capped_to_max_five():
     chains = _build_chains_from_seed("消风散", "formula")
     assert len(chains) <= 5
+
+
+def test_network_chains_include_entity_ids_for_frontend_chips():
+    chains = _build_chains_from_seed("消风散", "formula")
+
+    assert len(chains) >= 1
+    first = chains[0]
+    assert "herb-" in first.related_entity_ids[0]
+    assert first.related_entity_ids[1].startswith("compound-")
+    assert first.related_entity_ids[2].startswith("target-")
+    assert first.related_entity_ids[3].startswith("pathway-")

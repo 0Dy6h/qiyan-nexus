@@ -12,6 +12,7 @@ class PdfParseResult(BaseModel):
     file_size: int
     preview_text: str
     extraction_method: str
+    quality_warning: str | None = None
 
 
 class LiteratureItem(BaseModel):

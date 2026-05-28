@@ -61,6 +61,9 @@ def test_network_result_endpoint_returns_progress_then_completed_result():
     assert second_payload["result"]["analysis_type"] == "herb"
     assert second_payload["result"]["query"] == "黄芪"
     assert len(second_payload["result"]["chains"]) >= 1
+    first_chain = second_payload["result"]["chains"][0]
+    assert first_chain["related_entity_ids"]
+    assert all(entity_id for entity_id in first_chain["related_entity_ids"])
 
 
 def test_network_result_endpoint_keeps_returning_completed_mock_result_after_completion():

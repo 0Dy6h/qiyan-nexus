@@ -10,8 +10,13 @@ import {
   NetworkAnalysisType,
   submitNetworkAnalysis,
 } from "../lib/api/network";
-import { fetchNetworkEntities, type NetworkEntity } from "../lib/api/network-entities";
+import {
+  buildNetworkFocusHref,
+  fetchNetworkEntities,
+  type NetworkEntity,
+} from "../lib/api/network-entities";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
+import EntityChips from "./EntityChips";
 import StatusPanel from "./StatusPanel";
 
 type NetworkPhase = "idle" | "submitting" | "polling" | "completed" | "error";
@@ -238,6 +243,37 @@ export default function NetworkAnalysisClient() {
                 <p style={{ color: "#1e293b", fontSize: 18, margin: "8px 0 0", lineHeight: 1.6 }}>
                   {chain.herb} → {chain.compound} → {chain.target} → {chain.pathway} → {chain.disease}
                 </p>
+                <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+                  <p style={{ color: "#475569", fontSize: 13, fontWeight: 700, margin: 0 }}>
+                    相关实体
+                  </p>
+                  <EntityChips ids={chain.related_entity_ids} emptyHint="当前 mock 链未返回可跳转实体。" />
+                </div>
+                <div
+                  aria-label="链路跳转"
+                  style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 14 }}
+                >
+                  <a
+                    href={`/literature?q=${encodeURIComponent(chain.target)}`}
+                    style={{ color: "#0f766e", fontSize: 14, fontWeight: 700 }}
+                  >
+                    查相关文献
+                  </a>
+                  <a
+                    href={`/rag?question=${encodeURIComponent(`请基于证据解释 ${chain.target} 与特应性皮炎的关系`)}`}
+                    style={{ color: "#0f766e", fontSize: 14, fontWeight: 700 }}
+                  >
+                    去 RAG 提问
+                  </a>
+                  {chain.related_entity_ids.length > 0 ? (
+                    <a
+                      href={buildNetworkFocusHref(chain.related_entity_ids[0])}
+                      style={{ color: "#0f766e", fontSize: 14, fontWeight: 700 }}
+                    >
+                      聚焦首个实体
+                    </a>
+                  ) : null}
+                </div>
               </article>
             ))}
           </div>

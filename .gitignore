@@ -26,6 +26,9 @@ frontend/playwright/.cache/
 backend/uploads/**
 !backend/uploads/README.md
 
+# Local reviewer-only PDF samples
+local-review-pdfs/
+
 # Backend runtime literature state
 backend/data/runtime/**
 !backend/data/runtime/README.md

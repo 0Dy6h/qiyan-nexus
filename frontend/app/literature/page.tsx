@@ -1,6 +1,9 @@
+import { Suspense } from "react";
+
 import DemoDataBanner from "../../components/DemoDataBanner";
 import LiteraturePubmedSyncClient from "../../components/LiteraturePubmedSyncClient";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
+import StatusPanel from "../../components/StatusPanel";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
@@ -53,7 +56,9 @@ export default function LiteraturePage() {
 
         <LiteraturePubmedSyncClient />
 
-        <LiteratureSearchClient />
+        <Suspense fallback={<StatusPanel message="加载文献检索面板..." />}>
+          <LiteratureSearchClient />
+        </Suspense>
 
         <section
           aria-label="使用提醒"

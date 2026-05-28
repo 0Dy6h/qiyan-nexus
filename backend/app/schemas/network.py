@@ -25,6 +25,7 @@ class NetworkChain(BaseModel):
     pathway: str
     disease: str
     score: float = Field(ge=0, le=1)
+    related_entity_ids: list[str] = Field(default_factory=list)
 
 
 class NetworkAnalysisResult(BaseModel):

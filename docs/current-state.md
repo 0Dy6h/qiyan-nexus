@@ -15,7 +15,7 @@
 
 ## 当前能力边界
 
-- 当前阶段：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成；2026-05-28 自动化内部预览基线已通过，人工 reviewer 走查仍待执行。
+- 当前阶段：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成；2026-05-28 自动化内部预览基线已通过并在实施 follow-up 中复核，人工反馈中的 `/network` 链接缺口与 PDF 数字/表格乱码提示已处理。
 - 数据：本地 JSON seed + `backend/data/runtime/` 运行态副本；runtime state 是本地开发/演示状态，不是生产数据库，也不应回写 seed fixture。
 - 文献：本地样本文献、PubMed 实时同步入口、上传 PDF 解析片段、chunk 与 50 题 AD RAG eval 数据集。
 - RAG：默认 `deterministic` provider + `keyword` retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与免责声明。
@@ -60,7 +60,7 @@ pnpm e2e
 
 ## 当前下一步候选
 
-最新项目级状态见 `docs/handoffs/2026-05-28-internal-preview-feedback.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
+最新项目级状态见 `docs/handoffs/2026-05-28-internal-review-implementation.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
 
 1. 按 `docs/checklists/internal-preview-smoke.md` 完成真实内部 reviewer demo 走查，并把反馈记录到 `docs/evaluations/2026-05-28-internal-review-feedback.md`。
 2. 用真实 PubMed 数据与真实中文 PDF 样本补充最小验收记录，但不把 OCR 扩进当前小切片。

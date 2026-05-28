@@ -300,6 +300,67 @@ def test_fake_parser_endpoint_uses_extracted_pdf_text_for_parse_result_preview(
     parse_result = response.json()["pdf_parse_result"]
     assert parse_result["preview_text"] == "Atopic dermatitis PDF preview evidence text"
     assert parse_result["extraction_method"] == "pypdf-text-preview"
+    assert parse_result["quality_warning"] is None
+
+
+def test_fake_parser_endpoint_warns_when_extracted_pdf_text_has_numeric_garbling(
+    monkeypatch, tmp_path: Path
+):
+    from app.services import fake_parser as fake_parser_service
+    from app.services import literature as literature_service
+
+    original_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    original_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
+    temp_data_path = tmp_path / "sample_ad_literature.json"
+    temp_chunk_path = tmp_path / "sample_ad_chunks.json"
+    reset_sample_data(original_path, temp_data_path)
+    reset_sample_data(original_chunk_path, temp_chunk_path)
+
+    upload_dir = tmp_path / "uploads"
+    pdf_upload_id = "pdf-cn-ad-gbs-001-garbled-pdf"
+    stored_pdf_path = upload_dir / f"{pdf_upload_id}.pdf"
+    upload_dir.mkdir()
+    stored_pdf_path.write_bytes(b"%PDF-1.4\nplaceholder bytes; extractor is monkeypatched\n")
+
+    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository.update_pdf_metadata(
+        literature_id="cn-ad-gbs-001",
+        pdf_upload_id=pdf_upload_id,
+        pdf_file_name="garbled.pdf",
+        pdf_parse_status="pending",
+    )
+
+    monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
+    get_settings.cache_clear()
+    monkeypatch.setattr(literature_service, "_REPOSITORY", repository)
+    monkeypatch.setattr(
+        literature_service,
+        "extract_pdf_preview_text",
+        lambda _path: "中国中医药信息杂志 \x00\x00\x00\x00 年 第 \x00 卷 表 \x00\x00",
+    )
+    monkeypatch.setattr(
+        fake_parser_service,
+        "_CHUNK_REPOSITORY",
+        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/uploads/pdf/auto-parse",
+        json={"literature_id": "cn-ad-gbs-001", "file_name": "garbled.pdf"},
+    )
+
+    assert response.status_code == 200
+    parse_result = response.json()["pdf_parse_result"]
+    assert parse_result["extraction_method"] == "pypdf-text-preview"
+    assert parse_result["quality_warning"] == (
+        "检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。"
+    )
 
 
 def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction_fails(
@@ -356,6 +417,7 @@ def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction
         == "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
     )
     assert parse_result["extraction_method"] == "file-metadata-placeholder"
+    assert parse_result["quality_warning"] is None
 
 
 def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timestamps_and_auto_trigger(

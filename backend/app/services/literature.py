@@ -21,6 +21,7 @@ from app.services.pubmed import PubmedClient, PubmedFetcher, PubmedRecord
 _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
     "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
 )
+_PDF_TEXT_QUALITY_WARNING = "检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。"
 
 _REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
 DEFAULT_SEARCH_PAGE_SIZE = 10
@@ -212,6 +213,15 @@ def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | 
     return text[:max_chars]
 
 
+def detect_pdf_text_quality_warning(preview_text: str | None) -> str | None:
+    if not preview_text:
+        return None
+    nul_count = preview_text.count("\x00")
+    if nul_count >= 3 or (nul_count > 0 and nul_count / max(len(preview_text), 1) >= 0.02):
+        return _PDF_TEXT_QUALITY_WARNING
+    return None
+
+
 def build_pdf_parse_result(item: LiteratureItem) -> PdfParseResult | None:
     if item.pdf_parse_status != "parsed" or not item.pdf_upload_id or not item.pdf_file_name:
         return None
@@ -225,6 +235,7 @@ def build_pdf_parse_result(item: LiteratureItem) -> PdfParseResult | None:
         file_size=storage_path.stat().st_size,
         preview_text=preview_text or _PDF_PARSE_RESULT_FALLBACK_PREVIEW,
         extraction_method="pypdf-text-preview" if preview_text else "file-metadata-placeholder",
+        quality_warning=detect_pdf_text_quality_warning(preview_text),
     )
 
 

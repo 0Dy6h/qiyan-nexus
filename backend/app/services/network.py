@@ -80,6 +80,7 @@ def _build_chains_from_seed(
                 pathway=pathway.name,
                 disease=edge.disease,
                 score=edge.score,
+                related_entity_ids=[herb_id, compound.id, target.id, pathway.id],
             )
             candidate_chains.append((chain, edge.score))
 
@@ -117,6 +118,7 @@ def _fallback_chains(
             pathway=pathway.name,
             disease=edge.disease,
             score=edge.score,
+            related_entity_ids=[compound.id, target.id, pathway.id],
         )
         fallback.append((chain, edge.score))
     return fallback

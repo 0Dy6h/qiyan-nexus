@@ -97,6 +97,7 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(
         "file_size": storage_path.stat().st_size,
         "preview_text": "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。",
         "extraction_method": "file-metadata-placeholder",
+        "quality_warning": None,
     }
 
     persisted = json.loads(temp_path.read_text(encoding="utf-8"))
@@ -107,6 +108,7 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(
         "file_size": storage_path.stat().st_size,
         "preview_text": "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。",
         "extraction_method": "file-metadata-placeholder",
+        "quality_warning": None,
     }
 
 

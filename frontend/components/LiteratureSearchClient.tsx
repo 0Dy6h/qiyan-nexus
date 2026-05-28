@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import {
   getLiteratureDataSourceFilter,
@@ -46,8 +47,11 @@ const fieldControlStyle = {
 } as const;
 
 export default function LiteratureSearchClient() {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q")?.trim() || "特应性皮炎";
+  const appliedQueryRef = useRef<string | null>(null);
   const [state, setState] = useState<SearchState>({
-    query: "特应性皮炎",
+    query: initialQuery,
     view: "all",
     sort: "relevance",
     page: 1,
@@ -146,6 +150,18 @@ export default function LiteratureSearchClient() {
     await runSearch(query, view, 1, pageSize, sort);
   }
 
+  useEffect(() => {
+    const linkedQuery = searchParams.get("q")?.trim();
+    if (!linkedQuery || appliedQueryRef.current === linkedQuery) {
+      return;
+    }
+    appliedQueryRef.current = linkedQuery;
+    void runSearch(linkedQuery, "all", 1, state.pageSize, "relevance");
+    // runSearch intentionally stays out of the dependency list so a linked query
+    // triggers one search rather than resubmitting on every state update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, state.pageSize]);
+
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <LiteratureDataSourceBanner view={state.view} />
@@ -163,7 +179,8 @@ export default function LiteratureSearchClient() {
             检索关键词
             <input
               name="q"
-              defaultValue={state.query}
+              value={state.query}
+              onChange={(event) => setState((current) => ({ ...current, query: event.target.value }))}
               aria-label="检索关键词"
               style={{
                 ...fieldControlStyle,

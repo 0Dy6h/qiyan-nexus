@@ -222,6 +222,22 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
               `文件大小 ${currentParseResult.file_size} 字节`,
             ]}
           />
+          {currentParseResult.quality_warning ? (
+            <p
+              style={{
+                color: "#92400e",
+                background: "#fffbeb",
+                border: "1px solid #fcd34d",
+                borderRadius: 8,
+                margin: 0,
+                padding: "10px 12px",
+                fontSize: 14,
+                lineHeight: 1.6,
+              }}
+            >
+              {`抽取质量提示 ${currentParseResult.quality_warning}`}
+            </p>
+          ) : null}
           <p style={{ color: "#334155", margin: 0, fontSize: 14, lineHeight: 1.7 }}>
             {`预览说明 ${currentParseResult.preview_text}`}
           </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import {
   answerRagQuestion,
@@ -95,8 +96,11 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
 }
 
 export default function RagAnswerClient() {
+  const searchParams = useSearchParams();
+  const initialQuestion =
+    searchParams.get("question")?.trim() || "特应性皮炎和肠-脑-皮肤轴有什么关系？";
   const [state, setState] = useState<RagState>({
-    question: "特应性皮炎和肠-脑-皮肤轴有什么关系？",
+    question: initialQuestion,
     source: "all",
     topK: 2,
     result: null,
