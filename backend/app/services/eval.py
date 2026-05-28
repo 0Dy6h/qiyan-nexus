@@ -104,6 +104,7 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
                     disclaimer_present=disclaimer_present,
                     citation_count=len(response.citations),
                     provider_name=response.provider_name,
+                    grounding_status=response.grounding.status,
                     passed=passed,
                 )
             )
@@ -119,6 +120,9 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
             chunk_hit_count=sum(1 for item in results if item.expected_chunk_hits),
             disclaimer_coverage_count=sum(1 for item in results if item.disclaimer_present),
             must_not_violation_count=sum(1 for item in results if item.violated_must_not_include),
+            grounding_blocked_count=sum(
+                1 for item in results if item.grounding_status == "blocked"
+            ),
             provider_name=run_provider_name,
             retrieval_strategy=applied_strategy,
         ),

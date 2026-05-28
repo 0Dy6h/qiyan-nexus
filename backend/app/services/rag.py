@@ -8,6 +8,7 @@ from app.repositories.runtime_storage import (
 )
 from app.schemas.literature import LiteratureSource
 from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
+from app.services.grounding import evaluate_answer_grounding
 from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
 from app.services.retrieval.provider import (
@@ -118,9 +119,12 @@ def answer_question(
 
     provider = select_provider()
     draft = provider.generate_answer(normalized_question, citations)
+    grounded_answer, grounding = evaluate_answer_grounding(
+        draft.provider_name, draft.text, citations
+    )
     return RagAnswerResponse(
         question=normalized_question,
-        answer=draft.text,
+        answer=grounded_answer,
         disclaimer=DISCLAIMER,
         retrieval=RetrievalMetadata(
             applied_source=source,
@@ -131,4 +135,7 @@ def answer_question(
         citations=citations,
         answered_at=datetime.now(UTC).isoformat(),
         provider_name=draft.provider_name,
+        grounding=grounding,
+        input_tokens=draft.input_tokens,
+        output_tokens=draft.output_tokens,
     )

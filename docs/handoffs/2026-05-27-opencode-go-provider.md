@@ -79,7 +79,7 @@ cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
 $env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="160"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="1200"
 fastapi dev app/main.py
 ```
 
@@ -97,6 +97,7 @@ Expected:
 - `provider_name` is `opencode_go`
 - `disclaimer` is `非诊断结论、需结合临床。`
 - `citations` is non-empty
+- Later live smoke found reasoning models can return empty final `content` when `max_tokens` is too low; use `QIYAN_OPENCODE_GO_MAX_TOKENS=1200` for smoke runs that need a real final answer.
 
 Fallback check:
 

@@ -100,6 +100,7 @@ export default function RagEvalReportClient() {
             <SummaryMetric label="Chunk 命中题数" value={state.report.summary.chunk_hit_count} />
             <SummaryMetric label="免责声明覆盖" value={state.report.summary.disclaimer_coverage_count} />
             <SummaryMetric label="禁用语违规" value={state.report.summary.must_not_violation_count} />
+            <SummaryMetric label="Grounding 拦截" value={state.report.summary.grounding_blocked_count} />
           </section>
 
           <section style={{ display: "grid", gap: 12 }}>
@@ -120,6 +121,7 @@ export default function RagEvalReportClient() {
                     getRagSourceLabel(item.source_preference),
                     item.difficulty,
                     `引用 ${item.citation_count} 条`,
+                    `Grounding ${item.grounding_status}`,
                   ]}
                 />
                 <h2 style={{ color: "#1e293b", fontSize: 20, lineHeight: 1.4 }}>{item.question}</h2>
@@ -142,7 +144,7 @@ export default function RagEvalReportClient() {
           </section>
         </>
       ) : state.error ? null : (
-        <StatusPanel message="运行评估后，将展示 20 个 AD RAG 问题的引用命中、chunk 命中、免责声明覆盖和禁用语检查。" />
+        <StatusPanel message="运行评估后，将展示 50 个 AD RAG 问题的引用命中、chunk 命中、免责声明覆盖和禁用语检查。" />
       )}
     </div>
   );

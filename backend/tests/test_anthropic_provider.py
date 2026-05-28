@@ -64,6 +64,19 @@ def test_generate_answer_calls_client_with_expected_shape():
     assert isinstance(user_message["content"], str)
     assert _QUESTION in user_message["content"]
     assert _SAMPLE_CITATIONS[0].title in user_message["content"]
+    assert "[1]" not in user_message["content"]
+    assert "引用 1" in user_message["content"]
+    assert "证据ID：pmid-40100001" in user_message["content"]
+    assert "只输出 JSON" in call_kwargs["system"]
+    assert '"claims"' in call_kwargs["system"]
+    assert '"text"' in call_kwargs["system"]
+    assert '"evidence_refs"' in call_kwargs["system"]
+    assert "不得使用未提供的证据 ID" in call_kwargs["system"]
+    assert "每条 claim" in call_kwargs["system"]
+    assert "输出 2-4 条短中文证据句" in call_kwargs["system"]
+    assert "不要输出标题、参考文献列表" in call_kwargs["system"]
+    assert "不要使用数字序号方括号引用" in call_kwargs["system"]
+    assert "不要带免责声明" in call_kwargs["system"]
 
     assert draft.text == "假回答"
     assert draft.provider_name == "anthropic"

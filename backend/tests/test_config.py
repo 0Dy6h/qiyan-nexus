@@ -14,7 +14,7 @@ def test_default_settings():
     assert settings.opencode_go_api_key == ""
     assert settings.opencode_go_base_url == "https://opencode.ai/zen/go/v1"
     assert settings.opencode_go_model == "deepseek-v4-flash"
-    assert settings.opencode_go_max_tokens == 512
+    assert settings.opencode_go_max_tokens == 1200
     assert settings.opencode_go_temperature == 0.2
 
 

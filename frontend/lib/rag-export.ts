@@ -3,6 +3,10 @@ import { getRagSourceLabel } from "./api/rag";
 
 const NEWLINE = "\n";
 
+function joinOrFallback(items: string[], fallback: string): string {
+  return items.length > 0 ? items.join("、") : fallback;
+}
+
 function formatCitationBlock(citation: CitationCard, index: number): string {
   const lines: string[] = [];
   lines.push(`### 引用 ${index + 1} — ${citation.title}`);
@@ -42,6 +46,21 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push(`- 应用来源：${getRagSourceLabel(result.retrieval.applied_source)}`);
   sections.push(`- 应用 top_k：${result.retrieval.applied_top_k}`);
   sections.push(`- 可用引用数：${result.retrieval.available_citation_count}`);
+  sections.push(`- Provider：${result.provider_name}`);
+  sections.push(`- 检索策略：${result.retrieval.strategy}`);
+  sections.push(`- Grounding 状态：${result.grounding.status}`);
+  sections.push(`- Grounding 策略：${result.grounding.policy}`);
+  sections.push(`- Grounding 拦截原因：${result.grounding.blocked_reason ?? "无"}`);
+  sections.push(`- 句级引用覆盖：${result.grounding.cited_claim_count}/${result.grounding.claim_count}`);
+  sections.push(
+    `- Grounding 命中证据：${joinOrFallback(result.grounding.matched_evidence_refs, "无")}`,
+  );
+  sections.push(
+    `- Grounding 异常证据：${joinOrFallback(result.grounding.unsupported_evidence_refs, "无")}`,
+  );
+  sections.push(`- 结构化声明数：${result.grounding.structured_claims.length}`);
+  sections.push(`- Token 输入：${result.input_tokens ?? "未返回"}`);
+  sections.push(`- Token 输出：${result.output_tokens ?? "未返回"}`);
   sections.push("");
   sections.push("## 问题");
   sections.push("");
@@ -50,6 +69,21 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push("## 回答");
   sections.push("");
   sections.push(result.answer);
+  sections.push("");
+  sections.push("## 结构化声明");
+  sections.push("");
+  if (result.grounding.structured_claims.length === 0) {
+    sections.push("（当前回答没有结构化声明。）");
+  } else {
+    result.grounding.structured_claims.forEach((claim, index) => {
+      sections.push(`### Claim ${index + 1}`);
+      sections.push("");
+      sections.push(claim.text);
+      sections.push("");
+      sections.push(`evidence_refs：${joinOrFallback(claim.evidence_refs, "无")}`);
+      sections.push("");
+    });
+  }
   sections.push("");
   sections.push("## 引用证据");
   sections.push("");

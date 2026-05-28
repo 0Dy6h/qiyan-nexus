@@ -17,7 +17,7 @@ export default function RagAdEvalPage() {
         </div>
         <h1 style={{ color: "#1e293b", fontSize: 36 }}>RAG 评估</h1>
         <p style={{ color: "#475569", fontSize: 18, lineHeight: 1.7 }}>
-          运行 20 个特应性皮炎评估问题，检查 deterministic RAG 的引用命中、chunk 命中、免责声明覆盖和禁用语风险。
+          运行 50 个特应性皮炎评估问题，检查 deterministic RAG 的引用命中、chunk 命中、免责声明覆盖和禁用语风险。
         </p>
         <RagEvalReportClient />
         <p style={{ color: "#64748b", marginTop: 32 }}>非诊断结论、需结合临床。</p>

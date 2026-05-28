@@ -6,6 +6,7 @@ import {
   answerRagQuestion,
   CitationCard,
   getRagSourceLabel,
+  GroundingMetadata,
   RagAnswerResponse,
   RagSource,
 } from "../lib/api/rag";
@@ -28,6 +29,40 @@ type RagState = {
 
 function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatTokenUsage(value: number | null | undefined) {
+  return value == null ? "未返回" : `${value}`;
+}
+
+function formatGroundingCoverage(grounding: GroundingMetadata) {
+  return `${grounding.cited_claim_count}/${grounding.claim_count}`;
+}
+
+function formatStructuredClaimCount(grounding: GroundingMetadata) {
+  return `${grounding.structured_claims.length}`;
+}
+
+function formatGroundingBlockedReason(reason: string | null | undefined) {
+  if (reason === "unsupported_evidence_ref") {
+    return "存在未提供的证据 ID";
+  }
+  if (reason === "structured_claims_parse_error") {
+    return "模型草稿没有按结构化 claims JSON 输出";
+  }
+  if (reason === "empty_structured_claims") {
+    return "结构化 claims 为空";
+  }
+  if (reason === "claim_without_evidence_ref") {
+    return "存在未声明证据 ID 的结构化 claim";
+  }
+  if (reason === "missing_allowed_evidence_ref") {
+    return "模型草稿没有引用本次允许证据 ID";
+  }
+  if (reason === "uncited_claim_sentence") {
+    return "存在未带允许证据 ID 的事实句";
+  }
+  return "无";
 }
 
 function CitationListItem({ citation }: { citation: CitationCard }) {
@@ -227,8 +262,26 @@ export default function RagAnswerClient() {
                 先阅读结论，再回到下方引用卡片核对证据来源与检索边界。
               </p>
             </div>
-            <CardMetaRow items={[`应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`, `应用 top_k ${state.result.retrieval.applied_top_k}`]} />
+            <CardMetaRow
+              items={[
+                `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
+                `应用 top_k ${state.result.retrieval.applied_top_k}`,
+                `Provider ${state.result.provider_name}`,
+                `检索策略 ${state.result.retrieval.strategy}`,
+                `Grounding ${state.result.grounding.status}`,
+                `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
+                `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
+              ]}
+            />
             <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
+            {state.result.grounding.status === "blocked" ? (
+              <div style={{ marginBottom: 12 }}>
+                <StatusPanel
+                  message={`模型草稿未通过引用证据校验，已拦截展示。拦截原因：${formatGroundingBlockedReason(state.result.grounding.blocked_reason)}。`}
+                  tone="warning"
+                />
+              </div>
+            ) : null}
             <CardBodyText>{state.result.answer}</CardBodyText>
             <p style={{ color: "#64748b", marginBottom: 12, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
             <button
@@ -261,6 +314,14 @@ export default function RagAnswerClient() {
                 `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
                 `应用 top_k ${state.result.retrieval.applied_top_k}`,
                 `可用引用数 ${state.result.retrieval.available_citation_count}`,
+                `Provider ${state.result.provider_name}`,
+                `检索策略 ${state.result.retrieval.strategy}`,
+                `Grounding ${state.result.grounding.status}`,
+                `Grounding 策略 ${state.result.grounding.policy}`,
+                `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
+                `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
+                `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,
+                `Token 输出 ${formatTokenUsage(state.result.output_tokens)}`,
               ]}
             />
           </section>

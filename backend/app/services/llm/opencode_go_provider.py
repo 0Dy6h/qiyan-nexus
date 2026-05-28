@@ -8,6 +8,7 @@ import httpx
 
 from app.core.config import get_settings
 from app.schemas.rag import CitationCard
+from app.services.llm.prompting import GROUNDING_SYSTEM_PROMPT, build_citation_text
 from app.services.llm.provider import AnswerDraft, DeterministicProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,28 +16,6 @@ _LOGGER = logging.getLogger(__name__)
 _EMPTY_CITATIONS_FALLBACK = (
     "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
 )
-
-_SYSTEM_PROMPT = (
-    "你是特应性皮炎（AD）证据综述助理。"
-    "输出必须严格基于提供的引用片段；不得编造引用之外的事实。"
-    "保持中文学术风格。不要带免责声明。"
-)
-
-
-def _build_citation_text(citations: list[CitationCard]) -> str:
-    blocks: list[str] = []
-    for i, citation in enumerate(citations, 1):
-        parts = [
-            f"[{i}] 标题：{citation.title}",
-            f"来源：{citation.source}",
-            f"片段：{citation.snippet}",
-        ]
-        if citation.reason:
-            parts.append(f"匹配依据：{citation.reason}")
-        parts.append(f"置信度：{citation.confidence:.2f}")
-        parts.append(f"文献ID：{citation.literature_id}")
-        blocks.append("\n".join(parts))
-    return "\n\n".join(blocks)
 
 
 class OpenCodeGoProvider:
@@ -72,10 +51,10 @@ class OpenCodeGoProvider:
             "max_tokens": settings.opencode_go_max_tokens,
             "temperature": settings.opencode_go_temperature,
             "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": GROUNDING_SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": f"问题：{question}\n\n引用片段：\n\n{_build_citation_text(citations)}",
+                    "content": f"问题：{question}\n\n引用片段：\n\n{build_citation_text(citations)}",
                 },
             ],
         }
@@ -92,6 +71,8 @@ class OpenCodeGoProvider:
             response.raise_for_status()
             data = response.json()
             text = data["choices"][0]["message"]["content"]
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("empty message content")
             usage = data.get("usage") or {}
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             status_code = None

@@ -10,10 +10,30 @@ const SAMPLE_RESULT: RagAnswerResponse = {
   disclaimer: "非诊断结论、需结合临床。",
   answered_at: "2026-05-21T07:42:11.123456+00:00",
   provider_name: "deterministic",
+  input_tokens: null,
+  output_tokens: null,
+  grounding: {
+    status: "skipped",
+    policy: "structured_claim_refs_v3",
+    checked: false,
+    blocked_reason: null,
+    allowed_evidence_refs: ["chunk-cn-ad-gbs-001-abstract", "chunk-pdf-cn-ad-uploaded-007-uploaded"],
+    matched_evidence_refs: [],
+    unsupported_evidence_refs: [],
+    claim_count: 0,
+    cited_claim_count: 0,
+    structured_claims: [
+      {
+        text: "证据提示肠道菌群与皮肤屏障异常之间存在关联",
+        evidence_refs: ["chunk-cn-ad-gbs-001-abstract"],
+      },
+    ],
+  },
   retrieval: {
     applied_source: "all",
     applied_top_k: 2,
     available_citation_count: 16,
+    strategy: "keyword",
   },
   citations: [
     {
@@ -53,6 +73,17 @@ test("buildAnswerMarkdown includes question, answer, citations, retrieval, discl
   assert.ok(md.includes("应用来源：全部文献"));
   assert.ok(md.includes("应用 top_k：2"));
   assert.ok(md.includes("可用引用数：16"));
+  assert.ok(md.includes("Provider：deterministic"));
+  assert.ok(md.includes("检索策略：keyword"));
+  assert.ok(md.includes("Grounding 状态：skipped"));
+  assert.ok(md.includes("Grounding 策略：structured_claim_refs_v3"));
+  assert.ok(md.includes("句级引用覆盖：0/0"));
+  assert.ok(md.includes("## 结构化声明"));
+  assert.ok(md.includes("### Claim 1"));
+  assert.ok(md.includes("证据提示肠道菌群与皮肤屏障异常之间存在关联"));
+  assert.ok(md.includes("evidence_refs：chunk-cn-ad-gbs-001-abstract"));
+  assert.ok(md.includes("Token 输入：未返回"));
+  assert.ok(md.includes("Token 输出：未返回"));
   assert.ok(md.includes("## 引用证据"));
   assert.ok(md.includes("### 引用 1 — 肠-脑-皮肤轴与特应性皮炎中医证候研究"));
   assert.ok(md.includes("literature_id：cn-ad-gbs-001"));
@@ -63,6 +94,44 @@ test("buildAnswerMarkdown includes question, answer, citations, retrieval, discl
   assert.ok(md.includes("source_type：uploaded_pdf"));
   assert.ok(md.includes("pdf_upload_id：pdf-cn-ad-uploaded-007-ad-evidence-pdf"));
   assert.ok(md.includes("非诊断结论、需结合临床。"));
+});
+
+test("buildAnswerMarkdown includes token usage when provider returns it", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    input_tokens: 128,
+    output_tokens: 64,
+    retrieval: { ...SAMPLE_RESULT.retrieval, strategy: "hybrid" },
+  });
+
+  assert.ok(md.includes("Provider：opencode_go"));
+  assert.ok(md.includes("检索策略：hybrid"));
+  assert.ok(md.includes("Token 输入：128"));
+  assert.ok(md.includes("Token 输出：64"));
+});
+
+test("buildAnswerMarkdown includes blocked grounding details", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    answer: "当前模型草稿未通过引用证据校验，系统已拦截展示。",
+    grounding: {
+      ...SAMPLE_RESULT.grounding,
+      status: "blocked",
+      checked: true,
+      blocked_reason: "unsupported_evidence_ref",
+      matched_evidence_refs: [],
+      unsupported_evidence_refs: ["chunk-unknown-ref"],
+      claim_count: 2,
+      cited_claim_count: 1,
+    },
+  });
+
+  assert.ok(md.includes("Grounding 状态：blocked"));
+  assert.ok(md.includes("Grounding 拦截原因：unsupported_evidence_ref"));
+  assert.ok(md.includes("句级引用覆盖：1/2"));
+  assert.ok(md.includes("Grounding 异常证据：chunk-unknown-ref"));
 });
 
 test("buildAnswerMarkdown emits empty-citation placeholder when citations are empty", () => {

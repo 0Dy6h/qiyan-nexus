@@ -56,6 +56,14 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
       padding: "16px 18px",
     };
   }
+  if (tone === "warning") {
+    return {
+      background: "#fffbeb",
+      border: "1px solid #fbbf24",
+      borderRadius: 12,
+      padding: "16px 18px",
+    };
+  }
   return {
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
@@ -68,6 +76,13 @@ export function getStatusMessageStyle(tone: StatusTone): Record<string, string |
   if (tone === "error") {
     return {
       color: "#b45309",
+      margin: 0,
+      lineHeight: 1.6,
+    };
+  }
+  if (tone === "warning") {
+    return {
+      color: "#92400e",
       margin: 0,
       lineHeight: 1.6,
     };

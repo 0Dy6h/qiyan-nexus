@@ -2,9 +2,9 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：已从纯规划仓库切换到可运行的 MVP-A 证据工作台骨架。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata 与 parse 状态写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic retrieval，返回 answer、citation cards、retrieval metadata 与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 OpenCode Go provider 做外部 LLM smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前仍不接 embedding、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
+当前状态：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`anthropic` 或 `opencode_go` provider 做 wiring/live smoke，其中真实外部 provider 草稿会经过 structured claim grounding v3 校验，未按结构化 claims JSON 输出、缺少允许证据 ID 或引用本次 citations 之外证据 ID 时会拦截展示。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
-当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。短期仓库目录仍保留为 `/home/dyh2026/Projects/Tcm_tech`，避免破坏已有路径和脚本。
+当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
 
 ## 目录
 
@@ -16,27 +16,27 @@
 
 ## 后端
 
-首次安装：
+首次安装（Windows PowerShell）：
 
-```bash
+```powershell
 cd backend
-python3 -m venv .venv
-.venv/bin/python -m pip install -U pip
-.venv/bin/python -m pip install -e ".[dev]"
+py -3.11 -m venv .uv-test-venv
+& .\.uv-test-venv\Scripts\python.exe -m pip install -U pip
+& .\.uv-test-venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
 运行测试：
 
-```bash
+```powershell
 cd backend
-.venv/bin/python -m pytest -q
+& .\.uv-test-venv\Scripts\python.exe -m pytest -q
 ```
 
 启动开发服务：
 
-```bash
+```powershell
 cd backend
-.venv/bin/fastapi dev app/main.py
+& .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
 健康检查：
@@ -49,7 +49,7 @@ curl http://127.0.0.1:8000/health
 
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
-- 示例：`QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2" .venv/bin/fastapi dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
+- 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
 - CORS 配置不变；前端如需带 token 调用，需要后续在 fetch wrapper 里加 header（A2 不动前端）。
 
 文献检索 API 数据来源：
@@ -141,15 +141,36 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 默认采用 deterministic retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`）供前端展示当前检索条件。
+当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens` 与 `grounding` metadata，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
 
-可选 OpenCode Go LLM provider（本地 smoke 用，默认不启用）：
+Grounding structured claim v3：
+
+- 对 `anthropic` / `opencode_go` 成功生成的外部草稿，后端要求 provider 输出 JSON claims：`{"claims":[{"text":"...","evidence_refs":["chunk-..."]}]}`。
+- 后端只展示由结构化 claims 重新组装出的 answer；原始外部草稿不会直接暴露给前端。
+- 若外部草稿不是可解析的 claims JSON、claims 为空、某条 claim 没有 evidence refs，或引用了本次 citations 未提供的证据 ID，`answer` 会被替换为拦截提示，`grounding.status="blocked"`，但 citations、provider name、token usage、`claim_count`、`cited_claim_count` 与 `structured_claims` 会保留，便于排查。
+- `deterministic` 与外部 provider fallback 到 deterministic 的路径不做后验拦截，`grounding.status="skipped"`。
+- 这是结构化引用声明与越界证据 ID 拦截，不等同于语义事实核验，也不等同于后续完整 provider-native tool-use citation grounding。
+
+可选 LLM providers（本地 smoke 用，默认不启用）：
+
+- `QIYAN_LLM_PROVIDER=deterministic` 或未设置：默认离线 deterministic provider。
+- `QIYAN_LLM_PROVIDER=mock_claude`：离线 mock provider，用于前后端 wiring 与 UI 展示。
+- `QIYAN_LLM_PROVIDER=anthropic`：调用 Anthropic SDK；key 从 `ANTHROPIC_API_KEY` 读取；模型与 token 上限可用 `QIYAN_ANTHROPIC_MODEL`、`QIYAN_ANTHROPIC_MAX_TOKENS` 覆盖。
+- `QIYAN_LLM_PROVIDER=opencode_go`：调用 OpenCode Go OpenAI-compatible Chat Completions API。
+- provider 出错或缺 key 时应回退 deterministic，不应让 `/api/rag/answer` 对用户硬失败。
 
 - `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
 - API key 只从 `QIYAN_OPENCODE_GO_API_KEY` 读取，不能写入仓库、README、handoff 或测试。
 - 默认 endpoint 与模型：`QIYAN_OPENCODE_GO_BASE_URL="https://opencode.ai/zen/go/v1"`，`QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"`。
-- 建议 smoke 时把 `QIYAN_OPENCODE_GO_MAX_TOKENS` 降到 `160` 左右，避免不必要的余额消耗。
+- 建议 smoke 时使用 `QIYAN_OPENCODE_GO_MAX_TOKENS="1200"`；实测部分 reasoning 模型在过低上限下只返回 `reasoning_content` 而 `content` 为空，会触发 deterministic fallback。
 - 未设置 key、HTTP 错误、网关失败或响应结构异常时，provider 会记录不含 secret 的 warning，并回退到 deterministic answer。
+
+可选 retrieval providers（默认不启用 vector/hybrid）：
+
+- `QIYAN_RETRIEVAL_PROVIDER=keyword` 或未设置：默认 keyword + alias ranker。
+- `QIYAN_RETRIEVAL_PROVIDER=vector`：使用本地 chunk vector index；默认 hashing embedding backend 可离线运行。
+- `QIYAN_RETRIEVAL_PROVIDER=hybrid`：用 Reciprocal Rank Fusion 融合 keyword + vector。
+- 当前默认不启用真实 embedding 模型；`vector` / `hybrid` 仅用于 opt-in ablation 与 smoke。
 
 PowerShell 本地 smoke 示例：
 
@@ -158,8 +179,8 @@ cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
 $env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="160"
-fastapi dev app/main.py
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="1200"
+& .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
 另开终端调用：
@@ -176,16 +197,33 @@ RAG eval API：
 curl "http://127.0.0.1:8000/api/evals/rag-ad/report"
 ```
 
-当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 20 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。当前基线目标：20/20 passed，citation_hit 20/20，chunk_hit 20/20，disclaimer 20/20，must_not violations 0。以本地测试输出与最新 handoff 为准。
+当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 50 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。当前基线目标：50 题通过率保持内部基线，citation/chunk 命中、disclaimer coverage 与 must_not violations 以本地测试输出与最新 handoff 为准。
+
+Network pharmacology API（mock）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"消风散","analysis_type":"formula"}'
+```
+
+随后轮询：
+
+```bash
+curl "http://127.0.0.1:8000/api/network/result/<task_id>"
+curl "http://127.0.0.1:8000/api/network/entities"
+```
+
+当前网络药理学仍是 seed graph + runtime task 壳，用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径与 citation/entity 双向跳转，不代表科研级 TCMSP / STRING / KEGG / GO 富集分析。
 
 标准后端验证：
 
-```bash
+```powershell
 cd backend
-.venv/bin/python -m ruff format --check app tests
-.venv/bin/python -m ruff check app tests
-.venv/bin/python -m mypy app
-.venv/bin/python -m pytest -q
+& .\.uv-test-venv\Scripts\python.exe -m ruff format --check app tests
+& .\.uv-test-venv\Scripts\python.exe -m ruff check app tests
+& .\.uv-test-venv\Scripts\python.exe -m mypy app
+& .\.uv-test-venv\Scripts\python.exe -m pytest -q
 ```
 
 ## 前端
@@ -235,13 +273,15 @@ pnpm build
 - 文献详情页：`/literature/[id]`
 - RAG 评估页：`/evals/rag-ad`
 - 合规说明页：`/compliance`
+- 网络药理学页：`/network`
 
 当前前端能力：
 
 - `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示。
-- `/rag`：支持 question、source、top_k 输入，展示 answer、retrieval metadata、citation cards 与免责声明。
+- `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 structured claim grounding v3 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
-- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 20 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖和禁用语检查。
+- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
+- `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链。
 - `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一。
 - 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区。
 

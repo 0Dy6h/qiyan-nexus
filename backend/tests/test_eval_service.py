@@ -51,6 +51,7 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     assert report["summary"]["total_questions"] == 50
     assert report["summary"]["disclaimer_coverage_count"] == 50
     assert report["summary"]["must_not_violation_count"] == 0
+    assert report["summary"]["grounding_blocked_count"] == 0
     assert 0 <= report["summary"]["pass_rate"] <= 1
     assert len(report["items"]) == 50
 
@@ -61,6 +62,7 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     assert "chunk-cn-ad-gbs-001-abstract" in first["expected_chunk_hits"]
     assert first["disclaimer_present"] is True
     assert first["violated_must_not_include"] == []
+    assert first["grounding_status"] == "skipped"
 
 
 def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks(
@@ -134,6 +136,7 @@ def test_rag_eval_report_tags_default_provider_name():
 
     assert report["summary"]["provider_name"] == "deterministic"
     assert all(item["provider_name"] == "deterministic" for item in report["items"])
+    assert all(item["grounding_status"] == "skipped" for item in report["items"])
 
 
 def test_rag_eval_report_default_strategy_is_keyword():

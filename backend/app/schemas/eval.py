@@ -36,6 +36,7 @@ class RagEvalItemResult(BaseModel):
     disclaimer_present: bool
     citation_count: int
     provider_name: str
+    grounding_status: str
     passed: bool
 
 
@@ -47,6 +48,7 @@ class RagEvalSummary(BaseModel):
     chunk_hit_count: int
     disclaimer_coverage_count: int
     must_not_violation_count: int
+    grounding_blocked_count: int = 0
     provider_name: str
     retrieval_strategy: str = "keyword"
 

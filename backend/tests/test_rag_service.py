@@ -16,6 +16,14 @@ def test_answer_question_returns_ranked_citation_cards_for_gut_skin_axis_questio
     assert response.question == "特应性皮炎和肠-脑-皮肤轴有什么关系？"
     assert "deterministic retrieval" in response.answer
     assert response.disclaimer == DISCLAIMER
+    assert response.provider_name == "deterministic"
+    assert response.grounding.status == "skipped"
+    assert response.grounding.policy == "hard_block_v2_sentence_refs"
+    assert response.grounding.checked is False
+    assert response.grounding.claim_count == 0
+    assert response.grounding.cited_claim_count == 0
+    assert response.input_tokens is None
+    assert response.output_tokens is None
     assert len(response.citations) == 2
     assert response.citations[0].literature_id == "cn-ad-gbs-001"
     assert response.citations[0].chunk_id == "chunk-cn-ad-gbs-001-abstract"
@@ -250,7 +258,11 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
         lambda self, question, citations: opencode_go_provider.AnswerDraft(
-            text=f"opencode answer for {len(citations)} citations",
+            text=(
+                '{"claims":[{"text":"opencode answer for 2 citations",'
+                f'"evidence_refs":["{citations[0].chunk_id}"]}}]'
+                "}"
+            ),
             provider_name=self.name,
             input_tokens=12,
             output_tokens=6,
@@ -259,8 +271,14 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
 
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
 
-    assert response.answer == "opencode answer for 2 citations"
+    assert response.answer == "opencode answer for 2 citations [chunk-cn-ad-gbs-001-abstract]。"
     assert response.provider_name == "opencode_go"
+    assert response.grounding.status == "passed"
+    assert response.grounding.policy == "structured_claim_refs_v3"
+    assert response.grounding.matched_evidence_refs == ["chunk-cn-ad-gbs-001-abstract"]
+    assert response.grounding.structured_claims[0].text == "opencode answer for 2 citations"
+    assert response.input_tokens == 12
+    assert response.output_tokens == 6
     assert response.disclaimer == DISCLAIMER
     assert len(response.citations) == 2
 
@@ -285,3 +303,63 @@ def test_retrieval_metadata_strategy_reflects_env_override(monkeypatch):
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
     assert response.retrieval.strategy == "hybrid"
     assert response.disclaimer == DISCLAIMER
+
+
+def test_answer_question_hard_blocks_external_provider_answer_without_evidence_ref(monkeypatch):
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text="opencode answer without evidence ref",
+            provider_name=self.name,
+            input_tokens=12,
+            output_tokens=6,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("当前模型草稿未通过引用证据校验")
+    assert response.provider_name == "opencode_go"
+    assert response.grounding.status == "blocked"
+    assert response.grounding.policy == "structured_claim_refs_v3"
+    assert response.grounding.blocked_reason == "structured_claims_parse_error"
+    assert response.grounding.claim_count == 0
+    assert response.grounding.cited_claim_count == 0
+    assert response.input_tokens == 12
+    assert response.output_tokens == 6
+    assert len(response.citations) == 2
+
+
+def test_answer_question_hard_blocks_external_provider_answer_with_uncited_claim(monkeypatch):
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text='{"claims":[{"text":"第一条证据句","evidence_refs":[]}]}',
+            provider_name=self.name,
+            input_tokens=12,
+            output_tokens=6,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("当前模型草稿未通过引用证据校验")
+    assert response.provider_name == "opencode_go"
+    assert response.grounding.status == "blocked"
+    assert response.grounding.policy == "structured_claim_refs_v3"
+    assert response.grounding.blocked_reason == "claim_without_evidence_ref"
+    assert response.grounding.matched_evidence_refs == []
+    assert response.grounding.claim_count == 1
+    assert response.grounding.cited_claim_count == 0
+    assert response.input_tokens == 12
+    assert response.output_tokens == 6

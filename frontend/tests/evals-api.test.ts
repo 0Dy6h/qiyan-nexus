@@ -32,15 +32,34 @@ test("getRagAdEvalReport fetches report payload", async () => {
       async json() {
         return {
           summary: {
-            total_questions: 20,
+            total_questions: 50,
             passed_questions: 14,
             pass_rate: 0.7,
             citation_hit_count: 18,
             chunk_hit_count: 6,
-            disclaimer_coverage_count: 20,
+            disclaimer_coverage_count: 50,
             must_not_violation_count: 0,
+            grounding_blocked_count: 0,
           },
-          items: [],
+          items: [
+            {
+              id: "rag-eval-001",
+              question: "question",
+              source_preference: "all",
+              difficulty: "easy",
+              expected_literature_ids: [],
+              expected_literature_hits: [],
+              expected_chunk_ids: [],
+              expected_chunk_hits: [],
+              missing_must_include: [],
+              violated_must_not_include: [],
+              disclaimer_present: true,
+              citation_count: 2,
+              provider_name: "deterministic",
+              grounding_status: "skipped",
+              passed: true,
+            },
+          ],
         };
       },
     } as Response;
@@ -51,8 +70,10 @@ test("getRagAdEvalReport fetches report payload", async () => {
     const report = await getRagAdEvalReport();
 
     assert.deepEqual(captured, ["http://127.0.0.1:8000/api/evals/rag-ad/report"]);
-    assert.equal(report.summary.total_questions, 20);
+    assert.equal(report.summary.total_questions, 50);
     assert.equal(report.summary.pass_rate, 0.7);
+    assert.equal(report.summary.grounding_blocked_count, 0);
+    assert.equal(report.items[0].grounding_status, "skipped");
   } finally {
     globalThis.fetch = originalFetch;
   }

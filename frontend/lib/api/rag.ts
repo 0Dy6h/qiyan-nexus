@@ -18,6 +18,25 @@ export type RetrievalMetadata = {
   applied_source: RagSource;
   applied_top_k: number;
   available_citation_count: number;
+  strategy: string;
+};
+
+export type GroundedClaim = {
+  text: string;
+  evidence_refs: string[];
+};
+
+export type GroundingMetadata = {
+  status: "skipped" | "passed" | "blocked";
+  policy: "hard_block_v2_sentence_refs" | "structured_claim_refs_v3";
+  checked: boolean;
+  blocked_reason?: string | null;
+  allowed_evidence_refs: string[];
+  matched_evidence_refs: string[];
+  unsupported_evidence_refs: string[];
+  claim_count: number;
+  cited_claim_count: number;
+  structured_claims: GroundedClaim[];
 };
 
 export type RagAnswerResponse = {
@@ -28,6 +47,9 @@ export type RagAnswerResponse = {
   citations: CitationCard[];
   answered_at: string;
   provider_name: string;
+  grounding: GroundingMetadata;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
 };
 
 export function getBackendBaseUrl() {

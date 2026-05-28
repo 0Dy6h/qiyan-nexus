@@ -24,6 +24,26 @@ class RetrievalMetadata(BaseModel):
     strategy: str = "keyword"
 
 
+class GroundedClaim(BaseModel):
+    text: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class GroundingMetadata(BaseModel):
+    status: Literal["skipped", "passed", "blocked"]
+    policy: Literal["hard_block_v2_sentence_refs", "structured_claim_refs_v3"] = (
+        "hard_block_v2_sentence_refs"
+    )
+    checked: bool
+    blocked_reason: str | None = None
+    allowed_evidence_refs: list[str] = Field(default_factory=list)
+    matched_evidence_refs: list[str] = Field(default_factory=list)
+    unsupported_evidence_refs: list[str] = Field(default_factory=list)
+    claim_count: int = 0
+    cited_claim_count: int = 0
+    structured_claims: list[GroundedClaim] = Field(default_factory=list)
+
+
 class RagAnswerRequest(BaseModel):
     question: str = Field(min_length=1)
     source: Literal["all", "cn_literature", "pubmed"] = "all"
@@ -38,3 +58,6 @@ class RagAnswerResponse(BaseModel):
     citations: list[CitationCard]
     answered_at: str
     provider_name: str
+    grounding: GroundingMetadata
+    input_tokens: int | None = None
+    output_tokens: int | None = None
