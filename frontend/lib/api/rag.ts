@@ -28,7 +28,7 @@ export type GroundedClaim = {
 
 export type GroundingMetadata = {
   status: "skipped" | "passed" | "blocked";
-  policy: "hard_block_v2_sentence_refs" | "structured_claim_refs_v3";
+  policy: "structured_claim_refs_v3";
   checked: boolean;
   blocked_reason?: string | null;
   allowed_evidence_refs: string[];

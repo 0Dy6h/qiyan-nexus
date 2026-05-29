@@ -147,6 +147,23 @@ def test_external_answer_is_hard_blocked_when_structured_claim_has_no_evidence_r
     assert metadata.cited_claim_count == 0
 
 
+def test_external_answer_is_hard_blocked_when_structured_claim_text_is_blank():
+    grounded_answer, metadata = evaluate_answer_grounding(
+        provider_name="opencode_go",
+        answer_text=(
+            '{"claims":[{"text":"   ","evidence_refs":["chunk-cn-ad-gbs-001-abstract"]}]}'
+        ),
+        citations=_sample_citations(),
+    )
+
+    assert grounded_answer == BLOCKED_ANSWER_TEXT
+    assert metadata.status == "blocked"
+    assert metadata.blocked_reason == "blank_claim_text"
+    assert metadata.claim_count == 1
+    assert metadata.cited_claim_count == 1
+    assert metadata.matched_evidence_refs == ["chunk-cn-ad-gbs-001-abstract"]
+
+
 def test_external_answer_is_hard_blocked_when_a_claim_sentence_has_no_allowed_ref():
     grounded_answer, metadata = evaluate_answer_grounding(
         provider_name="opencode_go",
@@ -197,7 +214,7 @@ def test_deterministic_answer_skips_grounding_gate():
 
     assert grounded_answer == answer
     assert metadata.status == "skipped"
-    assert metadata.policy == "hard_block_v2_sentence_refs"
+    assert metadata.policy == "structured_claim_refs_v3"
     assert metadata.checked is False
     assert metadata.blocked_reason is None
     assert metadata.claim_count == 0

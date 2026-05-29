@@ -37,7 +37,7 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
     output_tokens: 64,
     grounding: {
       status: "passed",
-      policy: "hard_block_v2_sentence_refs",
+      policy: "structured_claim_refs_v3",
       checked: true,
       blocked_reason: null,
       allowed_evidence_refs: ["chunk-cn-ad-gbs-001-abstract"],
@@ -64,7 +64,7 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
   assert.equal(payload.provider_name, "opencode_go");
   assert.equal(payload.retrieval.strategy, "hybrid");
   assert.equal(payload.grounding.status, "passed");
-  assert.equal(payload.grounding.policy, "hard_block_v2_sentence_refs");
+  assert.equal(payload.grounding.policy, "structured_claim_refs_v3");
   assert.equal(payload.grounding.claim_count, 2);
   assert.equal(payload.grounding.cited_claim_count, 2);
   assert.equal(payload.grounding.structured_claims[0].text, "证据提示肠道菌群与皮肤屏障异常之间存在关联");

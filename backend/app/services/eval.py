@@ -6,6 +6,7 @@ from typing import Any
 
 from app.schemas.eval import RagEvalItemResult, RagEvalReport, RagEvalSummary, load_rag_eval_dataset
 from app.services.llm.provider import DEFAULT_PROVIDER_NAME
+from app.services.llm.provider import PROVIDER_ENV_VAR as LLM_PROVIDER_ENV_VAR
 from app.services.rag import DISCLAIMER, answer_question
 from app.services.retrieval.provider import (
     DEFAULT_RETRIEVAL_PROVIDER_NAME,
@@ -35,11 +36,24 @@ def _override_retrieval_strategy(strategy: str | None) -> Iterator[None]:
             os.environ[RETRIEVAL_PROVIDER_ENV_VAR] = previous
 
 
+@contextmanager
+def _force_deterministic_llm_provider() -> Iterator[None]:
+    previous = os.environ.get(LLM_PROVIDER_ENV_VAR)
+    os.environ[LLM_PROVIDER_ENV_VAR] = DEFAULT_PROVIDER_NAME
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(LLM_PROVIDER_ENV_VAR, None)
+        else:
+            os.environ[LLM_PROVIDER_ENV_VAR] = previous
+
+
 def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
     results: list[RagEvalItemResult] = []
     run_provider_name = DEFAULT_PROVIDER_NAME
     applied_strategy = strategy or DEFAULT_RETRIEVAL_PROVIDER_NAME
-    with _override_retrieval_strategy(strategy):
+    with _force_deterministic_llm_provider(), _override_retrieval_strategy(strategy):
         for question in load_rag_eval_dataset(_DATA_PATH):
             response = answer_question(
                 question.question, source=question.source_preference, top_k=3

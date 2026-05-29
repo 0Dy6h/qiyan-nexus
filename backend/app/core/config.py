@@ -25,6 +25,8 @@ def get_settings() -> Settings:
         app_name=os.getenv("APP_NAME", "Qiyan Nexus API"),
         environment=os.getenv("ENVIRONMENT", "dev"),
         upload_storage_dir=Path(os.getenv("UPLOAD_STORAGE_DIR", "uploads")),
+        # ANTHROPIC_API_KEY is intentionally unprefixed: the anthropic SDK reads
+        # this exact name natively, so we mirror it instead of using QIYAN_*.
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         anthropic_model=os.getenv("QIYAN_ANTHROPIC_MODEL", "claude-haiku-4-5"),
         anthropic_max_tokens=int(os.getenv("QIYAN_ANTHROPIC_MAX_TOKENS", "1024")),

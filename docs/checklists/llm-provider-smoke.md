@@ -31,7 +31,7 @@ Expected:
 - `provider_name == "deterministic"`
 - `retrieval.strategy == "keyword"`
 - `grounding.status == "skipped"`
-- `grounding.policy == "hard_block_v2_sentence_refs"`
+- `grounding.policy == "structured_claim_refs_v3"`
 - `grounding.cited_claim_count == 0` and `grounding.claim_count == 0`
 - `grounding.structured_claims == []`
 - token fields are `None`

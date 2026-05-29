@@ -30,7 +30,7 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
     assert payload["provider_name"] == "deterministic"
     assert payload["grounding"] == {
         "status": "skipped",
-        "policy": "hard_block_v2_sentence_refs",
+        "policy": "structured_claim_refs_v3",
         "checked": False,
         "blocked_reason": None,
         "allowed_evidence_refs": [

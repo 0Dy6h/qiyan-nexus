@@ -72,13 +72,14 @@ def _parse_structured_claims(answer_text: str) -> list[GroundedClaim] | None:
         evidence_refs = raw_claim.get("evidence_refs")
         if not isinstance(text, str) or not isinstance(evidence_refs, list):
             return None
+        text = text.strip()
         refs: list[str] = []
         for raw_ref in evidence_refs:
             if not isinstance(raw_ref, str):
                 return None
             if raw_ref not in refs:
                 refs.append(raw_ref)
-        claims.append(GroundedClaim(text=text.strip(), evidence_refs=refs))
+        claims.append(GroundedClaim(text=text, evidence_refs=refs))
     return claims
 
 
@@ -127,6 +128,7 @@ def evaluate_answer_grounding(
             answer_text,
             GroundingMetadata(
                 status="skipped",
+                policy=_STRUCTURED_GROUNDING_POLICY,
                 checked=False,
                 allowed_evidence_refs=allowed_refs,
             ),
@@ -160,6 +162,18 @@ def evaluate_answer_grounding(
                     matched_refs.append(ref)
             elif ref not in unsupported_refs:
                 unsupported_refs.append(ref)
+
+    if any(not claim.text for claim in structured_claims):
+        return (
+            BLOCKED_ANSWER_TEXT,
+            _blocked_structured_metadata(
+                reason="blank_claim_text",
+                allowed_refs=allowed_refs,
+                structured_claims=structured_claims,
+                matched_refs=matched_refs,
+                unsupported_refs=unsupported_refs,
+            ),
+        )
 
     if any(not claim.evidence_refs for claim in structured_claims):
         return (

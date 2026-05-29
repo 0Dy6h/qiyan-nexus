@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -137,6 +138,30 @@ def test_rag_eval_report_tags_default_provider_name():
     assert report["summary"]["provider_name"] == "deterministic"
     assert all(item["provider_name"] == "deterministic" for item in report["items"])
     assert all(item["grounding_status"] == "skipped" for item in report["items"])
+
+
+def test_rag_eval_report_forces_deterministic_provider_when_live_provider_is_configured(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    live_provider_called = False
+
+    def fail_if_live_provider_is_called(*args, **kwargs):
+        nonlocal live_provider_called
+        live_provider_called = True
+        raise AssertionError("eval report must not fan out to the live LLM provider")
+
+    monkeypatch.setattr(
+        "app.services.llm.opencode_go_provider.OpenCodeGoProvider.generate_answer",
+        fail_if_live_provider_is_called,
+    )
+
+    report = run_rag_ad_eval_report()
+
+    assert live_provider_called is False
+    assert os.environ["QIYAN_LLM_PROVIDER"] == "opencode_go"
+    assert report["summary"]["provider_name"] == "deterministic"
+    assert all(item["provider_name"] == "deterministic" for item in report["items"])
 
 
 def test_rag_eval_report_default_strategy_is_keyword():

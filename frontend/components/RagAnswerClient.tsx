@@ -57,11 +57,8 @@ function formatGroundingBlockedReason(reason: string | null | undefined) {
   if (reason === "claim_without_evidence_ref") {
     return "存在未声明证据 ID 的结构化 claim";
   }
-  if (reason === "missing_allowed_evidence_ref") {
-    return "模型草稿没有引用本次允许证据 ID";
-  }
-  if (reason === "uncited_claim_sentence") {
-    return "存在未带允许证据 ID 的事实句";
+  if (reason === "blank_claim_text") {
+    return "存在内容为空的结构化 claim";
   }
   return "无";
 }

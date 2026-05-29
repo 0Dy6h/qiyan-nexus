@@ -31,9 +31,7 @@ class GroundedClaim(BaseModel):
 
 class GroundingMetadata(BaseModel):
     status: Literal["skipped", "passed", "blocked"]
-    policy: Literal["hard_block_v2_sentence_refs", "structured_claim_refs_v3"] = (
-        "hard_block_v2_sentence_refs"
-    )
+    policy: Literal["structured_claim_refs_v3"] = "structured_claim_refs_v3"
     checked: bool
     blocked_reason: str | None = None
     allowed_evidence_refs: list[str] = Field(default_factory=list)

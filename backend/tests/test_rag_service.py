@@ -18,7 +18,7 @@ def test_answer_question_returns_ranked_citation_cards_for_gut_skin_axis_questio
     assert response.disclaimer == DISCLAIMER
     assert response.provider_name == "deterministic"
     assert response.grounding.status == "skipped"
-    assert response.grounding.policy == "hard_block_v2_sentence_refs"
+    assert response.grounding.policy == "structured_claim_refs_v3"
     assert response.grounding.checked is False
     assert response.grounding.claim_count == 0
     assert response.grounding.cited_claim_count == 0

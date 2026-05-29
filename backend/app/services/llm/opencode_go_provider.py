@@ -6,7 +6,7 @@ import logging
 
 import httpx
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.schemas.rag import CitationCard
 from app.services.llm.prompting import GROUNDING_SYSTEM_PROMPT, build_citation_text
 from app.services.llm.provider import AnswerDraft, DeterministicProvider
@@ -26,7 +26,10 @@ class OpenCodeGoProvider:
         http_client: httpx.Client | None = None,
         fallback: DeterministicProvider | None = None,
     ) -> None:
-        self._http_client = http_client or httpx.Client(timeout=30.0)
+        # Keep an injected client as-is (caller owns its lifecycle). When none is
+        # injected we open a short-lived client per request and close it, so the
+        # per-call instantiation in select_provider() never leaks a pool.
+        self._http_client = http_client
         self._fallback = fallback or DeterministicProvider()
 
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
@@ -45,6 +48,18 @@ class OpenCodeGoProvider:
             )
             return self._fallback.generate_answer(question, citations)
 
+        if self._http_client is not None:
+            return self._request_completion(self._http_client, settings, question, citations)
+        with httpx.Client(timeout=30.0) as client:
+            return self._request_completion(client, settings, question, citations)
+
+    def _request_completion(
+        self,
+        http_client: httpx.Client,
+        settings: Settings,
+        question: str,
+        citations: list[CitationCard],
+    ) -> AnswerDraft:
         url = f"{settings.opencode_go_base_url.rstrip('/')}/chat/completions"
         payload = {
             "model": settings.opencode_go_model,
@@ -60,7 +75,7 @@ class OpenCodeGoProvider:
         }
 
         try:
-            response = self._http_client.post(
+            response = http_client.post(
                 url,
                 headers={
                     "Authorization": f"Bearer {settings.opencode_go_api_key}",
