@@ -214,7 +214,7 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
-当前网络药理学仍是 seed graph + runtime task 壳，用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径与 citation/entity 双向跳转，不代表科研级 TCMSP / STRING / KEGG / GO 富集分析。
+当前网络药理学仍是 seed graph + runtime task 壳，用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转与前端 Markdown 报告导出，不代表科研级 TCMSP / STRING / KEGG / GO 富集分析。
 
 标准后端验证：
 
@@ -281,7 +281,7 @@ pnpm build
 - `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 structured claim grounding v3 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
 - `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
-- `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链。
+- `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链，并可把当前完成结果导出为 Markdown 报告。
 - `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一。
 - 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区。
 

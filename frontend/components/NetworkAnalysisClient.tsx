@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { DownloadOutlined } from "@ant-design/icons";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -15,6 +16,10 @@ import {
   fetchNetworkEntities,
   type NetworkEntity,
 } from "../lib/api/network-entities";
+import {
+  buildNetworkReportFileName,
+  buildNetworkReportMarkdown,
+} from "../lib/network-report-export";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import EntityChips from "./EntityChips";
 import StatusPanel from "./StatusPanel";
@@ -89,6 +94,29 @@ export default function NetworkAnalysisClient() {
     }
 
     await runAnalysis(trimmedQuery, analysisType);
+  }
+
+  function onDownloadReport() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      const markdown = buildNetworkReportMarkdown(result);
+      const fileName = buildNetworkReportFileName(result.task_id);
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setErrorMessage("导出报告失败，请稍后重试。");
+      setPhase("error");
+    }
   }
 
   async function runAnalysis(submitQuery: string, submitType: NetworkAnalysisType) {
@@ -227,12 +255,46 @@ export default function NetworkAnalysisClient() {
 
       {phase === "completed" && result ? (
         <section style={getSurfaceSectionStyle()}>
-          <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
-            <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>「成分-靶点-通路-疾病」链</h2>
-            <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-              分析对象 {result.query}（{getNetworkAnalysisTypeLabel(result.analysis_type)}）共返回 {result.chains.length} 条链；分数为
-              mock 置信度，仅用于 UI 演示。
-            </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+              alignItems: "start",
+              flexWrap: "wrap",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: "grid", gap: 4, flex: "1 1 560px" }}>
+              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>「成分-靶点-通路-疾病」链</h2>
+              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+                分析对象 {result.query}（{getNetworkAnalysisTypeLabel(result.analysis_type)}）共返回 {result.chains.length} 条链；分数为
+                mock 置信度，仅用于 UI 演示。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onDownloadReport}
+              aria-label="导出报告为 Markdown"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                border: "1px solid #0d9488",
+                borderRadius: 8,
+                background: "#ffffff",
+                color: "#0f766e",
+                fontSize: 14,
+                fontWeight: 700,
+                padding: "10px 14px",
+                minHeight: 44,
+                cursor: "pointer",
+              }}
+            >
+              <DownloadOutlined aria-hidden="true" />
+              <span>导出报告为 Markdown</span>
+            </button>
           </div>
           <div style={{ display: "grid", gap: 12 }}>
             {result.chains.map((chain, index) => (

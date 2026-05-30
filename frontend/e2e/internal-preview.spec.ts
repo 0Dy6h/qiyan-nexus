@@ -68,5 +68,12 @@ test("internal preview: pdf upload, rag eval, and network mock paths", async ({ 
     timeout: 20_000,
   });
   await expect(page.getByText("链 #1")).toBeVisible();
+  await expect(page.getByRole("button", { name: "导出报告为 Markdown" })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出报告为 Markdown" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(
+    /^qiyan-network-report-network-[a-z0-9]+-\d{8}-\d{4}\.md$/,
+  );
   await expect(page.getByText("非诊断结论、需结合临床。", { exact: true })).toBeVisible();
 });
