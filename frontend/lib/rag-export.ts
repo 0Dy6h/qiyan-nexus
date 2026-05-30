@@ -7,6 +7,14 @@ function joinOrFallback(items: string[], fallback: string): string {
   return items.length > 0 ? items.join("、") : fallback;
 }
 
+function formatSemanticThreshold(threshold: number | null | undefined): string {
+  return threshold == null ? "未启用" : threshold.toFixed(2);
+}
+
+function formatSemanticScore(score: number | null | undefined): string {
+  return score == null ? "未计算" : `${Math.round(score * 100)}%`;
+}
+
 function formatCitationBlock(citation: CitationCard, index: number): string {
   const lines: string[] = [];
   lines.push(`### 引用 ${index + 1} — ${citation.title}`);
@@ -53,6 +61,8 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push(`- Provider-native grounding：${result.grounding.provider_native_grounding}`);
   sections.push(`- Grounding Tool：${result.grounding.tool_name ?? "无"}`);
   sections.push(`- Tool 调用数：${result.grounding.tool_call_count}`);
+  sections.push(`- 语义阈值：${formatSemanticThreshold(result.grounding.semantic_threshold)}`);
+  sections.push(`- 最小语义支持度：${formatSemanticScore(result.grounding.min_semantic_score)}`);
   sections.push(`- Grounding 拦截原因：${result.grounding.blocked_reason ?? "无"}`);
   sections.push(`- 句级引用覆盖：${result.grounding.cited_claim_count}/${result.grounding.claim_count}`);
   sections.push(

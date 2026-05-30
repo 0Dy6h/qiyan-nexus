@@ -24,6 +24,7 @@ export type RetrievalMetadata = {
 export type GroundedClaim = {
   text: string;
   evidence_refs: string[];
+  semantic_score?: number | null;
 };
 
 export type GroundingMetadata = {
@@ -40,6 +41,8 @@ export type GroundingMetadata = {
   provider_native_grounding: boolean;
   tool_name?: string | null;
   tool_call_count: number;
+  semantic_threshold?: number | null;
+  min_semantic_score?: number | null;
 };
 
 export type RagAnswerResponse = {
