@@ -5,7 +5,11 @@ import pytest
 
 from app.schemas.eval import load_rag_eval_dataset
 from app.services import eval as eval_service
-from app.services.eval import get_rag_eval_questions, run_rag_ad_eval_report
+from app.services.eval import (
+    get_rag_eval_questions,
+    run_grounding_semantic_separation,
+    run_rag_ad_eval_report,
+)
 
 
 def test_load_rag_eval_dataset_returns_50_questions():
@@ -246,3 +250,19 @@ def test_rag_eval_report_hybrid_with_hashing_backend_meets_relaxed_threshold(
         " gets the full ≥95%). Failing items:"
         f" {[item['id'] for item in report['items'] if not item['passed']]}"
     )
+
+
+def test_run_grounding_semantic_separation_reports_confusion_matrix():
+    report = run_grounding_semantic_separation(0.40, backend_name="hashing")
+
+    assert report["backend_name"] == "hashing"
+    assert report["faithful_total"] == report["hallucinated_total"]
+    assert (
+        report["accepted_faithful"] + report["false_rejected_faithful"] == report["faithful_total"]
+    )
+    assert (
+        report["rejected_hallucinated"] + report["false_accepted_hallucinated"]
+        == report["hallucinated_total"]
+    )
+    assert report["false_rejected_faithful"] == 0
+    assert report["paired_separation"] == report["paired_total"]

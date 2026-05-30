@@ -1,12 +1,23 @@
 from pathlib import Path
 from typing import Any
 
-from app.schemas.eval import RagEvalItemResult, RagEvalReport, RagEvalSummary, load_rag_eval_dataset
+from app.schemas.eval import (
+    RagEvalItemResult,
+    RagEvalReport,
+    RagEvalSummary,
+    load_grounding_semantic_pairs,
+    load_rag_eval_dataset,
+)
+from app.services.grounding import score_claim_support
 from app.services.llm.provider import DEFAULT_PROVIDER_NAME
 from app.services.rag import DISCLAIMER, answer_question
+from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import DEFAULT_RETRIEVAL_PROVIDER_NAME
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "evals" / "rag_ad_eval_questions.json"
+_SEMANTIC_PAIRS_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_semantic_pairs.json"
+)
 
 
 def get_rag_eval_questions() -> list[dict[str, Any]]:
@@ -108,3 +119,49 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
         items=results,
     )
     return report.model_dump()
+
+
+def run_grounding_semantic_separation(
+    threshold: float, backend_name: str | None = None
+) -> dict[str, Any]:
+    """Score the labeled (claim, chunk, supported) fixture at a given threshold.
+
+    Reports the confusion matrix plus score-distribution bounds so the gate's
+    separation is measurable. On the default ``hashing`` backend the score is a
+    lexical-overlap proxy: faithful claims separate cleanly from their *paired*
+    hallucinations, but a high-lexical-overlap fabrication can still outscore an
+    unrelated faithful claim — hence ``paired_separation`` is reported alongside
+    the global confusion matrix.
+    """
+
+    backend = select_embedding_backend(backend_name)
+    pairs = load_grounding_semantic_pairs(_SEMANTIC_PAIRS_PATH)
+    scored = [(pair, score_claim_support(pair.claim, pair.chunk_text, backend)) for pair in pairs]
+    faithful = [(pair, score) for pair, score in scored if pair.supported]
+    hallucinated = [(pair, score) for pair, score in scored if not pair.supported]
+
+    accepted_faithful = sum(1 for _, score in faithful if score >= threshold)
+    rejected_hallucinated = sum(1 for _, score in hallucinated if score < threshold)
+    score_by_id = {pair.id: score for pair, score in scored}
+    paired_separation = sum(
+        1
+        for pair, score in faithful
+        if (counterpart := score_by_id.get(pair.id.replace("-faithful", "-hallucinated")))
+        is not None
+        and score > counterpart
+    )
+
+    return {
+        "threshold": threshold,
+        "backend_name": backend.name,
+        "faithful_total": len(faithful),
+        "hallucinated_total": len(hallucinated),
+        "accepted_faithful": accepted_faithful,
+        "rejected_hallucinated": rejected_hallucinated,
+        "false_rejected_faithful": len(faithful) - accepted_faithful,
+        "false_accepted_hallucinated": len(hallucinated) - rejected_hallucinated,
+        "min_faithful_score": round(min(score for _, score in faithful), 3),
+        "max_hallucinated_score": round(max(score for _, score in hallucinated), 3),
+        "paired_separation": paired_separation,
+        "paired_total": len(faithful),
+    }

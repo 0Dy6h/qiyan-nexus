@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from app.core.config import get_settings
 from app.repositories.chunk import InMemoryChunkRepository
 from app.repositories.literature import InMemoryLiteratureRepository
 from app.repositories.runtime_storage import (
@@ -11,6 +12,7 @@ from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
 from app.services.grounding import evaluate_answer_grounding
 from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
+from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import (
     CONFIDENCE_BY_SOURCE_TYPE,
     ScoredCandidate,
@@ -124,6 +126,9 @@ def answer_question(
 
     provider = select_provider(llm_provider_name)
     draft = provider.generate_answer(normalized_question, citations)
+    configured_threshold = get_settings().grounding_semantic_threshold
+    semantic_threshold = configured_threshold if configured_threshold > 0 else None
+    semantic_backend = select_embedding_backend() if semantic_threshold is not None else None
     grounded_answer, grounding = evaluate_answer_grounding(
         draft.provider_name,
         draft.text,
@@ -134,6 +139,8 @@ def answer_question(
         tool_name=draft.tool_name,
         tool_call_count=draft.tool_call_count,
         blocked_reason=draft.grounding_blocked_reason,
+        semantic_backend=semantic_backend,
+        semantic_threshold=semantic_threshold,
     )
     return RagAnswerResponse(
         question=normalized_question,

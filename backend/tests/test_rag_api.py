@@ -45,6 +45,8 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
         "provider_native_grounding": False,
         "tool_name": None,
         "tool_call_count": 0,
+        "semantic_threshold": None,
+        "min_semantic_score": None,
     }
     assert payload["input_tokens"] is None
     assert payload["output_tokens"] is None

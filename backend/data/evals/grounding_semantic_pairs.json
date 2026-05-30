@@ -1,0 +1,142 @@
+[
+  {
+    "id": "sem-gbs-001-faithful",
+    "claim": "特应性皮炎的中医证候演变与肠道微生态失衡、皮肤屏障异常及神经免疫调节紊乱之间存在可解释的关联。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "Paraphrase preserving the chunk's gut-skin axis entities."
+  },
+  {
+    "id": "sem-gbs-001-hallucinated",
+    "claim": "随机对照试验显示口服益生菌可在两周内彻底治愈特应性皮炎并永久消除瘙痒。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": false,
+    "note": "Cites the gut-skin axis chunk but fabricates a cure/RCT claim with disjoint vocabulary."
+  },
+  {
+    "id": "sem-formula-002-faithful",
+    "claim": "中药复方在特应性皮炎中可能通过抑制 Th2 炎症、修复屏障和控制瘙痒发挥潜在作用。",
+    "chunk_text": "综述特应性皮炎常用中药复方的基础与临床研究，归纳其在 Th2 炎症抑制、屏障修复和瘙痒控制中的潜在作用。",
+    "supported": true,
+    "note": "Paraphrase of the formula chunk's mechanism summary."
+  },
+  {
+    "id": "sem-formula-002-hallucinated",
+    "claim": "该复方已被国家药监局批准作为特应性皮炎的一线处方药并纳入医保目录。",
+    "chunk_text": "综述特应性皮炎常用中药复方的基础与临床研究，归纳其在 Th2 炎症抑制、屏障修复和瘙痒控制中的潜在作用。",
+    "supported": false,
+    "note": "Regulatory approval fabrication absent from the chunk."
+  },
+  {
+    "id": "sem-microbiome-003-faithful",
+    "claim": "特应性皮炎患者存在肠道菌群结构改变，菌群干预可能有助于免疫稳态的恢复。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": true,
+    "note": "Paraphrase of the microbiome chunk."
+  },
+  {
+    "id": "sem-microbiome-003-hallucinated",
+    "claim": "粪菌移植是特应性皮炎患者恢复免疫稳态的唯一有效手段，成功率高达百分之九十五。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": false,
+    "note": "Invents FMT efficacy numbers not present in the chunk."
+  },
+  {
+    "id": "sem-network-007-faithful",
+    "claim": "网络药理学研究中，PI3K-Akt、NF-kB 与 JAK-STAT 常被列为特应性皮炎相关的关键调控轴。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": true,
+    "note": "Paraphrase listing the same pathway entities."
+  },
+  {
+    "id": "sem-network-007-hallucinated",
+    "claim": "分子动力学模拟已证实该复方的活性成分与新冠病毒主蛋白酶高亲和结合。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": false,
+    "note": "Cites the network pharmacology chunk but invents an unrelated COVID docking result."
+  },
+  {
+    "id": "sem-barrier-006-faithful",
+    "claim": "filaggrin、神经酰胺与角质层功能异常在特应性皮炎的屏障损伤中扮演重要角色。",
+    "chunk_text": "总结 filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色，并讨论中药复方与单体在改善角质层功能、调节炎症因子方面的实验证据。",
+    "supported": true,
+    "note": "Paraphrase preserving filaggrin/ceramide barrier entities."
+  },
+  {
+    "id": "sem-barrier-006-hallucinated",
+    "claim": "补充维生素 D 可在一个月内完全逆转 filaggrin 基因突变并重建正常皮肤屏障。",
+    "chunk_text": "总结 filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色，并讨论中药复方与单体在改善角质层功能、调节炎症因子方面的实验证据。",
+    "supported": false,
+    "note": "Fabricates gene-reversal claim with disjoint vocabulary."
+  },
+  {
+    "id": "sem-pmid-40100002-faithful",
+    "claim": "Loss of gut microbial diversity and altered metabolite profiles are linked to clinical severity in atopic dermatitis, supporting gut-skin axis hypotheses.",
+    "chunk_text": "The study links gut microbial diversity loss and altered metabolite profiles with clinical severity in atopic dermatitis, supporting gut-skin axis hypotheses.",
+    "supported": true,
+    "note": "Near-verbatim paraphrase of the English microbiome chunk."
+  },
+  {
+    "id": "sem-pmid-40100002-hallucinated",
+    "claim": "A single fecal transplant restored full microbial diversity and cured every atopic dermatitis patient in the cohort within one week.",
+    "chunk_text": "The study links gut microbial diversity loss and altered metabolite profiles with clinical severity in atopic dermatitis, supporting gut-skin axis hypotheses.",
+    "supported": false,
+    "note": "Invents a cure result absent from the chunk."
+  },
+  {
+    "id": "sem-pmid-40100005-faithful",
+    "claim": "JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis, with downstream STAT phosphorylation amplifying pathogenic transcription.",
+    "chunk_text": "This review explains why JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis. Downstream STAT phosphorylation amplifies pathogenic transcription programs in epidermal and immune cells, motivating targeted therapy strategies.",
+    "supported": true,
+    "note": "Paraphrase preserving the JAK-STAT mechanism."
+  },
+  {
+    "id": "sem-pmid-40100005-hallucinated",
+    "claim": "Topical antihistamine ointments fully block STAT phosphorylation and permanently eliminate atopic dermatitis lesions after two applications.",
+    "chunk_text": "This review explains why JAK-STAT cytokine signaling has emerged as a major therapeutic axis in atopic dermatitis. Downstream STAT phosphorylation amplifies pathogenic transcription programs in epidermal and immune cells, motivating targeted therapy strategies.",
+    "supported": false,
+    "note": "Cites the JAK-STAT chunk but fabricates an antihistamine cure mechanism."
+  },
+  {
+    "id": "sem-pmid-40100006-faithful",
+    "claim": "Filaggrin loss-of-function variants increase transepidermal water loss and weaken the epidermal barrier in atopic dermatitis, enabling allergen penetration.",
+    "chunk_text": "Filaggrin loss-of-function variants drive transepidermal water loss and weaken the epidermal barrier in atopic dermatitis, enabling allergen penetration and downstream type 2 inflammation.",
+    "supported": true,
+    "note": "Paraphrase preserving filaggrin barrier mechanism."
+  },
+  {
+    "id": "sem-pmid-40100006-hallucinated",
+    "claim": "Gene therapy correcting filaggrin variants is now FDA approved and cures atopic dermatitis in a single intravenous infusion.",
+    "chunk_text": "Filaggrin loss-of-function variants drive transepidermal water loss and weaken the epidermal barrier in atopic dermatitis, enabling allergen penetration and downstream type 2 inflammation.",
+    "supported": false,
+    "note": "Invents FDA-approved gene therapy cure not in the chunk."
+  },
+  {
+    "id": "sem-pmid-40100009-faithful",
+    "claim": "Staphylococcus aureus dominance and reduced microbial diversity correlate with atopic dermatitis flares and barrier injury.",
+    "chunk_text": "Skin microbiome dysbiosis with Staphylococcus aureus dominance correlates with atopic dermatitis flares, barrier injury, and reduced microbial diversity, supporting microbial balance as a therapeutic consideration.",
+    "supported": true,
+    "note": "Paraphrase preserving S. aureus dysbiosis entities."
+  },
+  {
+    "id": "sem-pmid-40100009-hallucinated",
+    "claim": "Daily bleach baths eradicate all Staphylococcus aureus and guarantee permanent remission of atopic dermatitis in every patient.",
+    "chunk_text": "Skin microbiome dysbiosis with Staphylococcus aureus dominance correlates with atopic dermatitis flares, barrier injury, and reduced microbial diversity, supporting microbial balance as a therapeutic consideration.",
+    "supported": false,
+    "note": "Fabricates a guaranteed-remission treatment claim."
+  },
+  {
+    "id": "sem-pmid-40100003-faithful",
+    "claim": "Neuroimmune crosstalk involving IL-31 signaling and sensory neuron activation sustains itch in atopic dermatitis.",
+    "chunk_text": "This review focuses on how neuroimmune crosstalk, including IL-31 signaling and sensory neuron activation, sustains itch in atopic dermatitis.",
+    "supported": true,
+    "note": "Near-verbatim paraphrase of the itch-mechanism chunk."
+  },
+  {
+    "id": "sem-pmid-40100003-hallucinated",
+    "claim": "Surgically severing cutaneous sensory neurons is the standard recommended treatment to abolish itch in atopic dermatitis patients.",
+    "chunk_text": "This review focuses on how neuroimmune crosstalk, including IL-31 signaling and sensory neuron activation, sustains itch in atopic dermatitis.",
+    "supported": false,
+    "note": "Cites the itch chunk but fabricates a surgical treatment recommendation."
+  }
+]

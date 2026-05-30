@@ -1,7 +1,10 @@
 import json
 import re
 
+import numpy as np
+
 from app.schemas.rag import CitationCard, GroundedClaim, GroundingMetadata, GroundingPolicy
+from app.services.retrieval.embedding import EmbeddingBackend
 
 BLOCKED_ANSWER_TEXT = (
     "当前模型草稿未通过引用证据校验，系统已拦截展示。"
@@ -30,6 +33,36 @@ def build_allowed_evidence_refs(citations: list[CitationCard]) -> list[str]:
         if ref not in refs:
             refs.append(ref)
     return refs
+
+
+def score_claim_support(claim_text: str, reference_text: str, backend: EmbeddingBackend) -> float:
+    """Cosine similarity between a claim and its cited evidence text.
+
+    The default ``HashingEmbeddingBackend`` makes this a lexical-overlap proxy,
+    not true semantics; ``QIYAN_EMBEDDING_BACKEND=bge`` upgrades it in place.
+    True cosine is computed (not a raw dot product) so the score stays in
+    ``[0, 1]`` regardless of whether the backend L2-normalises its output.
+    """
+
+    vectors = backend.encode([claim_text, reference_text])
+    claim_vec = vectors[0]
+    reference_vec = vectors[1]
+    denominator = float(np.linalg.norm(claim_vec) * np.linalg.norm(reference_vec))
+    if denominator <= 1e-12:
+        return 0.0
+    cosine = float(np.dot(claim_vec, reference_vec) / denominator)
+    return max(0.0, min(1.0, cosine))
+
+
+def _reference_text_by_ref(citations: list[CitationCard]) -> dict[str, str]:
+    """Map each evidence ref to the cited chunk text (``quote``) or abstract ``snippet``."""
+
+    mapping: dict[str, str] = {}
+    for citation in citations:
+        ref = citation.chunk_id or citation.literature_id
+        if ref not in mapping:
+            mapping[ref] = citation.quote or citation.snippet
+    return mapping
 
 
 def extract_bracketed_refs(answer_text: str) -> list[str]:
@@ -99,6 +132,8 @@ def _blocked_structured_metadata(
     provider_native_grounding: bool = False,
     tool_name: str | None = None,
     tool_call_count: int = 0,
+    semantic_threshold: float | None = None,
+    min_semantic_score: float | None = None,
 ) -> GroundingMetadata:
     claims = structured_claims or []
     return GroundingMetadata(
@@ -117,6 +152,8 @@ def _blocked_structured_metadata(
         provider_native_grounding=provider_native_grounding,
         tool_name=tool_name,
         tool_call_count=tool_call_count,
+        semantic_threshold=semantic_threshold,
+        min_semantic_score=min_semantic_score,
     )
 
 
@@ -140,6 +177,8 @@ def evaluate_answer_grounding(
     tool_name: str | None = None,
     tool_call_count: int = 0,
     blocked_reason: str | None = None,
+    semantic_backend: EmbeddingBackend | None = None,
+    semantic_threshold: float | None = None,
 ) -> tuple[str, GroundingMetadata]:
     allowed_refs = build_allowed_evidence_refs(citations)
     if provider_name not in _EXTERNAL_PROVIDER_NAMES:
@@ -260,6 +299,42 @@ def evaluate_answer_grounding(
             ),
         )
 
+    min_semantic_score: float | None = None
+    if semantic_threshold is not None and semantic_backend is not None:
+        reference_by_ref = _reference_text_by_ref(citations)
+        for claim in structured_claims:
+            claim_best = 0.0
+            for ref in claim.evidence_refs:
+                reference_text = reference_by_ref.get(ref)
+                if not reference_text:
+                    continue
+                claim_best = max(
+                    claim_best,
+                    score_claim_support(claim.text, reference_text, semantic_backend),
+                )
+            claim.semantic_score = claim_best
+            min_semantic_score = (
+                claim_best if min_semantic_score is None else min(min_semantic_score, claim_best)
+            )
+
+        if min_semantic_score is not None and min_semantic_score < semantic_threshold:
+            return (
+                BLOCKED_ANSWER_TEXT,
+                _blocked_structured_metadata(
+                    reason="semantic_low_support",
+                    allowed_refs=allowed_refs,
+                    policy=policy,
+                    structured_claims=structured_claims,
+                    matched_refs=matched_refs,
+                    unsupported_refs=unsupported_refs,
+                    provider_native_grounding=provider_native_grounding,
+                    tool_name=tool_name,
+                    tool_call_count=tool_call_count,
+                    semantic_threshold=semantic_threshold,
+                    min_semantic_score=min_semantic_score,
+                ),
+            )
+
     return (
         _build_structured_answer(structured_claims),
         GroundingMetadata(
@@ -274,5 +349,7 @@ def evaluate_answer_grounding(
             provider_native_grounding=provider_native_grounding,
             tool_name=tool_name,
             tool_call_count=tool_call_count,
+            semantic_threshold=semantic_threshold,
+            min_semantic_score=min_semantic_score,
         ),
     )

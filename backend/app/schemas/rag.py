@@ -31,6 +31,7 @@ class RetrievalMetadata(BaseModel):
 class GroundedClaim(BaseModel):
     text: str
     evidence_refs: list[str] = Field(default_factory=list)
+    semantic_score: float | None = None
 
 
 class GroundingMetadata(BaseModel):
@@ -47,6 +48,8 @@ class GroundingMetadata(BaseModel):
     provider_native_grounding: bool = False
     tool_name: str | None = None
     tool_call_count: int = 0
+    semantic_threshold: float | None = None
+    min_semantic_score: float | None = None
 
 
 class RagAnswerRequest(BaseModel):
