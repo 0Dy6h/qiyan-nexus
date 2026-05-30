@@ -24,6 +24,8 @@ def build_citation_text(citations: list[CitationCard]) -> str:
             f"来源：{citation.source}",
             f"片段：{citation.snippet}",
         ]
+        if citation.quote:
+            parts.append(f"证据原文：{citation.quote.strip()}")
         if citation.reason:
             parts.append(f"匹配依据：{citation.reason}")
         parts.append(f"置信度：{citation.confidence:.2f}")

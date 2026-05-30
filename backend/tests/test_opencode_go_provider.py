@@ -14,6 +14,7 @@ _SAMPLE_CITATIONS: list[CitationCard] = [
         title="肠-脑-皮肤轴与特应性皮炎中医证候研究",
         source="CNKI curated AD sample",
         snippet="围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述。",
+        quote="肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变。",
         reason="gut_skin_axis, tcm_syndrome",
         confidence=0.86,
     )
@@ -98,6 +99,7 @@ def test_generate_answer_posts_chat_completion_and_extracts_usage(monkeypatch):
     assert _QUESTION in body
     assert _SAMPLE_CITATIONS[0].title in body
     assert _SAMPLE_CITATIONS[0].snippet in body
+    assert _SAMPLE_CITATIONS[0].quote in body
     assert "[1]" not in user_content
     assert "引用 1" in user_content
     assert "证据ID：cn-ad-gbs-001" in user_content

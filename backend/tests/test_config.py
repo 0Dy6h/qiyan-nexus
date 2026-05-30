@@ -3,7 +3,21 @@ from pathlib import Path
 from app.core.config import get_settings
 
 
-def test_default_settings():
+def test_default_settings(monkeypatch):
+    for env_var in [
+        "APP_NAME",
+        "ENVIRONMENT",
+        "UPLOAD_STORAGE_DIR",
+        "ANTHROPIC_API_KEY",
+        "QIYAN_ANTHROPIC_MODEL",
+        "QIYAN_ANTHROPIC_MAX_TOKENS",
+        "QIYAN_OPENCODE_GO_API_KEY",
+        "QIYAN_OPENCODE_GO_BASE_URL",
+        "QIYAN_OPENCODE_GO_MODEL",
+        "QIYAN_OPENCODE_GO_MAX_TOKENS",
+        "QIYAN_OPENCODE_GO_TEMPERATURE",
+    ]:
+        monkeypatch.delenv(env_var, raising=False)
     get_settings.cache_clear()
     settings = get_settings()
 
@@ -16,6 +30,7 @@ def test_default_settings():
     assert settings.opencode_go_model == "deepseek-v4-flash"
     assert settings.opencode_go_max_tokens == 1200
     assert settings.opencode_go_temperature == 0.2
+    get_settings.cache_clear()
 
 
 def test_upload_storage_dir_from_env(monkeypatch):

@@ -34,7 +34,12 @@ def build_answer(citations: list[CitationCard], question: str = "") -> str:
 
 
 def answer_question(
-    question: str, source: LiteratureSource = "all", top_k: int = 2
+    question: str,
+    source: LiteratureSource = "all",
+    top_k: int = 2,
+    *,
+    llm_provider_name: str | None = None,
+    retrieval_provider_name: str | None = None,
 ) -> RagAnswerResponse:
     normalized_question = question.strip()
     preferred_source_type = (
@@ -49,7 +54,7 @@ def answer_question(
         item.id: _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id) for item in items
     }
 
-    retrieval_provider = select_retrieval_provider()
+    retrieval_provider = select_retrieval_provider(retrieval_provider_name)
     ranked: list[ScoredCandidate] = retrieval_provider.rank(
         normalized_question, items, chunks_by_item, preferred_source_type
     )
@@ -117,7 +122,7 @@ def answer_question(
             )
         )
 
-    provider = select_provider()
+    provider = select_provider(llm_provider_name)
     draft = provider.generate_answer(normalized_question, citations)
     grounded_answer, grounding = evaluate_answer_grounding(
         draft.provider_name, draft.text, citations
