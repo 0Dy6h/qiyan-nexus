@@ -21,7 +21,7 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
-from app.schemas.rag import CitationCard
+from app.schemas.rag import CitationCard, GroundedClaim, GroundingPolicy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +60,12 @@ class AnswerDraft(BaseModel):
     provider_name: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+    structured_claims: list[GroundedClaim] | None = None
+    grounding_policy: GroundingPolicy = "structured_claim_refs_v3"
+    provider_native_grounding: bool = False
+    tool_name: str | None = None
+    tool_call_count: int = 0
+    grounding_blocked_reason: str | None = None
 
 
 @runtime_checkable

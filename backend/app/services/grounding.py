@@ -1,8 +1,7 @@
 import json
 import re
-from typing import Literal
 
-from app.schemas.rag import CitationCard, GroundedClaim, GroundingMetadata
+from app.schemas.rag import CitationCard, GroundedClaim, GroundingMetadata, GroundingPolicy
 
 BLOCKED_ANSWER_TEXT = (
     "当前模型草稿未通过引用证据校验，系统已拦截展示。"
@@ -15,7 +14,13 @@ _CLAIM_SPLIT_PATTERN = re.compile(r"(?<=[。！？!?])|\n+")
 _CLAIM_PREFIX_PATTERN = re.compile(r"^\s*(?:[-*•]|\d+[.、）)])\s*")
 _MARKDOWN_MARKERS_PATTERN = re.compile(r"[*_`>#]")
 _JSON_FENCE_PATTERN = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
-_STRUCTURED_GROUNDING_POLICY: Literal["structured_claim_refs_v3"] = "structured_claim_refs_v3"
+_STRUCTURED_GROUNDING_POLICY: GroundingPolicy = "structured_claim_refs_v3"
+_ANTHROPIC_TOOL_GROUNDING_POLICY: GroundingPolicy = "anthropic_tool_use_v1"
+_OPENCODE_GO_TOOL_GROUNDING_POLICY: GroundingPolicy = "opencode_go_tool_use_v1"
+_PROVIDER_NATIVE_TOOL_POLICIES = {
+    _ANTHROPIC_TOOL_GROUNDING_POLICY,
+    _OPENCODE_GO_TOOL_GROUNDING_POLICY,
+}
 
 
 def build_allowed_evidence_refs(citations: list[CitationCard]) -> list[str]:
@@ -87,14 +92,18 @@ def _blocked_structured_metadata(
     *,
     reason: str,
     allowed_refs: list[str],
+    policy: GroundingPolicy = _STRUCTURED_GROUNDING_POLICY,
     structured_claims: list[GroundedClaim] | None = None,
     matched_refs: list[str] | None = None,
     unsupported_refs: list[str] | None = None,
+    provider_native_grounding: bool = False,
+    tool_name: str | None = None,
+    tool_call_count: int = 0,
 ) -> GroundingMetadata:
     claims = structured_claims or []
     return GroundingMetadata(
         status="blocked",
-        policy=_STRUCTURED_GROUNDING_POLICY,
+        policy=policy,
         checked=True,
         blocked_reason=reason,
         allowed_evidence_refs=allowed_refs,
@@ -105,6 +114,9 @@ def _blocked_structured_metadata(
             1 for claim in claims if any(ref in allowed_refs for ref in claim.evidence_refs)
         ),
         structured_claims=claims,
+        provider_native_grounding=provider_native_grounding,
+        tool_name=tool_name,
+        tool_call_count=tool_call_count,
     )
 
 
@@ -121,6 +133,13 @@ def evaluate_answer_grounding(
     provider_name: str,
     answer_text: str,
     citations: list[CitationCard],
+    *,
+    structured_claims: list[GroundedClaim] | None = None,
+    policy: GroundingPolicy = _STRUCTURED_GROUNDING_POLICY,
+    provider_native_grounding: bool = False,
+    tool_name: str | None = None,
+    tool_call_count: int = 0,
+    blocked_reason: str | None = None,
 ) -> tuple[str, GroundingMetadata]:
     allowed_refs = build_allowed_evidence_refs(citations)
     if provider_name not in _EXTERNAL_PROVIDER_NAMES:
@@ -128,28 +147,58 @@ def evaluate_answer_grounding(
             answer_text,
             GroundingMetadata(
                 status="skipped",
-                policy=_STRUCTURED_GROUNDING_POLICY,
+                policy=policy,
                 checked=False,
                 allowed_evidence_refs=allowed_refs,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
-    structured_claims = _parse_structured_claims(answer_text)
+    if policy in _PROVIDER_NATIVE_TOOL_POLICIES and structured_claims is None:
+        return (
+            BLOCKED_ANSWER_TEXT,
+            _blocked_structured_metadata(
+                reason=blocked_reason or "missing_tool_use",
+                allowed_refs=allowed_refs,
+                policy=policy,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
+            ),
+        )
+
+    if structured_claims is None:
+        structured_claims = _parse_structured_claims(answer_text)
     if structured_claims is None:
         return (
             BLOCKED_ANSWER_TEXT,
             _blocked_structured_metadata(
                 reason="structured_claims_parse_error",
                 allowed_refs=allowed_refs,
+                policy=policy,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
     if not structured_claims:
+        reason = (
+            "empty_tool_claims"
+            if policy in _PROVIDER_NATIVE_TOOL_POLICIES
+            else "empty_structured_claims"
+        )
         return (
             BLOCKED_ANSWER_TEXT,
             _blocked_structured_metadata(
-                reason="empty_structured_claims",
+                reason=reason,
                 allowed_refs=allowed_refs,
+                policy=policy,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
@@ -169,9 +218,13 @@ def evaluate_answer_grounding(
             _blocked_structured_metadata(
                 reason="blank_claim_text",
                 allowed_refs=allowed_refs,
+                policy=policy,
                 structured_claims=structured_claims,
                 matched_refs=matched_refs,
                 unsupported_refs=unsupported_refs,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
@@ -181,9 +234,13 @@ def evaluate_answer_grounding(
             _blocked_structured_metadata(
                 reason="claim_without_evidence_ref",
                 allowed_refs=allowed_refs,
+                policy=policy,
                 structured_claims=structured_claims,
                 matched_refs=matched_refs,
                 unsupported_refs=unsupported_refs,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
@@ -193,9 +250,13 @@ def evaluate_answer_grounding(
             _blocked_structured_metadata(
                 reason="unsupported_evidence_ref",
                 allowed_refs=allowed_refs,
+                policy=policy,
                 structured_claims=structured_claims,
                 matched_refs=matched_refs,
                 unsupported_refs=unsupported_refs,
+                provider_native_grounding=provider_native_grounding,
+                tool_name=tool_name,
+                tool_call_count=tool_call_count,
             ),
         )
 
@@ -203,12 +264,15 @@ def evaluate_answer_grounding(
         _build_structured_answer(structured_claims),
         GroundingMetadata(
             status="passed",
-            policy=_STRUCTURED_GROUNDING_POLICY,
+            policy=policy,
             checked=True,
             allowed_evidence_refs=allowed_refs,
             matched_evidence_refs=matched_refs,
             claim_count=len(structured_claims),
             cited_claim_count=len(structured_claims),
             structured_claims=structured_claims,
+            provider_native_grounding=provider_native_grounding,
+            tool_name=tool_name,
+            tool_call_count=tool_call_count,
         ),
     )

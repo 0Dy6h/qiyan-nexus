@@ -120,6 +120,121 @@ def test_generate_answer_posts_chat_completion_and_extracts_usage(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_generate_answer_prefers_openai_compatible_tool_calls(monkeypatch):
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-secret")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_BASE_URL", "https://example.test/v1/")
+    get_settings.cache_clear()
+    seen_request: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_request["body"] = request.read().decode("utf-8")
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "record_grounded_claims",
+                                        "arguments": json.dumps(
+                                            {
+                                                "claims": [
+                                                    {
+                                                        "text": "OpenCode Go 工具声明",
+                                                        "evidence_refs": ["cn-ad-gbs-001"],
+                                                    }
+                                                ]
+                                            },
+                                            ensure_ascii=False,
+                                        ),
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 8},
+            },
+        )
+
+    provider = OpenCodeGoProvider(http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    payload = json.loads(str(seen_request["body"]))
+    assert payload["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "record_grounded_claims"},
+    }
+    assert payload["tools"][0]["type"] == "function"
+    assert payload["tools"][0]["function"]["name"] == "record_grounded_claims"
+    assert payload["tools"][0]["function"]["strict"] is True
+    assert draft.provider_name == "opencode_go"
+    assert draft.grounding_policy == "opencode_go_tool_use_v1"
+    assert draft.provider_native_grounding is True
+    assert draft.tool_name == "record_grounded_claims"
+    assert draft.tool_call_count == 1
+    assert draft.structured_claims is not None
+    assert draft.structured_claims[0].text == "OpenCode Go 工具声明"
+    assert draft.structured_claims[0].evidence_refs == ["cn-ad-gbs-001"]
+    assert draft.input_tokens == 20
+    assert draft.output_tokens == 8
+    get_settings.cache_clear()
+
+
+def test_generate_answer_retries_legacy_structured_claims_when_tools_are_rejected(monkeypatch):
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-secret")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_BASE_URL", "https://example.test/v1/")
+    get_settings.cache_clear()
+    seen_bodies: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.read().decode("utf-8"))
+        seen_bodies.append(body)
+        if len(seen_bodies) == 1:
+            return httpx.Response(400, json={"error": "tools are not supported"})
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"claims":[{"text":"legacy structured claim",'
+                                '"evidence_refs":["cn-ad-gbs-001"]}]}'
+                            )
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 21, "completion_tokens": 9},
+            },
+        )
+
+    provider = OpenCodeGoProvider(http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    assert len(seen_bodies) == 2
+    assert "tools" in seen_bodies[0]
+    assert "tool_choice" in seen_bodies[0]
+    assert "tools" not in seen_bodies[1]
+    assert "tool_choice" not in seen_bodies[1]
+    assert draft.provider_name == "opencode_go"
+    assert (
+        draft.text
+        == '{"claims":[{"text":"legacy structured claim","evidence_refs":["cn-ad-gbs-001"]}]}'
+    )
+    assert draft.grounding_policy == "structured_claim_refs_v3"
+    assert draft.provider_native_grounding is False
+    assert draft.input_tokens == 21
+    assert draft.output_tokens == 9
+    get_settings.cache_clear()
+
+
 def test_http_error_falls_back_and_does_not_log_secret(monkeypatch, caplog):
     monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "secret-that-must-not-leak")
     get_settings.cache_clear()

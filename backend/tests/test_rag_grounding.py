@@ -1,4 +1,4 @@
-from app.schemas.rag import CitationCard
+from app.schemas.rag import CitationCard, GroundedClaim
 from app.services.grounding import BLOCKED_ANSWER_TEXT, evaluate_answer_grounding
 
 
@@ -64,6 +64,39 @@ def test_external_answer_passes_when_it_uses_allowed_evidence_ref():
         "证据提示肠道菌群与皮肤屏障异常之间存在关联",
         "短链脂肪酸代谢和免疫平衡可能与严重度有关",
     ]
+
+
+def test_anthropic_native_tool_claims_pass_when_they_use_allowed_evidence_refs():
+    grounded_answer, metadata = evaluate_answer_grounding(
+        provider_name="anthropic",
+        answer_text="this free text must not be shown",
+        citations=_sample_citations(),
+        structured_claims=[
+            GroundedClaim(
+                text="证据提示肠道菌群与皮肤屏障异常之间存在关联",
+                evidence_refs=["chunk-cn-ad-gbs-001-abstract"],
+            )
+        ],
+        policy="anthropic_tool_use_v1",
+        provider_native_grounding=True,
+        tool_name="record_grounded_claims",
+        tool_call_count=1,
+    )
+
+    assert (
+        grounded_answer
+        == "证据提示肠道菌群与皮肤屏障异常之间存在关联 [chunk-cn-ad-gbs-001-abstract]。"
+    )
+    assert metadata.status == "passed"
+    assert metadata.policy == "anthropic_tool_use_v1"
+    assert metadata.checked is True
+    assert metadata.provider_native_grounding is True
+    assert metadata.tool_name == "record_grounded_claims"
+    assert metadata.tool_call_count == 1
+    assert metadata.matched_evidence_refs == ["chunk-cn-ad-gbs-001-abstract"]
+    assert metadata.unsupported_evidence_refs == []
+    assert metadata.claim_count == 1
+    assert metadata.cited_claim_count == 1
 
 
 def test_external_answer_accepts_fenced_structured_claims_json():

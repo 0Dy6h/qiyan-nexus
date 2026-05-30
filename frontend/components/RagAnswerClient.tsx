@@ -44,6 +44,14 @@ function formatStructuredClaimCount(grounding: GroundingMetadata) {
   return `${grounding.structured_claims.length}`;
 }
 
+function formatNativeGrounding(grounding: GroundingMetadata) {
+  return grounding.provider_native_grounding ? "true" : "false";
+}
+
+function formatGroundingTool(grounding: GroundingMetadata) {
+  return grounding.tool_name ?? "无";
+}
+
 function formatGroundingBlockedReason(reason: string | null | undefined) {
   if (reason === "unsupported_evidence_ref") {
     return "存在未提供的证据 ID";
@@ -53,6 +61,18 @@ function formatGroundingBlockedReason(reason: string | null | undefined) {
   }
   if (reason === "empty_structured_claims") {
     return "结构化 claims 为空";
+  }
+  if (reason === "missing_tool_use") {
+    return "模型未调用受控引用工具";
+  }
+  if (reason === "tool_name_mismatch") {
+    return "模型调用了非预期工具";
+  }
+  if (reason === "tool_input_schema_error") {
+    return "引用工具参数不符合结构化 schema";
+  }
+  if (reason === "empty_tool_claims") {
+    return "引用工具 claims 为空";
   }
   if (reason === "claim_without_evidence_ref") {
     return "存在未声明证据 ID 的结构化 claim";
@@ -270,6 +290,7 @@ export default function RagAnswerClient() {
                 `Provider ${state.result.provider_name}`,
                 `检索策略 ${state.result.retrieval.strategy}`,
                 `Grounding ${state.result.grounding.status}`,
+                `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
                 `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
               ]}
@@ -319,6 +340,9 @@ export default function RagAnswerClient() {
                 `检索策略 ${state.result.retrieval.strategy}`,
                 `Grounding ${state.result.grounding.status}`,
                 `Grounding 策略 ${state.result.grounding.policy}`,
+                `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
+                `Grounding Tool ${formatGroundingTool(state.result.grounding)}`,
+                `Tool 调用数 ${state.result.grounding.tool_call_count}`,
                 `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
                 `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,

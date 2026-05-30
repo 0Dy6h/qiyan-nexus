@@ -125,7 +125,15 @@ def answer_question(
     provider = select_provider(llm_provider_name)
     draft = provider.generate_answer(normalized_question, citations)
     grounded_answer, grounding = evaluate_answer_grounding(
-        draft.provider_name, draft.text, citations
+        draft.provider_name,
+        draft.text,
+        citations,
+        structured_claims=draft.structured_claims,
+        policy=draft.grounding_policy,
+        provider_native_grounding=draft.provider_native_grounding,
+        tool_name=draft.tool_name,
+        tool_call_count=draft.tool_call_count,
+        blocked_reason=draft.grounding_blocked_reason,
     )
     return RagAnswerResponse(
         question=normalized_question,

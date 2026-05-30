@@ -50,6 +50,9 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push(`- 检索策略：${result.retrieval.strategy}`);
   sections.push(`- Grounding 状态：${result.grounding.status}`);
   sections.push(`- Grounding 策略：${result.grounding.policy}`);
+  sections.push(`- Provider-native grounding：${result.grounding.provider_native_grounding}`);
+  sections.push(`- Grounding Tool：${result.grounding.tool_name ?? "无"}`);
+  sections.push(`- Tool 调用数：${result.grounding.tool_call_count}`);
   sections.push(`- Grounding 拦截原因：${result.grounding.blocked_reason ?? "无"}`);
   sections.push(`- 句级引用覆盖：${result.grounding.cited_claim_count}/${result.grounding.claim_count}`);
   sections.push(

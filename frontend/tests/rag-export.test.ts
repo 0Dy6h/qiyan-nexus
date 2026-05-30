@@ -28,6 +28,9 @@ const SAMPLE_RESULT: RagAnswerResponse = {
         evidence_refs: ["chunk-cn-ad-gbs-001-abstract"],
       },
     ],
+    provider_native_grounding: false,
+    tool_name: null,
+    tool_call_count: 0,
   },
   retrieval: {
     applied_source: "all",
@@ -77,6 +80,9 @@ test("buildAnswerMarkdown includes question, answer, citations, retrieval, discl
   assert.ok(md.includes("检索策略：keyword"));
   assert.ok(md.includes("Grounding 状态：skipped"));
   assert.ok(md.includes("Grounding 策略：structured_claim_refs_v3"));
+  assert.ok(md.includes("Provider-native grounding：false"));
+  assert.ok(md.includes("Grounding Tool：无"));
+  assert.ok(md.includes("Tool 调用数：0"));
   assert.ok(md.includes("句级引用覆盖：0/0"));
   assert.ok(md.includes("## 结构化声明"));
   assert.ok(md.includes("### Claim 1"));
@@ -109,6 +115,26 @@ test("buildAnswerMarkdown includes token usage when provider returns it", () => 
   assert.ok(md.includes("检索策略：hybrid"));
   assert.ok(md.includes("Token 输入：128"));
   assert.ok(md.includes("Token 输出：64"));
+});
+
+test("buildAnswerMarkdown includes OpenCode Go native grounding metadata", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    grounding: {
+      ...SAMPLE_RESULT.grounding,
+      policy: "opencode_go_tool_use_v1",
+      provider_native_grounding: true,
+      tool_name: "record_grounded_claims",
+      tool_call_count: 1,
+    },
+  });
+
+  assert.ok(md.includes("Provider：opencode_go"));
+  assert.ok(md.includes("Grounding 策略：opencode_go_tool_use_v1"));
+  assert.ok(md.includes("Provider-native grounding：true"));
+  assert.ok(md.includes("Grounding Tool：record_grounded_claims"));
+  assert.ok(md.includes("Tool 调用数：1"));
 });
 
 test("buildAnswerMarkdown includes blocked grounding details", () => {

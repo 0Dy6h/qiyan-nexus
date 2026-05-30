@@ -40,6 +40,16 @@ def _make_mock_response(text: str) -> MagicMock:
     return response
 
 
+def _make_tool_response(tool_input: dict[str, object]) -> MagicMock:
+    block = MagicMock()
+    block.type = "tool_use"
+    block.name = "record_grounded_claims"
+    block.input = tool_input
+    response = MagicMock()
+    response.content = [block]
+    return response
+
+
 def test_provider_name_remains_anthropic():
     assert AnthropicProvider.name == "anthropic"
 
@@ -82,6 +92,66 @@ def test_generate_answer_calls_client_with_expected_shape():
 
     assert draft.text == "假回答"
     assert draft.provider_name == "anthropic"
+
+
+def test_generate_answer_forces_strict_grounding_tool_and_extracts_claims():
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _make_tool_response(
+        {
+            "claims": [
+                {
+                    "text": "屏障破坏和二型炎症偏移是 AD 机制线索",
+                    "evidence_refs": ["pmid-40100001"],
+                }
+            ]
+        }
+    )
+    provider = AnthropicProvider(client=mock_client)
+
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)
+
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert call_kwargs["tool_choice"] == {"type": "tool", "name": "record_grounded_claims"}
+    assert call_kwargs["tools"] == [
+        {
+            "name": "record_grounded_claims",
+            "description": "Record short grounded evidence claims using only the provided evidence IDs.",
+            "input_schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "claims": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "text": {"type": "string", "minLength": 1},
+                                "evidence_refs": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {"type": "string", "minLength": 1},
+                                },
+                            },
+                            "required": ["text", "evidence_refs"],
+                        },
+                    }
+                },
+                "required": ["claims"],
+            },
+            "strict": True,
+        }
+    ]
+    assert draft.provider_name == "anthropic"
+    assert draft.grounding_policy == "anthropic_tool_use_v1"
+    assert draft.provider_native_grounding is True
+    assert draft.tool_name == "record_grounded_claims"
+    assert draft.tool_call_count == 1
+    assert draft.structured_claims is not None
+    assert draft.structured_claims[0].text == "屏障破坏和二型炎症偏移是 AD 机制线索"
+    assert draft.structured_claims[0].evidence_refs == ["pmid-40100001"]
 
 
 def test_generate_answer_empty_citations_skips_api():

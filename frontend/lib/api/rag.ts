@@ -28,7 +28,7 @@ export type GroundedClaim = {
 
 export type GroundingMetadata = {
   status: "skipped" | "passed" | "blocked";
-  policy: "structured_claim_refs_v3";
+  policy: "structured_claim_refs_v3" | "anthropic_tool_use_v1" | "opencode_go_tool_use_v1";
   checked: boolean;
   blocked_reason?: string | null;
   allowed_evidence_refs: string[];
@@ -37,6 +37,9 @@ export type GroundingMetadata = {
   claim_count: number;
   cited_claim_count: number;
   structured_claims: GroundedClaim[];
+  provider_native_grounding: boolean;
+  tool_name?: string | null;
+  tool_call_count: number;
 };
 
 export type RagAnswerResponse = {

@@ -2,6 +2,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+GroundingPolicy = Literal[
+    "structured_claim_refs_v3", "anthropic_tool_use_v1", "opencode_go_tool_use_v1"
+]
+
 
 class CitationCard(BaseModel):
     literature_id: str
@@ -31,7 +35,7 @@ class GroundedClaim(BaseModel):
 
 class GroundingMetadata(BaseModel):
     status: Literal["skipped", "passed", "blocked"]
-    policy: Literal["structured_claim_refs_v3"] = "structured_claim_refs_v3"
+    policy: GroundingPolicy = "structured_claim_refs_v3"
     checked: bool
     blocked_reason: str | None = None
     allowed_evidence_refs: list[str] = Field(default_factory=list)
@@ -40,6 +44,9 @@ class GroundingMetadata(BaseModel):
     claim_count: int = 0
     cited_claim_count: int = 0
     structured_claims: list[GroundedClaim] = Field(default_factory=list)
+    provider_native_grounding: bool = False
+    tool_name: str | None = None
+    tool_call_count: int = 0
 
 
 class RagAnswerRequest(BaseModel):

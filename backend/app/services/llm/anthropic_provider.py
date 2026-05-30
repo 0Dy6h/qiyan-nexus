@@ -14,15 +14,16 @@ anthropic SDK import cost. Implementation lands across C1 slices 1-4:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.core.config import get_settings
-from app.schemas.rag import CitationCard
+from app.schemas.rag import CitationCard, GroundedClaim
 from app.services.llm.prompting import GROUNDING_SYSTEM_PROMPT, build_citation_text
 from app.services.llm.provider import AnswerDraft
 
 if TYPE_CHECKING:
     from anthropic import Anthropic
+    from anthropic.types import MessageParam, ToolChoiceToolParam, ToolParam
 
     from app.services.llm.provider import LLMProvider
 
@@ -32,6 +33,37 @@ _LOGGER = logging.getLogger(__name__)
 _EMPTY_CITATIONS_FALLBACK = (
     "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
 )
+GROUNDING_TOOL_NAME = "record_grounded_claims"
+GROUNDING_TOOL_SCHEMA = {
+    "name": GROUNDING_TOOL_NAME,
+    "description": "Record short grounded evidence claims using only the provided evidence IDs.",
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "claims": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "text": {"type": "string", "minLength": 1},
+                        "evidence_refs": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {"type": "string", "minLength": 1},
+                        },
+                    },
+                    "required": ["text", "evidence_refs"],
+                },
+            }
+        },
+        "required": ["claims"],
+    },
+    "strict": True,
+}
 
 
 def _extract_text_from_response(response: object) -> str:
@@ -41,6 +73,55 @@ def _extract_text_from_response(response: object) -> str:
             block_text: str = getattr(block, "text", "")
             text_parts.append(block_text)
     return "".join(text_parts)
+
+
+def _parse_grounding_tool_input(tool_input: object) -> list[GroundedClaim] | None:
+    if not isinstance(tool_input, dict):
+        return None
+    raw_claims = tool_input.get("claims")
+    if not isinstance(raw_claims, list):
+        return None
+
+    claims: list[GroundedClaim] = []
+    for raw_claim in raw_claims:
+        if not isinstance(raw_claim, dict):
+            return None
+        text = raw_claim.get("text")
+        evidence_refs = raw_claim.get("evidence_refs")
+        if not isinstance(text, str) or not isinstance(evidence_refs, list):
+            return None
+
+        refs: list[str] = []
+        for raw_ref in evidence_refs:
+            if not isinstance(raw_ref, str):
+                return None
+            if raw_ref not in refs:
+                refs.append(raw_ref)
+        claims.append(GroundedClaim(text=text.strip(), evidence_refs=refs))
+
+    return claims
+
+
+def _extract_grounding_tool_claims(
+    response: object,
+) -> tuple[list[GroundedClaim] | None, str | None, int, str | None]:
+    tool_name: str | None = None
+    tool_call_count = 0
+    for block in response.content:  # type: ignore[attr-defined]
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        tool_call_count += 1
+        current_tool_name = getattr(block, "name", None)
+        if isinstance(current_tool_name, str) and tool_name is None:
+            tool_name = current_tool_name
+        if current_tool_name != GROUNDING_TOOL_NAME:
+            continue
+        claims = _parse_grounding_tool_input(getattr(block, "input", None))
+        if claims is None:
+            return None, tool_name, tool_call_count, "tool_input_schema_error"
+        return claims, tool_name, tool_call_count, None
+    blocked_reason = "missing_tool_use" if tool_call_count == 0 else "tool_name_mismatch"
+    return None, tool_name, tool_call_count, blocked_reason
 
 
 def _is_auth_resolution_type_error(exc: Exception) -> bool:
@@ -103,12 +184,22 @@ class AnthropicProvider:
                 model=settings.anthropic_model,
                 max_tokens=settings.anthropic_max_tokens,
                 system=GROUNDING_SYSTEM_PROMPT,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"问题：{question}\n\n引用片段：\n\n{build_citation_text(citations)}",
-                    },
-                ],
+                tools=cast("list[ToolParam]", [GROUNDING_TOOL_SCHEMA]),
+                tool_choice=cast(
+                    "ToolChoiceToolParam", {"type": "tool", "name": GROUNDING_TOOL_NAME}
+                ),
+                messages=cast(
+                    "list[MessageParam]",
+                    [
+                        {
+                            "role": "user",
+                            "content": (
+                                f"问题：{question}\n\n引用片段：\n\n"
+                                f"{build_citation_text(citations)}"
+                            ),
+                        },
+                    ],
+                ),
             )
         except Exception as exc:
             from anthropic import APIError
@@ -132,10 +223,19 @@ class AnthropicProvider:
         usage = getattr(response, "usage", None)
         input_tokens = getattr(usage, "input_tokens", None)
         output_tokens = getattr(usage, "output_tokens", None)
+        structured_claims, tool_name, tool_call_count, blocked_reason = (
+            _extract_grounding_tool_claims(response)
+        )
 
         return AnswerDraft(
             text=_extract_text_from_response(response),
             provider_name=self.name,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            structured_claims=structured_claims,
+            grounding_policy="anthropic_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name=tool_name,
+            tool_call_count=tool_call_count,
+            grounding_blocked_reason=blocked_reason,
         )

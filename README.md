@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`anthropic` 或 `opencode_go` provider 做 wiring/live smoke，其中真实外部 provider 草稿会经过 structured claim grounding v3 校验，未按结构化 claims JSON 输出、缺少允许证据 ID 或引用本次 citations 之外证据 ID 时会拦截展示。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
+当前状态：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
 
@@ -143,20 +143,21 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
 
 当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens` 与 `grounding` metadata，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
 
-Grounding structured claim v3：
+Grounding：
 
-- 对 `anthropic` / `opencode_go` 成功生成的外部草稿，后端要求 provider 输出 JSON claims：`{"claims":[{"text":"...","evidence_refs":["chunk-..."]}]}`。
-- 后端只展示由结构化 claims 重新组装出的 answer；原始外部草稿不会直接暴露给前端。
-- 若外部草稿不是可解析的 claims JSON、claims 为空、某条 claim 没有 evidence refs，或引用了本次 citations 未提供的证据 ID，`answer` 会被替换为拦截提示，`grounding.status="blocked"`，但 citations、provider name、token usage、`claim_count`、`cited_claim_count` 与 `structured_claims` 会保留，便于排查。
+- `opencode_go` 是当前优先 live-provider grounding 路径：后端优先发送 OpenAI-compatible `record_grounded_claims` function tool，工具参数只允许 `claims[].text` 与 `claims[].evidence_refs`；后端只展示由工具输入重新组装且通过本次 citation 证据 ID 白名单的 answer。
+- 若 OpenCode Go 网关或模型拒绝 tool/function calling，provider 会重试不带 tools 的 structured claims JSON 路径，后续仍由 structured claim grounding v3 校验：`{"claims":[{"text":"...","evidence_refs":["chunk-..."]}]}`。
+- `anthropic` 成功路径保留 provider-native strict tool use，但当前后置为可选 smoke，不作为优先路径。
+- 若 provider 未调用预期工具、工具参数不合法、claims 为空，或任一外部 provider 引用了本次 citations 未提供的证据 ID，`answer` 会被替换为拦截提示，`grounding.status="blocked"`，但 citations、provider name、token usage、`claim_count`、`cited_claim_count`、`structured_claims`、native grounding 与 tool metadata 会保留，便于排查。
 - `deterministic` 与外部 provider fallback 到 deterministic 的路径不做后验拦截，`grounding.status="skipped"`。
-- 这是结构化引用声明与越界证据 ID 拦截，不等同于语义事实核验，也不等同于后续完整 provider-native tool-use citation grounding。
+- 当前 grounding 约束引用声明、工具调用与越界证据 ID；不等同于语义事实核验，也不代表真实 LLM 默认开放。
 
 可选 LLM providers（本地 smoke 用，默认不启用）：
 
 - `QIYAN_LLM_PROVIDER=deterministic` 或未设置：默认离线 deterministic provider。
 - `QIYAN_LLM_PROVIDER=mock_claude`：离线 mock provider，用于前后端 wiring 与 UI 展示。
-- `QIYAN_LLM_PROVIDER=anthropic`：调用 Anthropic SDK；key 从 `ANTHROPIC_API_KEY` 读取；模型与 token 上限可用 `QIYAN_ANTHROPIC_MODEL`、`QIYAN_ANTHROPIC_MAX_TOKENS` 覆盖。
-- `QIYAN_LLM_PROVIDER=opencode_go`：调用 OpenCode Go OpenAI-compatible Chat Completions API。
+- `QIYAN_LLM_PROVIDER=opencode_go`：当前优先 live-provider；调用 OpenCode Go OpenAI-compatible Chat Completions API；优先尝试 function tool grounding，必要时回退 structured claims v3。
+- `QIYAN_LLM_PROVIDER=anthropic`：后置可选；调用 Anthropic SDK；key 从 `ANTHROPIC_API_KEY` 读取；模型与 token 上限可用 `QIYAN_ANTHROPIC_MODEL`、`QIYAN_ANTHROPIC_MAX_TOKENS` 覆盖；成功路径必须经过 `record_grounded_claims` strict tool-use grounding。
 - provider 出错或缺 key 时应回退 deterministic，不应让 `/api/rag/answer` 对用户硬失败。
 
 - `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
@@ -278,7 +279,7 @@ pnpm build
 当前前端能力：
 
 - `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示。
-- `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 structured claim grounding v3 时展示拦截提示；支持 Markdown 导出。
+- `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
 - `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
 - `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链，并可把当前完成结果导出为 Markdown 报告。

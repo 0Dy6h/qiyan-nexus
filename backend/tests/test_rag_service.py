@@ -283,6 +283,123 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
     assert len(response.citations) == 2
 
 
+def test_answer_question_uses_opencode_go_native_tool_claims(monkeypatch):
+    from app.schemas.rag import GroundedClaim
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text="raw opencode text must not be shown",
+            provider_name=self.name,
+            input_tokens=30,
+            output_tokens=12,
+            structured_claims=[
+                GroundedClaim(
+                    text="opencode go native tool claim",
+                    evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
+                )
+            ],
+            grounding_policy="opencode_go_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name="record_grounded_claims",
+            tool_call_count=1,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer == "opencode go native tool claim [chunk-cn-ad-gbs-001-abstract]。"
+    assert response.provider_name == "opencode_go"
+    assert response.grounding.status == "passed"
+    assert response.grounding.policy == "opencode_go_tool_use_v1"
+    assert response.grounding.provider_native_grounding is True
+    assert response.grounding.tool_name == "record_grounded_claims"
+    assert response.grounding.tool_call_count == 1
+    assert response.input_tokens == 30
+    assert response.output_tokens == 12
+
+
+def test_answer_question_uses_anthropic_native_tool_claims(monkeypatch):
+    from app.schemas.rag import GroundedClaim
+    from app.services.llm import anthropic_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(
+        anthropic_provider.AnthropicProvider,
+        "generate_answer",
+        lambda self, question, citations: anthropic_provider.AnswerDraft(
+            text="raw text must not be shown",
+            provider_name=self.name,
+            input_tokens=22,
+            output_tokens=11,
+            structured_claims=[
+                GroundedClaim(
+                    text="anthropic native tool claim",
+                    evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
+                )
+            ],
+            grounding_policy="anthropic_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name="record_grounded_claims",
+            tool_call_count=1,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer == "anthropic native tool claim [chunk-cn-ad-gbs-001-abstract]。"
+    assert response.provider_name == "anthropic"
+    assert response.grounding.status == "passed"
+    assert response.grounding.policy == "anthropic_tool_use_v1"
+    assert response.grounding.provider_native_grounding is True
+    assert response.grounding.tool_name == "record_grounded_claims"
+    assert response.grounding.tool_call_count == 1
+    assert response.grounding.structured_claims[0].text == "anthropic native tool claim"
+    assert response.input_tokens == 22
+    assert response.output_tokens == 11
+
+
+def test_answer_question_hard_blocks_anthropic_native_tool_name_mismatch(monkeypatch):
+    from app.services.llm import anthropic_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(
+        anthropic_provider.AnthropicProvider,
+        "generate_answer",
+        lambda self, question, citations: anthropic_provider.AnswerDraft(
+            text="raw text must not be shown",
+            provider_name=self.name,
+            input_tokens=22,
+            output_tokens=11,
+            structured_claims=None,
+            grounding_policy="anthropic_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name="wrong_tool",
+            tool_call_count=1,
+            grounding_blocked_reason="tool_name_mismatch",
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("当前模型草稿未通过引用证据校验")
+    assert response.provider_name == "anthropic"
+    assert response.grounding.status == "blocked"
+    assert response.grounding.policy == "anthropic_tool_use_v1"
+    assert response.grounding.provider_native_grounding is True
+    assert response.grounding.tool_name == "wrong_tool"
+    assert response.grounding.tool_call_count == 1
+    assert response.grounding.blocked_reason == "tool_name_mismatch"
+    assert response.input_tokens == 22
+    assert response.output_tokens == 11
+
+
 def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):
     monkeypatch.delenv("QIYAN_LLM_PROVIDER", raising=False)
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
