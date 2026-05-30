@@ -93,8 +93,8 @@ Interpretation: the default internal-preview path remains offline and does not r
 | Priority | Area | Status | Required input | Notes |
 |---|---|---|---|---|
 | P0 | Full clinician/research walkthrough | Pending | 1 internal reviewer session | Use `docs/checklists/internal-preview-smoke.md`; do not mark complete from automated Playwright only |
-| P1 | Reviewer-approved Chinese PDF samples | Pending | 2-3 approved text-layer Chinese PDFs | Do not commit file bodies unless licensing is explicitly cleared |
-| P1 | PDF quality judgment | Pending | Same PDF sample set | Decide whether `pypdf` preview is acceptable for internal demo or should stay framed as fallback-only |
+| P1 | Reviewer-provided Chinese PDF sample probe | Completed for local API probe; formal reviewer approval pending | 2-3 approved text-layer Chinese PDFs | 2026-05-30 isolated upload + auto-parse probe covered four local reviewer PDFs without committing file bodies |
+| P1 | PDF quality judgment | Completed for local API probe; formal reviewer approval pending | Same PDF sample set | Three samples are candidate acceptable for internal demo by local probe; one sample is acceptable only with explicit quality warning and original-PDF verification |
 | P2 | Live OpenCode Go provider smoke | Optional | Local `QIYAN_OPENCODE_GO_API_KEY` | Keep opt-in; success does not mean default-live LLM is allowed |
 | P2 | Live Anthropic provider smoke | Optional | Local `ANTHROPIC_API_KEY` | Keep opt-in; no key is not a blocker |
 
@@ -159,3 +159,46 @@ No P0 blocker was found by the automated gates in this follow-up. The two manual
 - One verification-process issue was found and fixed: `pnpm typecheck` depended on generated `.next/types` when run before `pnpm build`; the script now runs `next typegen` first.
 - The 2026-05-28 implementation follow-up reconfirmed the full backend/frontend automated baseline.
 - Manual P1 feedback on `/network` links and PDF garbling has been addressed; do not treat automated Playwright results alone as formal clinical/research reviewer sign-off.
+
+## 2026-05-30 Internal Preview Closure Pass
+
+This pass implemented the accepted internal-preview closure plan as far as possible from the local workspace. It reconfirmed the automated baseline and exercised the reviewer PDF samples through the real upload + auto-parse API path using isolated temp runtime/upload directories. PDF file bodies remain local-only and are not committed.
+
+| Area | Command / flow | Result | Notes |
+|---|---|---|---|
+| Git worktree | `git status --short` | Pass with known untracked temp dir | Only `backend/.pytest-tmp/` was present before documentation edits |
+| Backend format | `cd backend; & .\.uv-test-venv\Scripts\python.exe -m ruff format --check app tests` | Pass | 79 files already formatted |
+| Backend lint | `cd backend; & .\.uv-test-venv\Scripts\python.exe -m ruff check app tests` | Pass | All checks passed |
+| Backend typing | `cd backend; & .\.uv-test-venv\Scripts\python.exe -m mypy app` | Pass | 46 source files checked |
+| Backend tests | `cd backend; & .\.uv-test-venv\Scripts\python.exe -m pytest -q` | Pass | 251 passed |
+| Frontend unit tests | `cd frontend; pnpm test` | Pass | 120 passed |
+| Frontend typecheck | `cd frontend; pnpm typecheck` | Pass | `next typegen && tsc --noEmit` completed |
+| Frontend build | `cd frontend; pnpm build` | Pass | Next.js production build completed |
+| Frontend e2e | `cd frontend; pnpm e2e` | Pass | 2 Playwright Chromium specs passed |
+| Reviewer PDF API probe | Isolated `TestClient` upload + `/api/uploads/pdf/auto-parse` for four local PDFs | Pass | No tracked runtime state or upload files were written |
+
+### 2026-05-30 Reviewer PDF API Probe
+
+The probe used isolated `UPLOAD_STORAGE_DIR`, `LITERATURE_RUNTIME_STATE_PATH`, `CHUNK_RUNTIME_STATE_PATH`, and `NETWORK_TASKS_RUNTIME_STATE_PATH` values. Each sample returned HTTP 201 from upload, HTTP 200 from auto-parse, and `pdf_parse_status="parsed"`.
+
+| File | Extraction method | Quality warning | Probe judgment |
+|---|---|---|---|
+| `除湿糊剂治疗特应性皮炎的实验与临床观察_王琼 - 副本.pdf` | `pypdf-text-preview` | None | Candidate acceptable for internal demo |
+| `健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf` | `pypdf-text-preview` | None | Candidate acceptable for internal demo |
+| `中药健脾止痒颗粒合铍宝消炎癣湿药膏治疗特应性皮炎疗效分析_杨瑛 - 副本.pdf` | `pypdf-text-preview` | None | Candidate acceptable for internal demo |
+| `中医辨证治疗异位性皮炎临床观察_周海啸.pdf` | `pypdf-text-preview` | `检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。` | Acceptable only with explicit warning and original-PDF verification |
+
+### 2026-05-30 Triage
+
+| ID | Priority | Area | Finding | Status | Notes |
+|---|---|---|---|---|---|
+| IR-003 | P1 | Reviewer PDF samples | Local sample PDFs now complete the real upload + auto-parse API path in isolated state. | Closed | Three samples are candidate acceptable; one sample correctly surfaces the existing quality warning. No code change required. |
+| IR-004 | P0 | Automated internal-preview baseline | Full backend/frontend gates stayed green after the previous P1 fixes. | Closed | No P0 blocker found by automated verification. |
+| IR-005 | P0/P1 | Formal clinician/research reviewer sign-off | A live clinician/research reviewer session was not captured in this agent run. | Pending | Do not represent the automated closure as formal clinical/research sign-off. Use `docs/checklists/internal-preview-smoke.md` if a separate human session is required. |
+
+### 2026-05-30 Outcome
+
+- Automated internal-preview closure remains green.
+- The local reviewer PDF sample set has been validated through the real backend upload/parse API path.
+- No new P0/P1 code defect was found, so this pass only updates evidence and handoff documentation.
+- Formal clinician/research sign-off remains pending unless a separate live reviewer session is performed and recorded.
