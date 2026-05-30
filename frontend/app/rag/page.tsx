@@ -1,4 +1,7 @@
+import { Suspense } from "react";
+
 import RagAnswerClient from "../../components/RagAnswerClient";
+import StatusPanel from "../../components/StatusPanel";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
@@ -47,7 +50,9 @@ export default function RagPage() {
           </div>
         </article>
 
-        <RagAnswerClient />
+        <Suspense fallback={<StatusPanel message="加载 RAG 问答面板..." />}>
+          <RagAnswerClient />
+        </Suspense>
 
         <section
           aria-label="使用提醒"

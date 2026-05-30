@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,7 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     assert report["summary"]["total_questions"] == 50
     assert report["summary"]["disclaimer_coverage_count"] == 50
     assert report["summary"]["must_not_violation_count"] == 0
+    assert report["summary"]["grounding_blocked_count"] == 0
     assert 0 <= report["summary"]["pass_rate"] <= 1
     assert len(report["items"]) == 50
 
@@ -61,6 +63,7 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     assert "chunk-cn-ad-gbs-001-abstract" in first["expected_chunk_hits"]
     assert first["disclaimer_present"] is True
     assert first["violated_must_not_include"] == []
+    assert first["grounding_status"] == "skipped"
 
 
 def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks(
@@ -134,6 +137,88 @@ def test_rag_eval_report_tags_default_provider_name():
 
     assert report["summary"]["provider_name"] == "deterministic"
     assert all(item["provider_name"] == "deterministic" for item in report["items"])
+    assert all(item["grounding_status"] == "skipped" for item in report["items"])
+
+
+def test_rag_eval_report_forces_deterministic_provider_when_live_provider_is_configured(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    live_provider_called = False
+
+    def fail_if_live_provider_is_called(*args, **kwargs):
+        nonlocal live_provider_called
+        live_provider_called = True
+        raise AssertionError("eval report must not fan out to the live LLM provider")
+
+    monkeypatch.setattr(
+        "app.services.llm.opencode_go_provider.OpenCodeGoProvider.generate_answer",
+        fail_if_live_provider_is_called,
+    )
+
+    report = run_rag_ad_eval_report()
+
+    assert live_provider_called is False
+    assert os.environ["QIYAN_LLM_PROVIDER"] == "opencode_go"
+    assert report["summary"]["provider_name"] == "deterministic"
+    assert all(item["provider_name"] == "deterministic" for item in report["items"])
+
+
+def test_rag_eval_report_passes_provider_overrides_without_mutating_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    synthetic_dataset = tmp_path / "synthetic_eval.json"
+    synthetic_dataset.write_text(
+        """[
+          {
+            "id": "synthetic-provider-override",
+            "question": "特应性皮炎和肠-脑-皮肤轴之间有什么关系？",
+            "source_preference": "all",
+            "difficulty": "easy",
+            "expected_literature_ids": ["cn-ad-gbs-001"],
+            "expected_chunk_ids": [],
+            "must_include": ["肠道菌群"],
+            "must_not_include": ["确诊建议"],
+            "compliance_notes": "synthetic question covers provider override wiring."
+          }
+        ]""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(eval_service, "_DATA_PATH", synthetic_dataset)
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_RETRIEVAL_PROVIDER", "vector")
+    actual_answer_question = eval_service.answer_question
+
+    def fake_answer_question(
+        question: str,
+        source: str = "all",
+        top_k: int = 2,
+        *,
+        llm_provider_name: str | None,
+        retrieval_provider_name: str | None,
+    ):
+        assert question == "特应性皮炎和肠-脑-皮肤轴之间有什么关系？"
+        assert source == "all"
+        assert top_k == 3
+        assert llm_provider_name == "deterministic"
+        assert retrieval_provider_name == "hybrid"
+        assert os.environ["QIYAN_LLM_PROVIDER"] == "opencode_go"
+        assert os.environ["QIYAN_RETRIEVAL_PROVIDER"] == "vector"
+        return actual_answer_question(
+            question,
+            source=source,
+            top_k=top_k,
+            llm_provider_name=llm_provider_name,
+            retrieval_provider_name=retrieval_provider_name,
+        )
+
+    monkeypatch.setattr(eval_service, "answer_question", fake_answer_question)
+
+    report = run_rag_ad_eval_report(strategy="hybrid")
+
+    assert report["summary"]["provider_name"] == "deterministic"
+    assert report["summary"]["retrieval_strategy"] == "hybrid"
+    assert report["summary"]["total_questions"] == 1
 
 
 def test_rag_eval_report_default_strategy_is_keyword():

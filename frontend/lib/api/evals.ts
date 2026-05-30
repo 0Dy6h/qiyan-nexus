@@ -8,6 +8,7 @@ export type RagEvalSummary = {
   chunk_hit_count: number;
   disclaimer_coverage_count: number;
   must_not_violation_count: number;
+  grounding_blocked_count: number;
 };
 
 export type RagEvalItemResult = {
@@ -23,6 +24,8 @@ export type RagEvalItemResult = {
   violated_must_not_include: string[];
   disclaimer_present: boolean;
   citation_count: number;
+  provider_name: string;
+  grounding_status: "skipped" | "passed" | "blocked";
   passed: boolean;
 };
 

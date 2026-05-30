@@ -79,3 +79,11 @@ test("parse result description branches on extraction_method", () => {
   // Must actually switch on the extraction_method discriminator.
   assert.match(source, /extraction_method === "pypdf-text-preview"/);
 });
+
+test("pdf preview surfaces parser quality warnings without hiding extracted text", () => {
+  const source = getSource("components/LiteraturePdfUploadClient.tsx");
+
+  assert.match(source, /currentParseResult\.quality_warning/);
+  assert.match(source, /抽取质量提示/);
+  assert.match(source, /预览说明 \$\{currentParseResult\.preview_text\}/);
+});

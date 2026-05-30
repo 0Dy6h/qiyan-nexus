@@ -76,6 +76,12 @@ test("fetchNetworkResult returns the polled response shape", async () => {
                 pathway: "PI3K-Akt signaling pathway",
                 disease: "Atopic dermatitis",
                 score: 0.87,
+                related_entity_ids: [
+                  "herb-jingjie",
+                  "compound-quercetin",
+                  "target-il6",
+                  "pathway-pi3k-akt",
+                ],
               },
             ],
             disclaimer: "非诊断结论、需结合临床。",
@@ -91,6 +97,12 @@ test("fetchNetworkResult returns the polled response shape", async () => {
 
     assert.equal(polled.status, "completed");
     assert.equal(polled.result?.chains[0].target, "IL6");
+    assert.deepEqual(polled.result?.chains[0].related_entity_ids, [
+      "herb-jingjie",
+      "compound-quercetin",
+      "target-il6",
+      "pathway-pi3k-akt",
+    ]);
     assert.equal(polled.result?.disclaimer, "非诊断结论、需结合临床。");
   } finally {
     globalThis.fetch = originalFetch;

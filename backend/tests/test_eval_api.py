@@ -41,11 +41,13 @@ def test_rag_ad_eval_report_endpoint_returns_reproducible_summary():
     assert payload["summary"]["total_questions"] == 50
     assert payload["summary"]["disclaimer_coverage_count"] == 50
     assert payload["summary"]["must_not_violation_count"] == 0
+    assert payload["summary"]["grounding_blocked_count"] == 0
     assert len(payload["items"]) == 50
 
     first = payload["items"][0]
     assert first["id"] == "rag-eval-001"
     assert first["disclaimer_present"] is True
+    assert first["grounding_status"] == "skipped"
     assert "cn-ad-gbs-001" in first["expected_literature_hits"]
 
 

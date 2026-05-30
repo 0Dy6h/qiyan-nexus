@@ -6,11 +6,13 @@ export type NetworkTaskStatus = "queued" | "running" | "completed";
 
 export type NetworkChain = {
   herb: string;
+  formula?: string | null;
   compound: string;
   target: string;
   pathway: string;
   disease: string;
   score: number;
+  related_entity_ids: string[];
 };
 
 export type NetworkAnalysisResult = {

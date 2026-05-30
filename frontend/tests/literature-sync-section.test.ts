@@ -43,3 +43,10 @@ test("literature page mounts LiteraturePubmedSyncClient above LiteratureSearchCl
   assert.ok(searchIndex > 0, "search client should still be rendered");
   assert.ok(syncIndex < searchIndex, "sync client should render above search client");
 });
+
+test("literature page wraps the search client in Suspense so URL query prefill can prerender", () => {
+  const source = getSource("app/literature/page.tsx");
+
+  assert.match(source, /import \{ Suspense \} from "react"/);
+  assert.match(source, /<Suspense[\s\S]*<LiteratureSearchClient \/>/);
+});

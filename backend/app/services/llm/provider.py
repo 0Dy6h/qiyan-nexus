@@ -21,7 +21,7 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
-from app.schemas.rag import CitationCard
+from app.schemas.rag import CitationCard, GroundedClaim, GroundingPolicy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +58,14 @@ _EVIDENCE_TAG_TOPIC_CN: dict[str, str] = {
 class AnswerDraft(BaseModel):
     text: str
     provider_name: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    structured_claims: list[GroundedClaim] | None = None
+    grounding_policy: GroundingPolicy = "structured_claim_refs_v3"
+    provider_native_grounding: bool = False
+    tool_name: str | None = None
+    tool_call_count: int = 0
+    grounding_blocked_reason: str | None = None
 
 
 @runtime_checkable
@@ -148,6 +156,21 @@ _PROVIDERS: dict[str, type[LLMProvider]] = {
     MockClaudeProvider.name: MockClaudeProvider,
 }
 
+ANTHROPIC_PROVIDER_NAME = "anthropic"
+OPENCODE_GO_PROVIDER_NAME = "opencode_go"
+
+
+def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
+    if candidate == ANTHROPIC_PROVIDER_NAME:
+        from app.services.llm.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider
+    if candidate == OPENCODE_GO_PROVIDER_NAME:
+        from app.services.llm.opencode_go_provider import OpenCodeGoProvider
+
+        return OpenCodeGoProvider
+    return None
+
 
 def select_provider(name: str | None = None) -> LLMProvider:
     """Return the configured provider, falling back to deterministic on misconfig.
@@ -161,7 +184,7 @@ def select_provider(name: str | None = None) -> LLMProvider:
     candidate = raw.strip().lower()
     if not candidate:
         return DeterministicProvider()
-    provider_cls = _PROVIDERS.get(candidate)
+    provider_cls = _PROVIDERS.get(candidate) or _resolve_extra_provider_class(candidate)
     if provider_cls is None:
         _LOGGER.warning(
             "Unknown %s=%r; falling back to %s",

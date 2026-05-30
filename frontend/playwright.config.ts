@@ -26,20 +26,13 @@ export default defineConfig({
   webServer: [
     {
       // Backend dev server — isolated runtime state + open access (no token).
-      command: [
-        "QIYAN_ACCESS_TOKENS=''",
-        "LITERATURE_RUNTIME_STATE_PATH=/tmp/qiyan-e2e-runtime.json",
-        "UPLOAD_STORAGE_DIR=/tmp/qiyan-e2e-uploads",
-        ".venv/bin/fastapi dev app/main.py",
-        `--port ${BACKEND_PORT}`,
-      ].join(" "),
-      cwd: "../backend",
+      command: "node ./e2e/start-backend.mjs",
       url: `${BACKEND_URL}/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
-      command: "pnpm dev",
+      command: "node ./e2e/start-frontend.mjs",
       url: FRONTEND_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

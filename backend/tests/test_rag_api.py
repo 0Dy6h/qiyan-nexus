@@ -27,6 +27,27 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
     assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"
     assert payload["citations"][0]["chunk_id"] == "chunk-cn-ad-gbs-001-abstract"
     assert "deterministic retrieval" in payload["answer"]
+    assert payload["provider_name"] == "deterministic"
+    assert payload["grounding"] == {
+        "status": "skipped",
+        "policy": "structured_claim_refs_v3",
+        "checked": False,
+        "blocked_reason": None,
+        "allowed_evidence_refs": [
+            "chunk-cn-ad-gbs-001-abstract",
+            "chunk-cn-ad-microbiome-003-abstract",
+        ],
+        "matched_evidence_refs": [],
+        "unsupported_evidence_refs": [],
+        "claim_count": 0,
+        "cited_claim_count": 0,
+        "structured_claims": [],
+        "provider_native_grounding": False,
+        "tool_name": None,
+        "tool_call_count": 0,
+    }
+    assert payload["input_tokens"] is None
+    assert payload["output_tokens"] is None
     assert isinstance(payload["answered_at"], str)
     assert payload["answered_at"].endswith("+00:00")
 

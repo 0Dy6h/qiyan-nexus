@@ -71,6 +71,28 @@ test("rag answer and retrieval metadata sections use unified applied retrieval l
   assert.doesNotMatch(ragSource, /`当前 top_k \$\{state\.result\.retrieval\.applied_top_k\}`/);
 });
 
+test("rag answer surfaces grounding metadata and hard-block warning copy", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /Grounding \$\{state\.result\.grounding\.status\}/);
+  assert.match(ragSource, /Grounding 策略 \$\{state\.result\.grounding\.policy\}/);
+  assert.match(ragSource, /Native Grounding \$\{formatNativeGrounding\(state\.result\.grounding\)\}/);
+  assert.match(ragSource, /Grounding Tool \$\{formatGroundingTool\(state\.result\.grounding\)\}/);
+  assert.match(ragSource, /Tool 调用数 \$\{state\.result\.grounding\.tool_call_count\}/);
+  assert.match(ragSource, /句级引用覆盖 \$\{formatGroundingCoverage\(state\.result\.grounding\)\}/);
+  assert.match(ragSource, /结构化声明 \$\{formatStructuredClaimCount\(state\.result\.grounding\)\}/);
+  assert.match(ragSource, /structured_claims_parse_error/);
+  assert.match(ragSource, /empty_structured_claims/);
+  assert.match(ragSource, /missing_tool_use/);
+  assert.match(ragSource, /tool_name_mismatch/);
+  assert.match(ragSource, /tool_input_schema_error/);
+  assert.match(ragSource, /empty_tool_claims/);
+  assert.match(ragSource, /claim_without_evidence_ref/);
+  assert.match(ragSource, /模型草稿未通过引用证据校验，已拦截展示。/);
+  assert.match(ragSource, /拦截原因：\$\{formatGroundingBlockedReason\(state\.result\.grounding\.blocked_reason\)\}/);
+  assert.match(ragSource, /state\.result\.grounding\.status === "blocked"/);
+});
+
 test("rag citation section mirrors applied retrieval boundaries instead of request inputs", () => {
   const ragSource = getSource("components/RagAnswerClient.tsx");
 

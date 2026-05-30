@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-tmp/
+backend/.pytest-tmp/
 .mypy_cache/
 .ruff_cache/
 .venv/
@@ -26,6 +28,9 @@ frontend/playwright/.cache/
 backend/uploads/**
 !backend/uploads/README.md
 
+# Local reviewer-only PDF samples
+local-review-pdfs/
+
 # Backend runtime literature state
 backend/data/runtime/**
 !backend/data/runtime/README.md
@@ -47,3 +52,6 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# CodeGraph local index (per-machine, never commit)
+.codegraph/

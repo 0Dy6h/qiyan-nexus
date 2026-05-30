@@ -30,6 +30,15 @@ test("getStatusCardStyle returns shared error card visuals", () => {
   });
 });
 
+test("getStatusCardStyle returns distinct warning card visuals", () => {
+  assert.deepEqual(getStatusCardStyle("warning"), {
+    background: "#fffbeb",
+    border: "1px solid #fbbf24",
+    borderRadius: 12,
+    padding: "16px 18px",
+  });
+});
+
 test("getStatusMessageStyle returns shared idle text visuals", () => {
   assert.deepEqual(getStatusMessageStyle("idle"), {
     color: "#64748b",
@@ -41,6 +50,14 @@ test("getStatusMessageStyle returns shared idle text visuals", () => {
 test("getStatusMessageStyle returns shared error text visuals", () => {
   assert.deepEqual(getStatusMessageStyle("error"), {
     color: "#b45309",
+    margin: 0,
+    lineHeight: 1.6,
+  });
+});
+
+test("getStatusMessageStyle returns distinct warning text visuals", () => {
+  assert.deepEqual(getStatusMessageStyle("warning"), {
+    color: "#92400e",
     margin: 0,
     lineHeight: 1.6,
   });
