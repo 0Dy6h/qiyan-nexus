@@ -141,7 +141,14 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens` 与 `grounding` metadata，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
+当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata 与 `sli`，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
+
+SLI（成本/延迟可观测）：
+
+- response 顶层 `sli` 返回 `provider_latency_ms`（仅包住 provider 生成调用）与 `estimated_cost_usd`。
+- deterministic / fallback 路径 `provider_latency_ms` 为整数、`estimated_cost_usd` 为 `null`。
+- 成本由 token 用量 × `QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK` / `QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK`（USD/百万 token）计算；单价默认 `0.0` 即不估算（不臆造价格）。
+- 后端额外打印不含 secret 的 `rag_sli` 结构化日志（provider、grounding、latency、token、cost、strategy）；`/rag` 页面与 Markdown 导出展示延迟与成本。
 
 Grounding：
 
@@ -164,7 +171,7 @@ Grounding：
 - `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
 - API key 只从 `QIYAN_OPENCODE_GO_API_KEY` 读取，不能写入仓库、README、handoff 或测试。
 - 默认 endpoint 与模型：`QIYAN_OPENCODE_GO_BASE_URL="https://opencode.ai/zen/go/v1"`，`QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"`。
-- 建议 smoke 时使用 `QIYAN_OPENCODE_GO_MAX_TOKENS="1200"`；实测部分 reasoning 模型在过低上限下只返回 `reasoning_content` 而 `content` 为空，会触发 deterministic fallback。
+- 建议 smoke 时使用 `QIYAN_OPENCODE_GO_MAX_TOKENS="4000"`；实测 `deepseek-v4-flash`（thinking mode）会先消耗大量 reasoning token，默认 `1200` 常导致 `content` 为空（`finish_reason=length`）并触发 deterministic fallback，需要 >=4000 才能让真实路径生效。该模型还会拒绝强制 `tool_choice`（HTTP 400），真实路径走 structured claims v3。详见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md` 与 `docs/guides/real-llm-enablement-runbook.md`。
 - 未设置 key、HTTP 错误、网关失败或响应结构异常时，provider 会记录不含 secret 的 warning，并回退到 deterministic answer。
 
 可选 retrieval providers（默认不启用 vector/hybrid）：
@@ -181,7 +188,7 @@ cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
 $env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="1200"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4000"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
