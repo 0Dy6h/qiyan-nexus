@@ -18,6 +18,12 @@ _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "evals" / "rag_ad_ev
 _SEMANTIC_PAIRS_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_semantic_pairs.json"
 )
+# Harder real-LLM-style fixture (faithful claims lifted from the 2026-05-31 live
+# smoke, paired with on-topic hard negatives) used only for threshold-recalibration
+# analysis on the bge backend; not part of the locked hashing-default invariants.
+SEMANTIC_PAIRS_BGE_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_semantic_pairs_bge.json"
+)
 
 
 def get_rag_eval_questions() -> list[dict[str, Any]]:
@@ -122,7 +128,9 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
 
 
 def run_grounding_semantic_separation(
-    threshold: float, backend_name: str | None = None
+    threshold: float,
+    backend_name: str | None = None,
+    pairs_path: Path | None = None,
 ) -> dict[str, Any]:
     """Score the labeled (claim, chunk, supported) fixture at a given threshold.
 
@@ -132,10 +140,15 @@ def run_grounding_semantic_separation(
     hallucinations, but a high-lexical-overlap fabrication can still outscore an
     unrelated faithful claim — hence ``paired_separation`` is reported alongside
     the global confusion matrix.
+
+    ``pairs_path`` defaults to the curated easy-negative fixture. Pass the
+    ``grounding_semantic_pairs_bge.json`` path to score the harder real-LLM-style
+    set used for threshold recalibration (see
+    ``docs/evaluations/2026-06-01-threshold-recalibration.md``).
     """
 
     backend = select_embedding_backend(backend_name)
-    pairs = load_grounding_semantic_pairs(_SEMANTIC_PAIRS_PATH)
+    pairs = load_grounding_semantic_pairs(pairs_path or _SEMANTIC_PAIRS_PATH)
     scored = [(pair, score_claim_support(pair.claim, pair.chunk_text, backend)) for pair in pairs]
     faithful = [(pair, score) for pair, score in scored if pair.supported]
     hallucinated = [(pair, score) for pair, score in scored if not pair.supported]

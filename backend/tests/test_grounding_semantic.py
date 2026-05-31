@@ -16,10 +16,17 @@ _DEFAULT_THRESHOLD = Settings().grounding_semantic_threshold
 _PAIRS_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "evals" / "grounding_semantic_pairs.json"
 )
+_BGE_PAIRS_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "evals" / "grounding_semantic_pairs_bge.json"
+)
 
 
 def _load_pairs() -> list[GroundingSemanticPair]:
     return load_grounding_semantic_pairs(_PAIRS_PATH)
+
+
+def _load_bge_pairs() -> list[GroundingSemanticPair]:
+    return load_grounding_semantic_pairs(_BGE_PAIRS_PATH)
 
 
 def test_load_grounding_semantic_pairs_has_both_labels():
@@ -35,6 +42,32 @@ def test_load_grounding_semantic_pairs_has_both_labels():
     )
     assert all(pair.claim and pair.chunk_text for pair in pairs)
     assert len({pair.id for pair in pairs}) == len(pairs), "pair ids must be unique"
+
+
+def test_bge_recalibration_fixture_is_balanced_and_paired():
+    """Lock the structure of the real-LLM-style recalibration fixture.
+
+    These pairs are faithful claims lifted verbatim from the 2026-05-31 live
+    smoke, each twinned with an on-topic hard negative. The fixture is scored on
+    the bge backend by ``scripts/sweep_threshold_recalibration.py``; it must keep
+    its ``-faithful`` / ``-hallucinated`` pairing so the sweep stays valid.
+    """
+
+    pairs = _load_bge_pairs()
+    by_id = {pair.id: pair for pair in pairs}
+
+    supported = [pair for pair in pairs if pair.supported]
+    hallucinated = [pair for pair in pairs if not pair.supported]
+    assert supported, "bge fixture must contain faithful claims"
+    assert hallucinated, "bge fixture must contain hard-negative claims"
+    assert len(supported) == len(hallucinated), "each faithful claim needs a hard-negative twin"
+    assert len({pair.id for pair in pairs}) == len(pairs), "pair ids must be unique"
+    for faithful_pair in supported:
+        twin_id = faithful_pair.id.replace("-faithful", "-hallucinated")
+        assert twin_id in by_id, f"{faithful_pair.id} is missing its hard-negative twin {twin_id}"
+        # The hard negative reuses the faithful claim's cited chunk so the gate
+        # is tested against on-topic fabrication, not a topic mismatch.
+        assert by_id[twin_id].chunk_text == faithful_pair.chunk_text
 
 
 def test_score_claim_support_returns_normalised_cosine():

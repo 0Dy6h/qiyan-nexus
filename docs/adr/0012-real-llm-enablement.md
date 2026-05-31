@@ -61,3 +61,25 @@ live smoke 暴露了两个必须写入启用决策的事实：
 - 启用与回滚步骤见 `docs/guides/real-llm-enablement-runbook.md`。
 - 不变量回归由现有后端/前端 grounding、disclaimer、fallback 测试覆盖（`tests/test_rag_service.py`、`tests/test_grounding_semantic.py`、前端 `rag-export` / `client-section-consistency`）。
 - live 行为证据见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`。
+
+## 2026-06-01 更新：§4a「阈值重校准」结论 — 被 cosine 模型类限制阻塞
+
+按 §4a 做了阈值重校准分析（`docs/evaluations/2026-06-01-threshold-recalibration.md`、
+`backend/scripts/sweep_threshold_recalibration.py`、fixture
+`backend/data/evals/grounding_semantic_pairs_bge.json`）：把 7 条**逐字取自 2026-05-31 live smoke**
+的忠实 claim，与 7 条**同主题硬负例**（复用被引 chunk 词汇，但臆造治愈率/因果/数字/指南地位）配对，
+在 bge backend 上扫 0.55–0.78。
+
+结果：忠实 claim 落在 **0.863–0.963**，硬负例落在 **0.736–0.870**，**分布重叠（gap = −0.007）**。
+不存在任何阈值能同时「放行忠实改写、拦截硬负例」；候选区间 0.55–0.72 内会**放行全部 7 条硬负例**，
+比当前 0.78 更弱。生产中差距更大：同一批忠实 claim 在 live smoke 实测仅 0.591–0.881。
+
+根因是模型类问题而非 fixture bug：BGE 是句向量**相似度**模型，cosine 度量主题/词汇相关性而非事实
+**蕴含**；停留在主题内的幻觉（如「菌群干预治愈率90%」）与源 chunk 主题高度相似，得分与忠实改写相当，
+cosine 在结构上无法区分「忠实复述」与「同主题、附加未支撑结论的臆造」。
+
+**决策**：不下调阈值（任何能救回忠实 claim 的阈值都会放行硬负例，削弱反幻觉护栏）。**§4a 在 BGE-cosine
+单独条件下不可达**，故 **L2 经由「纯阈值重校准」这条路被阻塞**；**保持 L1**，默认 RAG 仍为离线
+`deterministic`，不做默认切换。闭合该 gap 需换一类 gate（中文 NLI/蕴含或 claim 核验模型，度量
+entailment 而非 similarity），属独立的、更大的架构决策，不在本轮范围。§4b（真实单价 + SLI 基线）、
+§4c（真人走查）保持开放，但在 §4a 以新 gate 形式解决前不构成启用 L2 的充分条件。

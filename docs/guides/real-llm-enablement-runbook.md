@@ -98,10 +98,19 @@ offline deterministic with no external egress.
 
 ## Before promoting to L2 (default preview)
 
-1. Expand `backend/data/evals/grounding_semantic_pairs.json` with real-LLM-style
+1. ~~Expand `backend/data/evals/grounding_semantic_pairs.json` with real-LLM-style
    claims (paraphrases, multi-chunk summaries) and re-run
    `run_grounding_semantic_separation`; pick a threshold (candidate 0.55–0.72)
-   that keeps faithful paraphrases from being over-blocked.
+   that keeps faithful paraphrases from being over-blocked.~~ **Done 2026-06-01 —
+   result: blocked.** The harder fixture (`grounding_semantic_pairs_bge.json`,
+   `scripts/sweep_threshold_recalibration.py`) shows faithful paraphrases
+   (0.863–0.963) and on-topic hard negatives (0.736–0.870) overlap on bge cosine
+   (gap −0.007). No threshold separates them; the candidate band would admit every
+   hard negative. Root cause: BGE measures similarity, not entailment. The
+   threshold was **not** lowered. L2-by-threshold is closed; unlocking L2 needs a
+   different gate (Chinese NLI/entailment or claim verification). See
+   `docs/evaluations/2026-06-01-threshold-recalibration.md` and ADR-0012's
+   2026-06-01 update.
 2. Configure real `QIYAN_OPENCODE_GO_PRICE_*` and record an SLI baseline.
 3. Run a human reviewer walkthrough per
    `docs/checklists/internal-preview-smoke.md` and record feedback.

@@ -1,0 +1,100 @@
+[
+  {
+    "id": "sem-live-gbsaxis-faithful",
+    "claim": "特应性皮炎与肠-脑-皮肤轴密切相关，该轴失调表现为肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.716). Faithful summary of the gut-skin axis chunk; preserves all three dysregulation entities without adding fabricated scope."
+  },
+  {
+    "id": "sem-live-gbsaxis-hallucinated",
+    "claim": "已通过随机对照试验证实，纠正肠道微生态失衡可在四周内完全修复皮肤屏障并逆转特应性皮炎的神经免疫调节紊乱。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": false,
+    "note": "Hard negative: reuses 肠道微生态失衡/皮肤屏障/神经免疫调节 vocabulary but fabricates an RCT-proven 4-week cure and causal reversal; chunk only states a 可解释关联, not proven causation."
+  },
+  {
+    "id": "sem-live-microbiome-faithful",
+    "claim": "肠道菌群失衡与特应性皮炎发病相关，菌群干预可能有助于恢复免疫稳态。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.782, trimmed of the un-cited bacteria names). Faithful paraphrase of the microbiome chunk's hedged finding."
+  },
+  {
+    "id": "sem-live-microbiome-hallucinated",
+    "claim": "特应性皮炎患者的肠道菌群结构改变已被确立为唯一致病机制，定向菌群干预的临床治愈率高达百分之九十。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": false,
+    "note": "Hard negative: reuses 肠道菌群结构改变/菌群干预 but fabricates a sole-cause mechanism and a 90% cure rate the chunk never states (it only says 可能作用)."
+  },
+  {
+    "id": "sem-live-syndrome-faithful",
+    "claim": "脾虚湿蕴、血虚风燥等中医证候与肠-脑-皮肤轴环节失调存在可解释关联，为特应性皮炎治疗提供潜在靶点。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.881). Faithful: preserves the chunk's 可解释关联 hedge and the named syndromes."
+  },
+  {
+    "id": "sem-live-syndrome-hallucinated",
+    "claim": "脾虚湿蕴与血虚风燥两种证候已被基因测序确认对应特定肠道菌种的缺失，据此可精准预测特应性皮炎的复发时间。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": false,
+    "note": "Hard negative: reuses 脾虚湿蕴/血虚风燥 but fabricates gene-sequencing confirmation and precise relapse prediction absent from the chunk."
+  },
+  {
+    "id": "sem-live-pruritus-faithful",
+    "claim": "中医药干预特应性皮炎瘙痒的机制涉及调节IL-31、神经肽等介质，以及瘙痒-搔抓循环的恶性环路。",
+    "chunk_text": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.700). Faithful paraphrase of the itch-mechanism chunk; same IL-31/神经肽/瘙痒-搔抓循环 entities."
+  },
+  {
+    "id": "sem-live-pruritus-hallucinated",
+    "claim": "阻断IL-31即可永久消除特应性皮炎的瘙痒-搔抓循环，使所有患者无需任何中医药外治即可彻底止痒。",
+    "chunk_text": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "supported": false,
+    "note": "Hard negative: reuses IL-31/瘙痒-搔抓循环/中医药外治 but fabricates a permanent, universal cure that contradicts the chunk's review framing."
+  },
+  {
+    "id": "sem-live-network-faithful",
+    "claim": "网络药理学分析提示特应性皮炎常用方剂的作用机制常涉及PI3K-Akt、NF-kB、JAK-STAT等关键信号通路。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.727). Faithful paraphrase listing the same three pathway entities the chunk names."
+  },
+  {
+    "id": "sem-live-network-hallucinated",
+    "claim": "网络药理学已证明同时抑制PI3K-Akt、NF-kB与JAK-STAT三条通路是治疗特应性皮炎的标准一线方案，并已写入国家诊疗指南。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": false,
+    "note": "Hard negative: reuses 网络药理学 and the three pathways but fabricates a proven standard-of-care guideline recommendation; chunk only says they are frequently studied 调控轴."
+  },
+  {
+    "id": "sem-live-guideline-faithful",
+    "claim": "中西医结合诊疗共识将皮肤屏障维护、规律外用润肤剂、辨证施治与长期管理列为特应性皮炎的核心管理要点。",
+    "chunk_text": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.920). Faithful near-restatement of the consensus chunk's core management points."
+  },
+  {
+    "id": "sem-live-guideline-hallucinated",
+    "claim": "中西医结合诊疗共识明确规定，规律外用润肤剂配合辨证施治可在三个月内使特应性皮炎完全治愈，无需医生进一步随访。",
+    "chunk_text": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "supported": false,
+    "note": "Hard negative: reuses 规律外用润肤剂/辨证施治 but fabricates a 3-month complete cure and 'no follow-up needed', directly contradicting the chunk's 须结合医生临床判断 caveat."
+  },
+  {
+    "id": "sem-live-syndromebarrier-faithful",
+    "claim": "特应性皮炎中医证候研究强调脾虚湿蕴、血虚风燥等证候与皮肤屏障及神经免疫调节之间的联系。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "Live opencode_go claim (smoke 0.591, the lowest-scoring faithful claim). Faithful summary linking the named syndromes to barrier/neuroimmune dysregulation; the gate must accept this."
+  },
+  {
+    "id": "sem-live-syndromebarrier-hallucinated",
+    "claim": "研究已量化证明脾虚湿蕴证候会使皮肤屏障功能下降百分之七十，并直接导致神经免疫调节系统不可逆损伤。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": false,
+    "note": "Hard negative: reuses 脾虚湿蕴/皮肤屏障/神经免疫调节 but fabricates a quantified 70% decline and irreversible damage; chunk states only a 可解释关联."
+  }
+]
