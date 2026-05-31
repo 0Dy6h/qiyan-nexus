@@ -11,7 +11,15 @@ Usage:
     QIYAN_LLM_PROVIDER=opencode_go \
     QIYAN_EMBEDDING_BACKEND=bge \
     QIYAN_GROUNDING_SEMANTIC_THRESHOLD=0.78 \
+    QIYAN_OPENCODE_GO_MAX_TOKENS=4000 \
     .venv/Scripts/python.exe scripts/smoke_opencode_go_bge.py
+
+Note on max_tokens: deepseek-v4-flash runs in thinking mode and reserves a large
+chunk of the completion budget for reasoning. The 1200 default silently produces
+empty content (finish_reason=length) and degrades to deterministic fallback; use
+>=4000 so the live opencode_go path actually engages. Forced tool_choice is also
+unsupported by this model (HTTP 400), so grounding uses the structured-claims v3
+path. See docs/evaluations/2026-05-31-opencode-go-bge-smoke.md.
 
 Expected behavior:
 - Makes real API call to OpenCode Go
@@ -23,6 +31,13 @@ Expected behavior:
 import os
 import sys
 from pathlib import Path
+
+# Force UTF-8 stdout/stderr so the emoji + CJK output does not crash on a
+# Windows GBK console (the default code page raises UnicodeEncodeError otherwise).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
 
 # Add backend root to path
 backend_root = Path(__file__).resolve().parent.parent
