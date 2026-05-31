@@ -339,6 +339,68 @@ export default function NetworkAnalysisClient() {
               </article>
             ))}
           </div>
+          {result.enrichment && result.enrichment.terms.length > 0 ? (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ color: "#1e293b", fontSize: 20, margin: "0 0 8px" }}>富集分析结果</h3>
+              <p style={{ color: "#64748b", marginBottom: 16, lineHeight: 1.6 }}>
+                输入基因数：{result.enrichment.input_gene_count} | 背景基因数：{result.enrichment.background_gene_count}
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 14,
+                    textAlign: "left",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>Term ID</th>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>通路/功能</th>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>类别</th>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>重叠基因</th>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>P-value</th>
+                      <th style={{ padding: "12px 8px", color: "#475569", fontWeight: 700 }}>基因列表</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.enrichment.terms.slice(0, 10).map((term, idx) => (
+                      <tr
+                        key={term.term_id}
+                        style={{
+                          borderBottom: "1px solid #f1f5f9",
+                          background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
+                        }}
+                      >
+                        <td style={{ padding: "12px 8px", color: "#64748b", fontFamily: "monospace" }}>
+                          {term.term_id}
+                        </td>
+                        <td style={{ padding: "12px 8px", color: "#1e293b" }}>
+                          {term.term_name_zh || term.term_name}
+                        </td>
+                        <td style={{ padding: "12px 8px", color: "#64748b" }}>{term.category}</td>
+                        <td style={{ padding: "12px 8px", color: "#0d9488", fontWeight: 700 }}>
+                          {term.overlap_count}/{term.gene_count}
+                        </td>
+                        <td style={{ padding: "12px 8px", color: "#64748b", fontFamily: "monospace" }}>
+                          {term.p_value.toExponential(2)}
+                        </td>
+                        <td style={{ padding: "12px 8px", color: "#475569", fontSize: 13 }}>
+                          {term.genes.join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {result.enrichment.terms.length > 10 ? (
+                <p style={{ color: "#64748b", marginTop: 12, fontSize: 13 }}>
+                  显示前 10 条结果，共 {result.enrichment.terms.length} 条富集通路/功能。
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <p style={{ color: "#64748b", marginTop: 16, marginBottom: 0, lineHeight: 1.6 }}>
             {result.disclaimer}
           </p>

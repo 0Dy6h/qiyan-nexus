@@ -1,0 +1,170 @@
+[
+  {
+    "id": "GO:0006954",
+    "name": "inflammatory response",
+    "name_zh": "炎症反应",
+    "category": "biological_process",
+    "genes": ["IL6", "TNF", "IL1B", "CXCL8", "IL10", "CCL2", "PTGS2", "ICAM1", "VCAM1", "SELE"]
+  },
+  {
+    "id": "GO:0006955",
+    "name": "immune response",
+    "name_zh": "免疫反应",
+    "category": "biological_process",
+    "genes": ["IL6", "TNF", "IL1B", "IL10", "IL4", "IL13", "IFNG", "CD4", "CD8A", "FOXP3"]
+  },
+  {
+    "id": "GO:0042060",
+    "name": "wound healing",
+    "name_zh": "伤口愈合",
+    "category": "biological_process",
+    "genes": ["TGFB1", "FGF2", "VEGFA", "MMP9", "COL1A1", "FN1", "TIMP1"]
+  },
+  {
+    "id": "GO:0001817",
+    "name": "regulation of cytokine production",
+    "name_zh": "细胞因子产生调控",
+    "category": "biological_process",
+    "genes": ["IL6", "TNF", "IL1B", "IL10", "TGFB1", "NFKB1", "STAT3", "MAPK1"]
+  },
+  {
+    "id": "GO:0050727",
+    "name": "regulation of inflammatory response",
+    "name_zh": "炎症反应调控",
+    "category": "biological_process",
+    "genes": ["IL10", "TGFB1", "NFKB1", "STAT3", "SOCS3", "PPARG"]
+  },
+  {
+    "id": "GO:0002250",
+    "name": "adaptive immune response",
+    "name_zh": "适应性免疫反应",
+    "category": "biological_process",
+    "genes": ["IL4", "IL13", "IFNG", "CD4", "CD8A", "FOXP3", "IL2", "IL17A"]
+  },
+  {
+    "id": "GO:0006979",
+    "name": "response to oxidative stress",
+    "name_zh": "氧化应激反应",
+    "category": "biological_process",
+    "genes": ["SOD1", "SOD2", "CAT", "GPX1", "NFE2L2", "HMOX1", "NQO1"]
+  },
+  {
+    "id": "GO:0043066",
+    "name": "negative regulation of apoptotic process",
+    "name_zh": "凋亡过程负调控",
+    "category": "biological_process",
+    "genes": ["BCL2", "BCL2L1", "XIAP", "AKT1", "NFKB1", "TP53"]
+  },
+  {
+    "id": "GO:0008283",
+    "name": "cell population proliferation",
+    "name_zh": "细胞增殖",
+    "category": "biological_process",
+    "genes": ["EGFR", "VEGFA", "FGF2", "PDGFB", "MYC", "CCND1", "CDK4"]
+  },
+  {
+    "id": "GO:0030198",
+    "name": "extracellular matrix organization",
+    "name_zh": "细胞外基质组织",
+    "category": "biological_process",
+    "genes": ["COL1A1", "COL3A1", "FN1", "MMP2", "MMP9", "TIMP1", "TGFB1"]
+  },
+  {
+    "id": "GO:0045087",
+    "name": "innate immune response",
+    "name_zh": "先天免疫反应",
+    "category": "biological_process",
+    "genes": ["TLR4", "TLR2", "MYD88", "NFKB1", "IL1B", "TNF", "CXCL8"]
+  },
+  {
+    "id": "GO:0006935",
+    "name": "chemotaxis",
+    "name_zh": "趋化作用",
+    "category": "biological_process",
+    "genes": ["CCL2", "CXCL8", "CCL5", "CXCR4", "CCR5", "CXCL12"]
+  },
+  {
+    "id": "GO:0001525",
+    "name": "angiogenesis",
+    "name_zh": "血管生成",
+    "category": "biological_process",
+    "genes": ["VEGFA", "FGF2", "PDGFB", "ANGPT1", "ANGPT2", "HIF1A", "NOS3"]
+  },
+  {
+    "id": "GO:0042493",
+    "name": "response to drug",
+    "name_zh": "药物反应",
+    "category": "biological_process",
+    "genes": ["CYP3A4", "CYP2D6", "CYP2C9", "ABCB1", "NR1I2", "AHR"]
+  },
+  {
+    "id": "GO:0006915",
+    "name": "apoptotic process",
+    "name_zh": "凋亡过程",
+    "category": "biological_process",
+    "genes": ["TP53", "BAX", "BCL2", "CASP3", "CASP8", "CASP9", "FAS", "FASLG"]
+  },
+  {
+    "id": "GO:0005515",
+    "name": "protein binding",
+    "name_zh": "蛋白质结合",
+    "category": "molecular_function",
+    "genes": ["TP53", "NFKB1", "STAT3", "AKT1", "MAPK1", "JUN", "FOS"]
+  },
+  {
+    "id": "GO:0004879",
+    "name": "nuclear receptor activity",
+    "name_zh": "核受体活性",
+    "category": "molecular_function",
+    "genes": ["NR3C1", "PPARG", "RARA", "RXRA", "ESR1", "NR1I2"]
+  },
+  {
+    "id": "GO:0004672",
+    "name": "protein kinase activity",
+    "name_zh": "蛋白激酶活性",
+    "category": "molecular_function",
+    "genes": ["AKT1", "MAPK1", "MAPK14", "CDK4", "SRC", "JAK2"]
+  },
+  {
+    "id": "GO:0008270",
+    "name": "zinc ion binding",
+    "name_zh": "锌离子结合",
+    "category": "molecular_function",
+    "genes": ["TP53", "MMP2", "MMP9", "HDAC1", "HDAC2", "ZNF217"]
+  },
+  {
+    "id": "GO:0005737",
+    "name": "cytoplasm",
+    "name_zh": "细胞质",
+    "category": "cellular_component",
+    "genes": ["AKT1", "MAPK1", "STAT3", "NFKB1", "BCL2", "CASP3"]
+  },
+  {
+    "id": "GO:0005634",
+    "name": "nucleus",
+    "name_zh": "细胞核",
+    "category": "cellular_component",
+    "genes": ["TP53", "NFKB1", "STAT3", "JUN", "FOS", "MYC", "FOXP3"]
+  },
+  {
+    "id": "GO:0005886",
+    "name": "plasma membrane",
+    "name_zh": "质膜",
+    "category": "cellular_component",
+    "genes": ["EGFR", "TLR4", "CD4", "CXCR4", "ICAM1", "VCAM1"]
+  },
+  {
+    "id": "GO:0005576",
+    "name": "extracellular region",
+    "name_zh": "细胞外区域",
+    "category": "cellular_component",
+    "genes": ["IL6", "TNF", "IL1B", "IL10", "VEGFA", "TGFB1", "MMP9"]
+  },
+  {
+    "id": "GO:0005615",
+    "name": "extracellular space",
+    "name_zh": "细胞外间隙",
+    "category": "cellular_component",
+    "genes": ["IL6", "TNF", "CXCL8", "CCL2", "VEGFA", "FGF2", "COL1A1"]
+  }
+]

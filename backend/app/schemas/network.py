@@ -28,11 +28,32 @@ class NetworkChain(BaseModel):
     related_entity_ids: list[str] = Field(default_factory=list)
 
 
+class EnrichmentTerm(BaseModel):
+    term_id: str
+    term_name: str
+    term_name_zh: str | None = None
+    category: str
+    gene_count: int
+    overlap_count: int
+    p_value: float
+    adjusted_p_value: float
+    genes: list[str]
+
+
+class EnrichmentResult(BaseModel):
+    analysis_type: str
+    input_gene_count: int
+    background_gene_count: int
+    terms: list[EnrichmentTerm]
+    timestamp: str
+
+
 class NetworkAnalysisResult(BaseModel):
     task_id: str
     query: str
     analysis_type: AnalysisType
     chains: list[NetworkChain]
+    enrichment: EnrichmentResult | None = None
     disclaimer: str
 
 

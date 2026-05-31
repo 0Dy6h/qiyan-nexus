@@ -1,0 +1,122 @@
+[
+  {
+    "id": "hsa04060",
+    "name": "Cytokine-cytokine receptor interaction",
+    "name_zh": "细胞因子-细胞因子受体相互作用",
+    "genes": ["IL6", "TNF", "IL1B", "IL10", "IL4", "IL13", "IFNG", "IL2", "IL17A", "CXCL8", "CCL2", "VEGFA", "TGFB1"]
+  },
+  {
+    "id": "hsa04668",
+    "name": "TNF signaling pathway",
+    "name_zh": "TNF 信号通路",
+    "genes": ["TNF", "NFKB1", "JUN", "FOS", "MAPK1", "MAPK14", "CASP3", "CASP8", "IL6", "CXCL8", "CCL2", "ICAM1", "VCAM1"]
+  },
+  {
+    "id": "hsa04620",
+    "name": "Toll-like receptor signaling pathway",
+    "name_zh": "Toll 样受体信号通路",
+    "genes": ["TLR4", "TLR2", "MYD88", "NFKB1", "MAPK1", "MAPK14", "JUN", "FOS", "IL6", "TNF", "IL1B", "CXCL8"]
+  },
+  {
+    "id": "hsa04630",
+    "name": "JAK-STAT signaling pathway",
+    "name_zh": "JAK-STAT 信号通路",
+    "genes": ["IL6", "IL10", "IL4", "IFNG", "JAK2", "STAT3", "SOCS3", "BCL2", "MYC"]
+  },
+  {
+    "id": "hsa04010",
+    "name": "MAPK signaling pathway",
+    "name_zh": "MAPK 信号通路",
+    "genes": ["MAPK1", "MAPK14", "JUN", "FOS", "MYC", "TP53", "EGFR", "FGF2", "VEGFA", "TNF"]
+  },
+  {
+    "id": "hsa04151",
+    "name": "PI3K-Akt signaling pathway",
+    "name_zh": "PI3K-Akt 信号通路",
+    "genes": ["AKT1", "BCL2", "BCL2L1", "VEGFA", "FGF2", "EGFR", "PDGFB", "MYC", "CCND1", "NOS3"]
+  },
+  {
+    "id": "hsa04064",
+    "name": "NF-kappa B signaling pathway",
+    "name_zh": "NF-κB 信号通路",
+    "genes": ["NFKB1", "TNF", "IL1B", "TLR4", "ICAM1", "VCAM1", "BCL2", "XIAP"]
+  },
+  {
+    "id": "hsa04657",
+    "name": "IL-17 signaling pathway",
+    "name_zh": "IL-17 信号通路",
+    "genes": ["IL17A", "NFKB1", "MAPK1", "MAPK14", "JUN", "FOS", "IL6", "CXCL8", "CCL2", "MMP9"]
+  },
+  {
+    "id": "hsa04662",
+    "name": "B cell receptor signaling pathway",
+    "name_zh": "B 细胞受体信号通路",
+    "genes": ["NFKB1", "AKT1", "MAPK1", "JUN", "FOS", "BCL2"]
+  },
+  {
+    "id": "hsa04660",
+    "name": "T cell receptor signaling pathway",
+    "name_zh": "T 细胞受体信号通路",
+    "genes": ["NFKB1", "AKT1", "MAPK1", "JUN", "FOS", "IL2", "IFNG", "TNF"]
+  },
+  {
+    "id": "hsa04659",
+    "name": "Th17 cell differentiation",
+    "name_zh": "Th17 细胞分化",
+    "genes": ["IL6", "TGFB1", "IL17A", "STAT3", "NFKB1", "IL1B"]
+  },
+  {
+    "id": "hsa04658",
+    "name": "Th1 and Th2 cell differentiation",
+    "name_zh": "Th1 和 Th2 细胞分化",
+    "genes": ["IL4", "IL13", "IFNG", "STAT3", "IL2", "TNF"]
+  },
+  {
+    "id": "hsa04670",
+    "name": "Leukocyte transendothelial migration",
+    "name_zh": "白细胞跨内皮迁移",
+    "genes": ["ICAM1", "VCAM1", "CXCL8", "CCL2", "MMP9", "MAPK14"]
+  },
+  {
+    "id": "hsa04062",
+    "name": "Chemokine signaling pathway",
+    "name_zh": "趋化因子信号通路",
+    "genes": ["CXCL8", "CCL2", "CCL5", "CXCR4", "CCR5", "CXCL12", "MAPK1", "AKT1", "STAT3"]
+  },
+  {
+    "id": "hsa04066",
+    "name": "HIF-1 signaling pathway",
+    "name_zh": "HIF-1 信号通路",
+    "genes": ["HIF1A", "VEGFA", "IL6", "NOS3", "BCL2", "EGFR"]
+  },
+  {
+    "id": "hsa04370",
+    "name": "VEGF signaling pathway",
+    "name_zh": "VEGF 信号通路",
+    "genes": ["VEGFA", "MAPK1", "AKT1", "NOS3", "PTGS2"]
+  },
+  {
+    "id": "hsa04933",
+    "name": "AGE-RAGE signaling pathway in diabetic complications",
+    "name_zh": "糖尿病并发症中的 AGE-RAGE 信号通路",
+    "genes": ["NFKB1", "MAPK1", "MAPK14", "JUN", "IL6", "TNF", "ICAM1", "VCAM1", "VEGFA"]
+  },
+  {
+    "id": "hsa05321",
+    "name": "Inflammatory bowel disease",
+    "name_zh": "炎症性肠病",
+    "genes": ["IL6", "TNF", "IL1B", "IL10", "IFNG", "IL17A", "NFKB1", "STAT3"]
+  },
+  {
+    "id": "hsa05323",
+    "name": "Rheumatoid arthritis",
+    "name_zh": "类风湿性关节炎",
+    "genes": ["IL6", "TNF", "IL1B", "VEGFA", "MMP9", "ICAM1", "VCAM1"]
+  },
+  {
+    "id": "hsa05140",
+    "name": "Leishmaniasis",
+    "name_zh": "利什曼病",
+    "genes": ["TLR4", "TLR2", "NFKB1", "TNF", "IL10", "NOS2", "PTGS2"]
+  }
+]

@@ -216,7 +216,38 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
-当前网络药理学仍是 seed graph + runtime task 壳，用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转与前端 Markdown 报告导出，不代表科研级 TCMSP / STRING / KEGG / GO 富集分析。
+当前网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。当前不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+
+Network analysis response 示例（包含 enrichment 字段）：
+
+```json
+{
+  "task_id": "network-abc123",
+  "query": "黄芩",
+  "analysis_type": "herb",
+  "chains": [...],
+  "enrichment": {
+    "analysis_type": "combined",
+    "input_gene_count": 5,
+    "background_gene_count": 20000,
+    "terms": [
+      {
+        "term_id": "GO:0006954",
+        "term_name": "inflammatory response",
+        "term_name_zh": "炎症反应",
+        "category": "biological_process",
+        "gene_count": 450,
+        "overlap_count": 3,
+        "p_value": 0.0001,
+        "adjusted_p_value": 0.0024,
+        "genes": ["IL6", "TNF", "IL1B"]
+      }
+    ],
+    "timestamp": "2026-06-01T10:00:00Z"
+  },
+  "disclaimer": "非诊断结论、需结合临床。"
+}
+```
 
 标准后端验证：
 

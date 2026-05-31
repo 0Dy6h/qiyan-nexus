@@ -15,11 +15,32 @@ export type NetworkChain = {
   related_entity_ids: string[];
 };
 
+export type EnrichmentTerm = {
+  term_id: string;
+  term_name: string;
+  term_name_zh?: string | null;
+  category: string;
+  gene_count: number;
+  overlap_count: number;
+  p_value: number;
+  adjusted_p_value: number;
+  genes: string[];
+};
+
+export type EnrichmentResult = {
+  analysis_type: string;
+  input_gene_count: number;
+  background_gene_count: number;
+  terms: EnrichmentTerm[];
+  timestamp: string;
+};
+
 export type NetworkAnalysisResult = {
   task_id: string;
   query: string;
   analysis_type: NetworkAnalysisType;
   chains: NetworkChain[];
+  enrichment?: EnrichmentResult | null;
   disclaimer: string;
 };
 

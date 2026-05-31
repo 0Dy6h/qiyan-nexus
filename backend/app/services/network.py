@@ -1,4 +1,6 @@
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from app.repositories.network_entities import NetworkEntityRepository
@@ -18,6 +20,7 @@ from app.schemas.network_entities import (
     Pathway,
     Target,
 )
+from app.services.enrichment import build_enrichment_result
 from app.services.rag import DISCLAIMER
 
 _MAX_CHAINS_PER_QUERY = 5
@@ -144,6 +147,24 @@ def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> Net
     return NetworkAnalyzeAccepted(task_id=task_id, status="queued", progress=0)
 
 
+def _load_go_terms() -> list[dict]:
+    """Load GO terms from sample data."""
+    path = Path(__file__).parent.parent / "data" / "network" / "sample_go_terms.json"
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_kegg_pathways() -> list[dict]:
+    """Load KEGG pathways from sample data."""
+    path = Path(__file__).parent.parent / "data" / "network" / "sample_kegg_pathways.json"
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResultResponse]:
     repo = _get_repository()
     if record.poll_count == 0:
@@ -167,11 +188,24 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
             ),
         )
 
+    chains = _build_chains_from_seed(record.query, record.analysis_type)
+
+    # Extract target symbols from chains for enrichment analysis
+    target_symbols = list({chain.target for chain in chains})
+
+    # Build enrichment result if we have enough targets
+    enrichment = None
+    if len(target_symbols) >= 2:
+        go_terms = _load_go_terms()
+        kegg_pathways = _load_kegg_pathways()
+        enrichment = build_enrichment_result(target_symbols, go_terms, kegg_pathways)
+
     result_payload = NetworkAnalysisResult(
         task_id=record.task_id,
         query=record.query,
         analysis_type=record.analysis_type,
-        chains=_build_chains_from_seed(record.query, record.analysis_type),
+        chains=chains,
+        enrichment=enrichment,
         disclaimer=DISCLAIMER,
     )
     next_record = repo.upsert(
