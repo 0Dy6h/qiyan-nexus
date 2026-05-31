@@ -22,8 +22,8 @@
 | 前端 | 组件重用率、页面性能、可访问性 WCAG AA |
 | 后端 API | 响应时间 SLI、错误率、测试覆盖率 |
 | 数据 | pgvector 查询延迟、Neo4j Cypher 性能、R2 可用性 |
-| AI | LLM 调用成功率、语义缓存命中率、配额使用率 |
-| 合规 | 免责声明覆盖率、PIPL 合规检查 |
+| AI | LLM 调用成功率、语义缓存命中率、配额使用率；RAG provider 延迟/成本 SLI 已落地（`/api/rag/answer.sli` + `rag_sli` 日志，2026-05-31）；真实 provider 启用按 ADR-0012 L1/L2 分级 |
+| 合规 | 免责声明覆盖率、PIPL 合规检查；外发数据流向已记录（ADR-0011） |
 
 ## 定期清理任务
 
