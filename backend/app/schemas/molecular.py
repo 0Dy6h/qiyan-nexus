@@ -100,9 +100,7 @@ class SimulationTask(BaseModel):
     task_type: Literal["docking", "md_simulation"] = Field(description="任务类型")
     protein_id: str = Field(description="蛋白 ID")
     ligand_id: str = Field(description="配体 ID")
-    status: Literal["pending", "running", "completed", "failed"] = Field(
-        description="任务状态"
-    )
+    status: Literal["pending", "running", "completed", "failed"] = Field(description="任务状态")
     progress: int = Field(default=0, ge=0, le=100, description="任务进度（0-100）")
     created_at: str = Field(description="创建时间（ISO 8601）")
     started_at: str | None = Field(default=None, description="开始时间（ISO 8601）")

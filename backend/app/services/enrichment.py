@@ -6,10 +6,30 @@ simulate real enrichment databases.
 """
 
 from datetime import UTC, datetime
+from typing import Any, TypedDict
 
-from scipy.stats import hypergeom
+from scipy.stats import hypergeom  # type: ignore[import-untyped]
 
 from app.schemas.network import EnrichmentResult, EnrichmentTerm
+
+
+class GOTermDict(TypedDict, total=False):
+    """Type definition for GO term JSON data."""
+
+    id: str
+    name: str
+    name_zh: str
+    category: str
+    genes: list[str]
+
+
+class KEGGPathwayDict(TypedDict, total=False):
+    """Type definition for KEGG pathway JSON data."""
+
+    id: str
+    name: str
+    name_zh: str
+    genes: list[str]
 
 
 def calculate_enrichment(
@@ -42,7 +62,7 @@ def calculate_enrichment(
 
 def run_go_enrichment(
     target_symbols: list[str],
-    go_terms: list[dict],
+    go_terms: list[Any],
     background_size: int = 20000,
     p_threshold: float = 0.05,
 ) -> list[EnrichmentTerm]:
@@ -63,9 +83,7 @@ def run_go_enrichment(
         if not term_genes:
             continue
 
-        p_value, overlap_count = calculate_enrichment(
-            target_symbols, term_genes, background_size
-        )
+        p_value, overlap_count = calculate_enrichment(target_symbols, term_genes, background_size)
 
         # Filter: at least 2 overlapping genes and p-value < threshold
         if overlap_count >= 2 and p_value < p_threshold:
@@ -93,7 +111,7 @@ def run_go_enrichment(
 
 def run_kegg_enrichment(
     target_symbols: list[str],
-    kegg_pathways: list[dict],
+    kegg_pathways: list[Any],
     background_size: int = 20000,
     p_threshold: float = 0.05,
 ) -> list[EnrichmentTerm]:
@@ -144,8 +162,8 @@ def run_kegg_enrichment(
 
 def build_enrichment_result(
     target_symbols: list[str],
-    go_terms: list[dict],
-    kegg_pathways: list[dict],
+    go_terms: list[Any],
+    kegg_pathways: list[Any],
     background_size: int = 20000,
 ) -> EnrichmentResult | None:
     """Build combined GO + KEGG enrichment result.

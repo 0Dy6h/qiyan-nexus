@@ -1,6 +1,7 @@
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from app.repositories.network_entities import NetworkEntityRepository
@@ -147,22 +148,24 @@ def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> Net
     return NetworkAnalyzeAccepted(task_id=task_id, status="queued", progress=0)
 
 
-def _load_go_terms() -> list[dict]:
+def _load_go_terms() -> list[Any]:
     """Load GO terms from sample data."""
     path = Path(__file__).parent.parent / "data" / "network" / "sample_go_terms.json"
     if not path.exists():
         return []
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        data: list[Any] = json.load(f)
+        return data
 
 
-def _load_kegg_pathways() -> list[dict]:
+def _load_kegg_pathways() -> list[Any]:
     """Load KEGG pathways from sample data."""
     path = Path(__file__).parent.parent / "data" / "network" / "sample_kegg_pathways.json"
     if not path.exists():
         return []
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        data: list[Any] = json.load(f)
+        return data
 
 
 def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResultResponse]:

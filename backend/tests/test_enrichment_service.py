@@ -199,12 +199,14 @@ def test_build_enrichment_result_limits_to_top_20():
     # Create 30 GO terms with varying overlap
     go_terms = []
     for i in range(30):
-        go_terms.append({
-            "id": f"GO:{i:07d}",
-            "name": f"process {i}",
-            "category": "biological_process",
-            "genes": targets[:3] + [f"GENE{j}" for j in range(5)],
-        })
+        go_terms.append(
+            {
+                "id": f"GO:{i:07d}",
+                "name": f"process {i}",
+                "category": "biological_process",
+                "genes": targets[:3] + [f"GENE{j}" for j in range(5)],
+            }
+        )
 
     result = build_enrichment_result(targets, go_terms, [])
 
