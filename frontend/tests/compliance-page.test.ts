@@ -40,6 +40,23 @@ test("getComplianceHighlights data-source section explains seed, PubMed live syn
   assert.match(joined, /演示/);
 });
 
+test("getComplianceHighlights privacy section discloses external LLM egress and PIPL handling", () => {
+  const privacy = getComplianceHighlights().find((section) => section.title === "隐私与数据处理");
+  assert.ok(privacy, "expected 隐私与数据处理 section to exist");
+
+  const joined = privacy!.items.join("\n");
+  // default deterministic path does not send data externally
+  assert.match(joined, /默认/);
+  assert.match(joined, /deterministic|不外发|不发送/);
+  // when a real provider is enabled, question + cited chunks go to an external gateway
+  assert.match(joined, /opencode_go|外部/);
+  assert.match(joined, /问题|引用片段/);
+  // PIPL minimal-necessary + no patient identity
+  assert.match(joined, /PIPL/);
+  assert.match(joined, /最小必要/);
+  assert.match(joined, /患者身份|身份信息/);
+});
+
 test("getComplianceHighlights pdf-copyright section restricts redistribution and ties to runtime state", () => {
   const pdfCopyright = getComplianceHighlights().find((section) => section.title === "PDF 版权声明");
   assert.ok(pdfCopyright, "expected PDF 版权声明 section to exist");

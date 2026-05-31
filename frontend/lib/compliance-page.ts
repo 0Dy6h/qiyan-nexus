@@ -34,6 +34,9 @@ export function getComplianceHighlights() {
       title: "隐私与数据处理",
       items: [
         "当前 MVP-A 不要求上传患者隐私数据开展问答。",
+        "默认 deterministic 模式完全离线，问题与引用片段不外发给任何外部服务。",
+        "启用真实 LLM（QIYAN_LLM_PROVIDER=opencode_go）后，问题文本与命中的引用片段会发送至外部 OpenAI 兼容网关用于生成回答；检索、引用卡片与免责声明仍由本地后端控制。",
+        "遵循 PIPL 最小必要与告知原则：仅发送回答所需的问题与引用片段，不发送患者身份信息、就诊记录或其他可识别个人信息。",
         "后续接入 PDF 或病例材料前，应先完成脱敏、权限与留痕方案。",
       ],
     },
