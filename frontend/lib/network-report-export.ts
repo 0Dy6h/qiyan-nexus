@@ -60,10 +60,49 @@ export function buildNetworkReportMarkdown(
     });
   }
   sections.push("");
+
+  // Add enrichment analysis section if available
+  if (result.enrichment && result.enrichment.terms.length > 0) {
+    sections.push("## 富集分析结果");
+    sections.push("");
+    sections.push(`- 输入基因数：${result.enrichment.input_gene_count}`);
+    sections.push(`- 背景基因数：${result.enrichment.background_gene_count}`);
+    sections.push(`- 分析类型：${result.enrichment.analysis_type}`);
+    sections.push(`- 富集通路/功能数：${result.enrichment.terms.length}`);
+    sections.push("");
+    sections.push("| Term ID | 通路/功能 | 类别 | 重叠基因 | P-value | 校正后 P-value | 基因列表 |");
+    sections.push("|---|---|---|---:|---:|---:|---|");
+    result.enrichment.terms.forEach((term) => {
+      const termName = term.term_name_zh || term.term_name;
+      const overlapFraction = `${term.overlap_count}/${term.gene_count}`;
+      const pValue = term.p_value.toExponential(2);
+      const adjPValue = term.adjusted_p_value.toExponential(2);
+      const genes = term.genes.join(", ");
+      sections.push(
+        `| ${escapeTableCell(term.term_id)} | ${escapeTableCell(termName)} | ${escapeTableCell(term.category)} | ${escapeTableCell(overlapFraction)} | ${escapeTableCell(pValue)} | ${escapeTableCell(adjPValue)} | ${escapeTableCell(genes)} |`,
+      );
+    });
+    sections.push("");
+    sections.push("### 参数说明");
+    sections.push("");
+    sections.push("- **P-value**：超几何分布计算的原始 p 值");
+    sections.push("- **校正后 P-value**：Bonferroni 校正后的 p 值");
+    sections.push("- **重叠基因**：输入基因与该通路/功能的交集数量");
+    sections.push("- **过滤条件**：p < 0.05 且重叠基因数 >= 2");
+    sections.push("");
+  }
+
+  sections.push("## 网络图");
+  sections.push("");
+  sections.push("![成分-靶点-通路网络图](placeholder-network-graph.png)");
+  sections.push("");
+  sections.push("*注：图片占位符，实际图片生成功能待后续实现*");
+  sections.push("");
+
   sections.push("## 边界说明");
   sections.push("");
   sections.push("- 不是正式网络药理学计算。");
-  sections.push("- 不代表 TCMSP / STRING / KEGG / GO 富集结果。");
+  sections.push("- 富集分析基于本地 JSON 字典（mock），不代表真实 KEGG REST API 或 STRING 数据库。");
   sections.push("- 不构成诊断或治疗建议，实际判断需核对原始文献、参数版本与临床背景。");
   sections.push("");
   sections.push("---");
