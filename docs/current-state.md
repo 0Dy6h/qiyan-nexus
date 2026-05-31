@@ -60,9 +60,10 @@ pnpm e2e
 
 ## 当前下一步候选
 
-最新项目级状态见 `docs/handoffs/2026-05-30-morning-llm-grounding-wrap.md`、`docs/handoffs/2026-05-30-opencode-go-priority.md`、`docs/handoffs/2026-05-30-anthropic-native-grounding.md` 与 `docs/handoffs/2026-05-30-internal-preview-closure.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
+最新项目级状态见 `docs/handoffs/2026-05-31-bge-semantic-recalibration.md`（语义 grounding hashing baseline 评估完成，BGE 评估因网络阻塞待续）、`docs/handoffs/2026-05-30-morning-llm-grounding-wrap.md`、`docs/handoffs/2026-05-30-opencode-go-priority.md`、`docs/handoffs/2026-05-30-anthropic-native-grounding.md` 与 `docs/handoffs/2026-05-30-internal-preview-closure.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
 
-1. 如团队需要正式 sign-off，按 `docs/checklists/internal-preview-smoke.md` 完成真实内部 reviewer demo 走查，并把反馈记录到 `docs/evaluations/2026-05-28-internal-review-feedback.md`。
-2. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
-3. 对真实 LLM 只做本地 smoke；优先运行 OpenCode Go live smoke，并记录 tool/function calling 是否通过或是否回退 structured claims v3。语义级 grounding gate（hallucination reject）的第一版已落地（cosine 阈值 + 标注分离 eval，默认 hashing proxy，`bge` 可 opt-in 升级）；但默认开放真实模型仍需补齐生产级隐私措辞与成本/延迟 SLI，且建议在 hashing proxy 之外用 `bge` 复核分离度后再放宽默认。
-4. 在以下方向中选一条作为下一轮主线：语义 grounding 的 `bge` 真实语义复核 + 阈值再标定、network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、PDF 抽取质量启发式/OCR spike；Anthropic 仅在有订阅/key 后再排期。
+1. **语义 grounding BGE 复核（部分完成）**：hashing baseline 已评估（0 false rejects, 3 false accepts, 100% paired separation），BGE 评估因 Hugging Face 模型下载网络超时阻塞。需在有网络/代理环境下运行 `backend/scripts/eval_bge_separation.py` 完成 BGE 真实语义验证，预期 BGE 可将 false accepts 降至 <3 并支持阈值收紧至 0.50-0.60。详见 `docs/handoffs/2026-05-31-bge-semantic-recalibration.md`。
+2. 如团队需要正式 sign-off，按 `docs/checklists/internal-preview-smoke.md` 完成真实内部 reviewer demo 走查，并把反馈记录到 `docs/evaluations/2026-05-28-internal-review-feedback.md`。
+3. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
+4. 对真实 LLM 只做本地 smoke；优先运行 OpenCode Go live smoke，并记录 tool/function calling 是否通过或是否回退 structured claims v3。语义级 grounding gate（hallucination reject）的第一版已落地（cosine 阈值 + 标注分离 eval，默认 hashing proxy，`bge` 可 opt-in 升级）；但默认开放真实模型仍需补齐生产级隐私措辞与成本/延迟 SLI，且建议在 hashing proxy 之外用 `bge` 复核分离度后再放宽默认。
+5. 在以下方向中选一条作为下一轮主线：完成 BGE 评估（需网络环境）、network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、PDF 抽取质量启发式/OCR spike；Anthropic 仅在有订阅/key 后再排期。
