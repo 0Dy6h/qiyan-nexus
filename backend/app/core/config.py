@@ -20,6 +20,8 @@ class Settings:
     opencode_go_price_input_per_mtok: float = 0.0
     opencode_go_price_output_per_mtok: float = 0.0
     grounding_semantic_threshold: float = 0.40
+    nli_backend: str = ""
+    nli_threshold: float = 0.0
 
 
 @lru_cache
@@ -49,4 +51,9 @@ def get_settings() -> Settings:
             os.getenv("QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK", "0.0")
         ),
         grounding_semantic_threshold=float(os.getenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0.40")),
+        # Opt-in NLI entailment second-stage gate; default empty backend = disabled.
+        # Threshold <=0 also disables it. See app/services/nli.py and
+        # docs/evaluations/2026-06-01-nli-grounding-spike.md.
+        nli_backend=os.getenv("QIYAN_NLI_BACKEND", ""),
+        nli_threshold=float(os.getenv("QIYAN_NLI_THRESHOLD", "0.0")),
     )

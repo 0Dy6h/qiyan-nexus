@@ -83,3 +83,25 @@ cosine 在结构上无法区分「忠实复述」与「同主题、附加未支�
 `deterministic`，不做默认切换。闭合该 gap 需换一类 gate（中文 NLI/蕴含或 claim 核验模型，度量
 entailment 而非 similarity），属独立的、更大的架构决策，不在本轮范围。§4b（真实单价 + SLI 基线）、
 §4c（真人走查）保持开放，但在 §4a 以新 gate 形式解决前不构成启用 L2 的充分条件。
+
+## 2026-06-01 更新（二）：NLI 蕴含 gate spike 验证通过 + opt-in 落地
+
+上一条提出的「换一类 gate」已做 spike 验证（`docs/evaluations/2026-06-01-nli-grounding-spike.md`、
+`backend/scripts/spike_nli_grounding.py`）。用多语 NLI 模型 `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`
+（premise=被引 chunk，hypothesis=claim，取 entailment 概率）在**同一 14 对 fixture** 上评分：
+
+- 忠实 claim entailment **0.997–0.999**（7 中 6 条），硬负例 **≤0.001**（7 中 7 条）；
+- 在 0.10–0.90 全阈值区间 **false accept = 0**（cosine 是 7/7 false accept）；
+- 唯一一条忠实「误拒」（entailment 0.0073）实为标注过宽：该 claim 额外断言「提供潜在靶点」而 chunk 未述，
+  NLI 实际抓对了一个 scope 越界。
+
+**实现（opt-in，默认关闭）**：新增 `app/services/nli.py`（`NliBackend` Protocol + 懒加载
+`TransformersNliBackend` + `select_nli_backend`，默认/未知名 → `None`）；`evaluate_answer_grounding`
+在 cosine 预筛之后追加 NLI 二级 gate，未过阈值时 `blocked_reason="nli_low_entailment"`；schema 增
+`entailment_score` / `nli_threshold` / `min_entailment_score`；config 增 `QIYAN_NLI_BACKEND`（默认空=关）、
+`QIYAN_NLI_MODEL`、`QIYAN_NLI_THRESHOLD`（默认 0=关）。**默认行为逐字节不变**：未配置时 gate 为 no-op，
+CI 不导入 transformers、不下载权重（测试用确定性 fake backend）。所有不变量（免责声明、拦截替换、安全回退）保持。
+
+**这不等于自动晋级 L2。** 该 gate 解决了 §4a 的技术阻塞，但默认切换到真实 provider 之前仍需：在更大、更多样的
+标注集上复核并定生产阈值；把每条 claim 一次 NLI 前向的延迟/成本计入 SLI 基线（§4b）；完成真人走查（§4c）。
+gate 默认关闭，在上述完成且明确翻转默认前不改变现有用户路径。

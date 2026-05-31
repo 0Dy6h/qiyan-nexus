@@ -4,6 +4,7 @@ import re
 import numpy as np
 
 from app.schemas.rag import CitationCard, GroundedClaim, GroundingMetadata, GroundingPolicy
+from app.services.nli import NliBackend
 from app.services.retrieval.embedding import EmbeddingBackend
 
 BLOCKED_ANSWER_TEXT = (
@@ -134,6 +135,8 @@ def _blocked_structured_metadata(
     tool_call_count: int = 0,
     semantic_threshold: float | None = None,
     min_semantic_score: float | None = None,
+    nli_threshold: float | None = None,
+    min_entailment_score: float | None = None,
 ) -> GroundingMetadata:
     claims = structured_claims or []
     return GroundingMetadata(
@@ -154,6 +157,8 @@ def _blocked_structured_metadata(
         tool_call_count=tool_call_count,
         semantic_threshold=semantic_threshold,
         min_semantic_score=min_semantic_score,
+        nli_threshold=nli_threshold,
+        min_entailment_score=min_entailment_score,
     )
 
 
@@ -179,6 +184,8 @@ def evaluate_answer_grounding(
     blocked_reason: str | None = None,
     semantic_backend: EmbeddingBackend | None = None,
     semantic_threshold: float | None = None,
+    nli_backend: NliBackend | None = None,
+    nli_threshold: float | None = None,
 ) -> tuple[str, GroundingMetadata]:
     allowed_refs = build_allowed_evidence_refs(citations)
     if provider_name not in _EXTERNAL_PROVIDER_NAMES:
@@ -335,6 +342,50 @@ def evaluate_answer_grounding(
                 ),
             )
 
+    # Second-stage entailment gate (opt-in, default-off). Cosine above is a cheap
+    # topical pre-filter; NLI decides whether the cited chunk actually entails the
+    # claim, which cosine cannot (it can't tell a faithful paraphrase from an
+    # on-topic fabrication). See docs/evaluations/2026-06-01-nli-grounding-spike.md.
+    min_entailment_score: float | None = None
+    if nli_threshold is not None and nli_backend is not None:
+        reference_by_ref = _reference_text_by_ref(citations)
+        for claim in structured_claims:
+            claim_best = 0.0
+            for ref in claim.evidence_refs:
+                reference_text = reference_by_ref.get(ref)
+                if not reference_text:
+                    continue
+                claim_best = max(
+                    claim_best,
+                    nli_backend.entailment(reference_text, claim.text),
+                )
+            claim.entailment_score = claim_best
+            min_entailment_score = (
+                claim_best
+                if min_entailment_score is None
+                else min(min_entailment_score, claim_best)
+            )
+
+        if min_entailment_score is not None and min_entailment_score < nli_threshold:
+            return (
+                BLOCKED_ANSWER_TEXT,
+                _blocked_structured_metadata(
+                    reason="nli_low_entailment",
+                    allowed_refs=allowed_refs,
+                    policy=policy,
+                    structured_claims=structured_claims,
+                    matched_refs=matched_refs,
+                    unsupported_refs=unsupported_refs,
+                    provider_native_grounding=provider_native_grounding,
+                    tool_name=tool_name,
+                    tool_call_count=tool_call_count,
+                    semantic_threshold=semantic_threshold,
+                    min_semantic_score=min_semantic_score,
+                    nli_threshold=nli_threshold,
+                    min_entailment_score=min_entailment_score,
+                ),
+            )
+
     return (
         _build_structured_answer(structured_claims),
         GroundingMetadata(
@@ -351,5 +402,7 @@ def evaluate_answer_grounding(
             tool_call_count=tool_call_count,
             semantic_threshold=semantic_threshold,
             min_semantic_score=min_semantic_score,
+            nli_threshold=nli_threshold,
+            min_entailment_score=min_entailment_score,
         ),
     )

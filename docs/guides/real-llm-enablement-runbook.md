@@ -111,6 +111,17 @@ offline deterministic with no external egress.
    different gate (Chinese NLI/entailment or claim verification). See
    `docs/evaluations/2026-06-01-threshold-recalibration.md` and ADR-0012's
    2026-06-01 update.
+
+   **Update (2026-06-01): the NLI gate is implemented (opt-in, default off).** A
+   `mDeBERTa-v3-mnli-xnli` entailment gate separates faithful claims (~0.99) from
+   on-topic hard negatives (≤0.001) with 0 false accepts where cosine had 7/7.
+   Enable with `QIYAN_NLI_BACKEND=transformers` + `QIYAN_NLI_THRESHOLD=0.5`
+   (lazy-loads ~560 MB). It runs after the cosine pre-filter and blocks with
+   `nli_low_entailment`. This resolves the §4a technical limitation but is **not**
+   an automatic L2 flip — still validate on a larger labeled set + pick a
+   production threshold, fold the NLI forward-pass latency/cost into the SLI
+   baseline, and run the reviewer walkthrough first. See
+   `docs/evaluations/2026-06-01-nli-grounding-spike.md`.
 2. Configure real `QIYAN_OPENCODE_GO_PRICE_*` and record an SLI baseline.
 3. Run a human reviewer walkthrough per
    `docs/checklists/internal-preview-smoke.md` and record feedback.

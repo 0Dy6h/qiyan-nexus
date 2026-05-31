@@ -19,6 +19,7 @@ from app.schemas.rag import (
 from app.services.grounding import evaluate_answer_grounding
 from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
+from app.services.nli import select_nli_backend
 from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import (
     CONFIDENCE_BY_SOURCE_TYPE,
@@ -161,6 +162,8 @@ def answer_question(
     configured_threshold = settings.grounding_semantic_threshold
     semantic_threshold = configured_threshold if configured_threshold > 0 else None
     semantic_backend = select_embedding_backend() if semantic_threshold is not None else None
+    nli_threshold = settings.nli_threshold if settings.nli_threshold > 0 else None
+    nli_backend = select_nli_backend(settings.nli_backend) if nli_threshold is not None else None
     grounded_answer, grounding = evaluate_answer_grounding(
         draft.provider_name,
         draft.text,
@@ -173,6 +176,8 @@ def answer_question(
         blocked_reason=draft.grounding_blocked_reason,
         semantic_backend=semantic_backend,
         semantic_threshold=semantic_threshold,
+        nli_backend=nli_backend,
+        nli_threshold=nli_threshold,
     )
     estimated_cost_usd = _estimate_cost_usd(
         draft.input_tokens,
