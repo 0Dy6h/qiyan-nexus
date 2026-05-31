@@ -58,6 +58,20 @@ class RagAnswerRequest(BaseModel):
     top_k: int = Field(default=2, ge=1)
 
 
+class ProviderSli(BaseModel):
+    """Service-level indicators for the LLM provider call.
+
+    ``provider_latency_ms`` wraps only the ``generate_answer`` call (retrieval and
+    grounding are local and cheap). ``estimated_cost_usd`` is derived from token
+    usage and operator-configured per-million-token prices; it stays ``None`` when
+    token usage is missing (deterministic / fallback) or prices are unset, so we
+    never surface a guessed price.
+    """
+
+    provider_latency_ms: int | None = None
+    estimated_cost_usd: float | None = None
+
+
 class RagAnswerResponse(BaseModel):
     question: str
     answer: str
@@ -69,3 +83,4 @@ class RagAnswerResponse(BaseModel):
     grounding: GroundingMetadata
     input_tokens: int | None = None
     output_tokens: int | None = None
+    sli: ProviderSli | None = None

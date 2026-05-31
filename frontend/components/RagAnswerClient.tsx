@@ -8,6 +8,7 @@ import {
   CitationCard,
   getRagSourceLabel,
   GroundingMetadata,
+  ProviderSli,
   RagAnswerResponse,
   RagSource,
 } from "../lib/api/rag";
@@ -34,6 +35,14 @@ function formatConfidence(value: number) {
 
 function formatTokenUsage(value: number | null | undefined) {
   return value == null ? "未返回" : `${value}`;
+}
+
+function formatLatencyMs(sli: ProviderSli | null | undefined) {
+  return sli?.provider_latency_ms == null ? "未返回" : `${sli.provider_latency_ms} ms`;
+}
+
+function formatEstimatedCost(sli: ProviderSli | null | undefined) {
+  return sli?.estimated_cost_usd == null ? "未估算" : `$${sli.estimated_cost_usd.toFixed(6)}`;
 }
 
 function formatGroundingCoverage(grounding: GroundingMetadata) {
@@ -362,6 +371,8 @@ export default function RagAnswerClient() {
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
                 `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,
                 `Token 输出 ${formatTokenUsage(state.result.output_tokens)}`,
+                `Provider 延迟 ${formatLatencyMs(state.result.sli)}`,
+                `预估成本 ${formatEstimatedCost(state.result.sli)}`,
               ]}
             />
           </section>

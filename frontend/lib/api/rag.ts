@@ -45,6 +45,11 @@ export type GroundingMetadata = {
   min_semantic_score?: number | null;
 };
 
+export type ProviderSli = {
+  provider_latency_ms?: number | null;
+  estimated_cost_usd?: number | null;
+};
+
 export type RagAnswerResponse = {
   question: string;
   answer: string;
@@ -56,6 +61,7 @@ export type RagAnswerResponse = {
   grounding: GroundingMetadata;
   input_tokens?: number | null;
   output_tokens?: number | null;
+  sli?: ProviderSli | null;
 };
 
 export function getBackendBaseUrl() {

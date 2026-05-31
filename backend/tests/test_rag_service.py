@@ -249,6 +249,78 @@ def test_answer_question_swaps_to_mock_claude_provider_via_env(monkeypatch):
     assert len(response.citations) == 2
 
 
+def test_answer_question_reports_provider_latency_and_null_cost_for_deterministic():
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.sli is not None
+    assert isinstance(response.sli.provider_latency_ms, int)
+    assert response.sli.provider_latency_ms >= 0
+    # deterministic has no token usage, so cost cannot be estimated.
+    assert response.sli.estimated_cost_usd is None
+
+
+def test_answer_question_estimates_cost_from_tokens_and_env_prices(monkeypatch):
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0")
+    # Prices are USD per million tokens.
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK", "1.0")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK", "2.0")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text=(
+                '{"claims":[{"text":"肠道微生态失衡与特应性皮炎存在可解释关联。",'
+                f'"evidence_refs":["{citations[0].chunk_id or citations[0].literature_id}"]}}]'
+                "}"
+            ),
+            provider_name=self.name,
+            input_tokens=1_000_000,
+            output_tokens=500_000,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.sli is not None
+    assert isinstance(response.sli.provider_latency_ms, int)
+    # 1_000_000 / 1e6 * 1.0 + 500_000 / 1e6 * 2.0 = 1.0 + 1.0 = 2.0
+    assert response.sli.estimated_cost_usd == 2.0
+
+
+def test_answer_question_leaves_cost_null_when_prices_unset(monkeypatch):
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0")
+    monkeypatch.delenv("QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK", raising=False)
+    monkeypatch.delenv("QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK", raising=False)
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text=(
+                '{"claims":[{"text":"肠道微生态失衡与特应性皮炎存在可解释关联。",'
+                f'"evidence_refs":["{citations[0].chunk_id or citations[0].literature_id}"]}}]'
+                "}"
+            ),
+            provider_name=self.name,
+            input_tokens=1200,
+            output_tokens=800,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=1)
+
+    assert response.sli is not None
+    # default prices are 0.0 -> cost is not estimated even with token usage.
+    assert response.sli.estimated_cost_usd is None
+
+
 def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
     from app.services.llm import opencode_go_provider
 

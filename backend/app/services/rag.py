@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import UTC, datetime
 
 from app.core.config import get_settings
@@ -8,7 +10,12 @@ from app.repositories.runtime_storage import (
     resolve_literature_storage_path,
 )
 from app.schemas.literature import LiteratureSource
-from app.schemas.rag import CitationCard, RagAnswerResponse, RetrievalMetadata
+from app.schemas.rag import (
+    CitationCard,
+    ProviderSli,
+    RagAnswerResponse,
+    RetrievalMetadata,
+)
 from app.services.grounding import evaluate_answer_grounding
 from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
@@ -21,8 +28,30 @@ from app.services.retrieval.provider import (
 )
 
 DISCLAIMER = "非诊断结论、需结合临床。"
+_LOGGER = logging.getLogger(__name__)
 _REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
 _CHUNK_REPOSITORY = InMemoryChunkRepository(resolve_chunk_storage_path())
+
+
+def _estimate_cost_usd(
+    input_tokens: int | None,
+    output_tokens: int | None,
+    price_input_per_mtok: float,
+    price_output_per_mtok: float,
+) -> float | None:
+    """Estimate USD cost from token usage and per-million-token prices.
+
+    Returns ``None`` when no token usage is available or both prices are unset,
+    so a guessed price is never surfaced for deterministic / fallback answers.
+    """
+
+    if input_tokens is None and output_tokens is None:
+        return None
+    if price_input_per_mtok <= 0 and price_output_per_mtok <= 0:
+        return None
+    cost = (input_tokens or 0) / 1_000_000 * price_input_per_mtok
+    cost += (output_tokens or 0) / 1_000_000 * price_output_per_mtok
+    return round(cost, 6)
 
 
 def build_answer(citations: list[CitationCard], question: str = "") -> str:
@@ -125,8 +154,11 @@ def answer_question(
         )
 
     provider = select_provider(llm_provider_name)
+    provider_started = time.perf_counter()
     draft = provider.generate_answer(normalized_question, citations)
-    configured_threshold = get_settings().grounding_semantic_threshold
+    provider_latency_ms = int((time.perf_counter() - provider_started) * 1000)
+    settings = get_settings()
+    configured_threshold = settings.grounding_semantic_threshold
     semantic_threshold = configured_threshold if configured_threshold > 0 else None
     semantic_backend = select_embedding_backend() if semantic_threshold is not None else None
     grounded_answer, grounding = evaluate_answer_grounding(
@@ -141,6 +173,28 @@ def answer_question(
         blocked_reason=draft.grounding_blocked_reason,
         semantic_backend=semantic_backend,
         semantic_threshold=semantic_threshold,
+    )
+    estimated_cost_usd = _estimate_cost_usd(
+        draft.input_tokens,
+        draft.output_tokens,
+        settings.opencode_go_price_input_per_mtok,
+        settings.opencode_go_price_output_per_mtok,
+    )
+    sli = ProviderSli(
+        provider_latency_ms=provider_latency_ms,
+        estimated_cost_usd=estimated_cost_usd,
+    )
+    # Secret-free structured SLI line for ops observability.
+    _LOGGER.info(
+        "rag_sli provider=%s grounding=%s latency_ms=%s input_tokens=%s "
+        "output_tokens=%s cost_usd=%s strategy=%s",
+        draft.provider_name,
+        grounding.status,
+        provider_latency_ms,
+        draft.input_tokens,
+        draft.output_tokens,
+        estimated_cost_usd,
+        retrieval_provider.name,
     )
     return RagAnswerResponse(
         question=normalized_question,
@@ -158,4 +212,5 @@ def answer_question(
         grounding=grounding,
         input_tokens=draft.input_tokens,
         output_tokens=draft.output_tokens,
+        sli=sli,
     )

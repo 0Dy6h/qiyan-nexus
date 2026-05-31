@@ -117,6 +117,29 @@ test("buildAnswerMarkdown includes token usage when provider returns it", () => 
   assert.ok(md.includes("Token 输出：64"));
 });
 
+test("buildAnswerMarkdown shows provider latency and cost when sli is present", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    input_tokens: 517,
+    output_tokens: 1087,
+    sli: {
+      provider_latency_ms: 8423,
+      estimated_cost_usd: 0.001234,
+    },
+  });
+
+  assert.ok(md.includes("Provider 延迟：8423 ms"));
+  assert.ok(md.includes("预估成本：$0.001234"));
+});
+
+test("buildAnswerMarkdown shows sli placeholders when latency and cost are absent", () => {
+  const md = buildAnswerMarkdown(SAMPLE_RESULT);
+
+  assert.ok(md.includes("Provider 延迟：未返回"));
+  assert.ok(md.includes("预估成本：未估算"));
+});
+
 test("buildAnswerMarkdown includes OpenCode Go native grounding metadata", () => {
   const md = buildAnswerMarkdown({
     ...SAMPLE_RESULT,

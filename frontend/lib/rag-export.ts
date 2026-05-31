@@ -1,10 +1,18 @@
-import type { CitationCard, RagAnswerResponse } from "./api/rag";
+import type { CitationCard, ProviderSli, RagAnswerResponse } from "./api/rag";
 import { getRagSourceLabel } from "./api/rag";
 
 const NEWLINE = "\n";
 
 function joinOrFallback(items: string[], fallback: string): string {
   return items.length > 0 ? items.join("、") : fallback;
+}
+
+function formatLatencyMs(sli: ProviderSli | null | undefined): string {
+  return sli?.provider_latency_ms == null ? "未返回" : `${sli.provider_latency_ms} ms`;
+}
+
+function formatEstimatedCost(sli: ProviderSli | null | undefined): string {
+  return sli?.estimated_cost_usd == null ? "未估算" : `$${sli.estimated_cost_usd.toFixed(6)}`;
 }
 
 function formatSemanticThreshold(threshold: number | null | undefined): string {
@@ -74,6 +82,8 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push(`- 结构化声明数：${result.grounding.structured_claims.length}`);
   sections.push(`- Token 输入：${result.input_tokens ?? "未返回"}`);
   sections.push(`- Token 输出：${result.output_tokens ?? "未返回"}`);
+  sections.push(`- Provider 延迟：${formatLatencyMs(result.sli)}`);
+  sections.push(`- 预估成本：${formatEstimatedCost(result.sli)}`);
   sections.push("");
   sections.push("## 问题");
   sections.push("");

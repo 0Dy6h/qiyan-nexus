@@ -17,6 +17,8 @@ class Settings:
     opencode_go_model: str = "deepseek-v4-flash"
     opencode_go_max_tokens: int = 1200
     opencode_go_temperature: float = 0.2
+    opencode_go_price_input_per_mtok: float = 0.0
+    opencode_go_price_output_per_mtok: float = 0.0
     grounding_semantic_threshold: float = 0.40
 
 
@@ -38,5 +40,13 @@ def get_settings() -> Settings:
         opencode_go_model=os.getenv("QIYAN_OPENCODE_GO_MODEL", "deepseek-v4-flash"),
         opencode_go_max_tokens=int(os.getenv("QIYAN_OPENCODE_GO_MAX_TOKENS", "1200")),
         opencode_go_temperature=float(os.getenv("QIYAN_OPENCODE_GO_TEMPERATURE", "0.2")),
+        # Prices are USD per million tokens; default 0.0 means "do not estimate cost"
+        # so we never surface a guessed price the operator did not configure.
+        opencode_go_price_input_per_mtok=float(
+            os.getenv("QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK", "0.0")
+        ),
+        opencode_go_price_output_per_mtok=float(
+            os.getenv("QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK", "0.0")
+        ),
         grounding_semantic_threshold=float(os.getenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0.40")),
     )

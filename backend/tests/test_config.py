@@ -30,6 +30,8 @@ def test_default_settings(monkeypatch):
     assert settings.opencode_go_model == "deepseek-v4-flash"
     assert settings.opencode_go_max_tokens == 1200
     assert settings.opencode_go_temperature == 0.2
+    assert settings.opencode_go_price_input_per_mtok == 0.0
+    assert settings.opencode_go_price_output_per_mtok == 0.0
     get_settings.cache_clear()
 
 
@@ -68,4 +70,16 @@ def test_opencode_go_settings_from_env(monkeypatch):
     assert settings.opencode_go_model == "test-model"
     assert settings.opencode_go_max_tokens == 128
     assert settings.opencode_go_temperature == 0.4
+    get_settings.cache_clear()
+
+
+def test_opencode_go_price_settings_from_env(monkeypatch):
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK", "0.27")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK", "1.1")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.opencode_go_price_input_per_mtok == 0.27
+    assert settings.opencode_go_price_output_per_mtok == 1.1
     get_settings.cache_clear()

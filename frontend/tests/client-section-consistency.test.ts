@@ -103,3 +103,10 @@ test("rag citation section mirrors applied retrieval boundaries instead of reque
   assert.doesNotMatch(ragSource, /当前来源过滤：\{getRagSourceLabel\(state\.source\)\}/);
   assert.doesNotMatch(ragSource, /请求 top_k：\{state\.topK\}/);
 });
+
+test("rag retrieval metadata surfaces provider latency and cost SLI", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /Provider 延迟 \$\{formatLatencyMs\(state\.result\.sli\)\}/);
+  assert.match(ragSource, /预估成本 \$\{formatEstimatedCost\(state\.result\.sli\)\}/);
+});
