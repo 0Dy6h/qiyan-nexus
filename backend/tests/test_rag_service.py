@@ -259,7 +259,7 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
         "generate_answer",
         lambda self, question, citations: opencode_go_provider.AnswerDraft(
             text=(
-                '{"claims":[{"text":"opencode answer for 2 citations",'
+                '{"claims":[{"text":"肠道微生态失衡与皮肤屏障异常、神经免疫调节紊乱在特应性皮炎中存在可解释关联",'
                 f'"evidence_refs":["{citations[0].chunk_id}"]}}]'
                 "}"
             ),
@@ -271,12 +271,17 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
 
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
 
-    assert response.answer == "opencode answer for 2 citations [chunk-cn-ad-gbs-001-abstract]。"
+    assert response.answer == (
+        "肠道微生态失衡与皮肤屏障异常、神经免疫调节紊乱在特应性皮炎中存在可解释关联"
+        " [chunk-cn-ad-gbs-001-abstract]。"
+    )
     assert response.provider_name == "opencode_go"
     assert response.grounding.status == "passed"
     assert response.grounding.policy == "structured_claim_refs_v3"
     assert response.grounding.matched_evidence_refs == ["chunk-cn-ad-gbs-001-abstract"]
-    assert response.grounding.structured_claims[0].text == "opencode answer for 2 citations"
+    assert response.grounding.structured_claims[0].text == (
+        "肠道微生态失衡与皮肤屏障异常、神经免疫调节紊乱在特应性皮炎中存在可解释关联"
+    )
     assert response.input_tokens == 12
     assert response.output_tokens == 6
     assert response.disclaimer == DISCLAIMER
@@ -299,7 +304,7 @@ def test_answer_question_uses_opencode_go_native_tool_claims(monkeypatch):
             output_tokens=12,
             structured_claims=[
                 GroundedClaim(
-                    text="opencode go native tool claim",
+                    text="肠道菌群结构改变与皮肤屏障异常在特应性皮炎中存在可解释关联",
                     evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
                 )
             ],
@@ -312,7 +317,10 @@ def test_answer_question_uses_opencode_go_native_tool_claims(monkeypatch):
 
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
 
-    assert response.answer == "opencode go native tool claim [chunk-cn-ad-gbs-001-abstract]。"
+    assert response.answer == (
+        "肠道菌群结构改变与皮肤屏障异常在特应性皮炎中存在可解释关联"
+        " [chunk-cn-ad-gbs-001-abstract]。"
+    )
     assert response.provider_name == "opencode_go"
     assert response.grounding.status == "passed"
     assert response.grounding.policy == "opencode_go_tool_use_v1"
@@ -339,7 +347,7 @@ def test_answer_question_uses_anthropic_native_tool_claims(monkeypatch):
             output_tokens=11,
             structured_claims=[
                 GroundedClaim(
-                    text="anthropic native tool claim",
+                    text="脾虚湿蕴、血虚风燥与肠道微生态失衡及皮肤屏障异常在特应性皮炎中存在可解释关联",
                     evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
                 )
             ],
@@ -352,14 +360,19 @@ def test_answer_question_uses_anthropic_native_tool_claims(monkeypatch):
 
     response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
 
-    assert response.answer == "anthropic native tool claim [chunk-cn-ad-gbs-001-abstract]。"
+    assert response.answer == (
+        "脾虚湿蕴、血虚风燥与肠道微生态失衡及皮肤屏障异常在特应性皮炎中存在可解释关联"
+        " [chunk-cn-ad-gbs-001-abstract]。"
+    )
     assert response.provider_name == "anthropic"
     assert response.grounding.status == "passed"
     assert response.grounding.policy == "anthropic_tool_use_v1"
     assert response.grounding.provider_native_grounding is True
     assert response.grounding.tool_name == "record_grounded_claims"
     assert response.grounding.tool_call_count == 1
-    assert response.grounding.structured_claims[0].text == "anthropic native tool claim"
+    assert response.grounding.structured_claims[0].text == (
+        "脾虚湿蕴、血虚风燥与肠道微生态失衡及皮肤屏障异常在特应性皮炎中存在可解释关联"
+    )
     assert response.input_tokens == 22
     assert response.output_tokens == 11
 
@@ -398,6 +411,79 @@ def test_answer_question_hard_blocks_anthropic_native_tool_name_mismatch(monkeyp
     assert response.grounding.blocked_reason == "tool_name_mismatch"
     assert response.input_tokens == 22
     assert response.output_tokens == 11
+
+
+def test_answer_question_semantic_gate_blocks_hallucinated_claim_on_valid_ref(monkeypatch):
+    from app.schemas.rag import GroundedClaim
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text="raw opencode text must not be shown",
+            provider_name=self.name,
+            input_tokens=18,
+            output_tokens=9,
+            structured_claims=[
+                GroundedClaim(
+                    text="随机对照试验显示口服益生菌可在两周内彻底治愈特应性皮炎并永久消除瘙痒",
+                    evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
+                )
+            ],
+            grounding_policy="opencode_go_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name="record_grounded_claims",
+            tool_call_count=1,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.answer.startswith("当前模型草稿未通过引用证据校验")
+    assert response.provider_name == "opencode_go"
+    assert response.grounding.status == "blocked"
+    assert response.grounding.blocked_reason == "semantic_low_support"
+    assert response.grounding.semantic_threshold is not None
+    assert response.grounding.min_semantic_score is not None
+    assert response.grounding.min_semantic_score < response.grounding.semantic_threshold
+
+
+def test_answer_question_semantic_gate_disabled_by_threshold_env(monkeypatch):
+    from app.schemas.rag import GroundedClaim
+    from app.services.llm import opencode_go_provider
+
+    monkeypatch.setenv("QIYAN_LLM_PROVIDER", "opencode_go")
+    monkeypatch.setenv("QIYAN_OPENCODE_GO_API_KEY", "test-key")
+    monkeypatch.setenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0")
+    monkeypatch.setattr(
+        opencode_go_provider.OpenCodeGoProvider,
+        "generate_answer",
+        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+            text="raw opencode text must not be shown",
+            provider_name=self.name,
+            input_tokens=18,
+            output_tokens=9,
+            structured_claims=[
+                GroundedClaim(
+                    text="随机对照试验显示口服益生菌可在两周内彻底治愈特应性皮炎并永久消除瘙痒",
+                    evidence_refs=[citations[0].chunk_id or citations[0].literature_id],
+                )
+            ],
+            grounding_policy="opencode_go_tool_use_v1",
+            provider_native_grounding=True,
+            tool_name="record_grounded_claims",
+            tool_call_count=1,
+        ),
+    )
+
+    response = answer_question("特应性皮炎和肠-脑-皮肤轴有什么关系？", top_k=2)
+
+    assert response.grounding.status == "passed"
+    assert response.grounding.semantic_threshold is None
+    assert response.grounding.min_semantic_score is None
 
 
 def test_answer_question_keeps_deterministic_text_when_env_unset(monkeypatch):

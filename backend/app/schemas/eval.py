@@ -58,6 +58,19 @@ class RagEvalReport(BaseModel):
     items: list[RagEvalItemResult]
 
 
+class GroundingSemanticPair(BaseModel):
+    id: str
+    claim: str = Field(min_length=1)
+    chunk_text: str = Field(min_length=1)
+    supported: bool
+    note: str = ""
+
+
 def load_rag_eval_dataset(data_path: Path) -> list[RagEvalQuestion]:
     raw_items = json.loads(data_path.read_text(encoding="utf-8"))
     return [RagEvalQuestion(**item) for item in raw_items]
+
+
+def load_grounding_semantic_pairs(data_path: Path) -> list[GroundingSemanticPair]:
+    raw_items = json.loads(data_path.read_text(encoding="utf-8"))
+    return [GroundingSemanticPair(**item) for item in raw_items]

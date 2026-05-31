@@ -17,6 +17,7 @@ class Settings:
     opencode_go_model: str = "deepseek-v4-flash"
     opencode_go_max_tokens: int = 1200
     opencode_go_temperature: float = 0.2
+    grounding_semantic_threshold: float = 0.40
 
 
 @lru_cache
@@ -37,4 +38,5 @@ def get_settings() -> Settings:
         opencode_go_model=os.getenv("QIYAN_OPENCODE_GO_MODEL", "deepseek-v4-flash"),
         opencode_go_max_tokens=int(os.getenv("QIYAN_OPENCODE_GO_MAX_TOKENS", "1200")),
         opencode_go_temperature=float(os.getenv("QIYAN_OPENCODE_GO_TEMPERATURE", "0.2")),
+        grounding_semantic_threshold=float(os.getenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "0.40")),
     )

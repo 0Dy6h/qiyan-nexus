@@ -19,7 +19,7 @@
 - 数据：本地 JSON seed + `backend/data/runtime/` 运行态副本；runtime state 是本地开发/演示状态，不是生产数据库，也不应回写 seed fixture。
 - 文献：本地样本文献、PubMed 实时同步入口、上传 PDF 解析片段、chunk 与 50 题 AD RAG eval 数据集。
 - RAG：默认 `deterministic` provider + `keyword` retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与免责声明。
-- LLM provider：`deterministic` 默认；`mock_claude` 用于离线 wiring 测试；`opencode_go` 是当前优先 live-provider smoke 路径，仅在显式配置 `QIYAN_OPENCODE_GO_API_KEY` 后调用外部服务，优先尝试 OpenAI-compatible `record_grounded_claims` function tool grounding；若网关或模型拒绝 tools，则重试 structured claims JSON 并继续经过 structured claim grounding v3 校验。`anthropic` 路径保留为后置可选 smoke，仅在未来有 `ANTHROPIC_API_KEY` 时使用。上述 grounding 约束工具调用/结构化声明和允许证据 ID，仍不是语义事实核验。
+- LLM provider：`deterministic` 默认；`mock_claude` 用于离线 wiring 测试；`opencode_go` 是当前优先 live-provider smoke 路径，仅在显式配置 `QIYAN_OPENCODE_GO_API_KEY` 后调用外部服务，优先尝试 OpenAI-compatible `record_grounded_claims` function tool grounding；若网关或模型拒绝 tools，则重试 structured claims JSON 并继续经过 structured claim grounding v3 校验。`anthropic` 路径保留为后置可选 smoke，仅在未来有 `ANTHROPIC_API_KEY` 时使用。上述结构/工具/证据 ID grounding 之后，外部 provider 还会经过语义级 grounding gate：每条 claim 与其引用 chunk 文本计算 cosine，低于阈值（`QIYAN_GROUNDING_SEMANTIC_THRESHOLD`，默认 `0.40`，`<=0` 关闭）则 `blocked_reason="semantic_low_support"`。**默认 `hashing` backend 下该分数是词汇重叠代理（lexical proxy），不是真正语义判定；`QIYAN_EMBEDDING_BACKEND="bge"` 原地升级为真实语义。** 标注语料 `backend/data/evals/grounding_semantic_pairs.json` + `run_grounding_semantic_separation` 度量分离度（默认阈值对忠实 claim 零误拦、配对分离满分；hashing proxy 下仍有少量高重叠 fabrication 漏网，bge 分离更干净）。该 gate 仅作用于 `anthropic` / `opencode_go`，不改变真实 provider 默认关闭的事实。
 - Retrieval provider：`keyword` 默认；`vector` / `hybrid` 可通过 `QIYAN_RETRIEVAL_PROVIDER` 显式 opt-in；默认不启用真实 embedding 模型。
 - PDF：本地上传存储；文本型 PDF 通过 `pypdf` 提供预览；扫描件/OCR 暂不支持，失败时回退到文件级占位说明。
 - 网络药理学：`/api/network/analyze`、`/api/network/result/{task_id}`、`/api/network/entities` 与 `/network` 页面已可跑通 mock 分析任务、seed entity、citation/entity 双向跳转，并支持基于当前结果的前端 Markdown 报告导出。
@@ -60,9 +60,10 @@ pnpm e2e
 
 ## 当前下一步候选
 
-最新项目级状态见 `docs/handoffs/2026-05-30-morning-llm-grounding-wrap.md`、`docs/handoffs/2026-05-30-opencode-go-priority.md`、`docs/handoffs/2026-05-30-anthropic-native-grounding.md` 与 `docs/handoffs/2026-05-30-internal-preview-closure.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
+最新项目级状态见 `docs/handoffs/2026-05-31-bge-semantic-recalibration.md`（语义 grounding hashing baseline 评估完成，BGE 评估因网络阻塞待续）、`docs/handoffs/2026-05-30-morning-llm-grounding-wrap.md`、`docs/handoffs/2026-05-30-opencode-go-priority.md`、`docs/handoffs/2026-05-30-anthropic-native-grounding.md` 与 `docs/handoffs/2026-05-30-internal-preview-closure.md`，当前内部预览收口计划见 `docs/plans/2026-05-27-internal-preview-sprint.md`，自动化闭环记录见 `docs/evaluations/2026-05-28-internal-review-feedback.md`。近期候选方向包括：
 
-1. 如团队需要正式 sign-off，按 `docs/checklists/internal-preview-smoke.md` 完成真实内部 reviewer demo 走查，并把反馈记录到 `docs/evaluations/2026-05-28-internal-review-feedback.md`。
-2. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
-3. 对真实 LLM 只做本地 smoke；优先运行 OpenCode Go live smoke，并记录 tool/function calling 是否通过或是否回退 structured claims v3；语义级 hallucination reject、生产级隐私/成本/延迟策略完成前仍不默认开放真实模型。
-4. 根据内部预览反馈，在 OpenCode Go live smoke 复核、语义级 grounding 评测、network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike 中选一条作为下一轮主线；Anthropic 仅在有订阅/key 后再排期。
+1. **语义 grounding BGE 复核（部分完成）**：hashing baseline 已评估（0 false rejects, 3 false accepts, 100% paired separation），BGE 评估因 Hugging Face 模型下载网络超时阻塞。需在有网络/代理环境下运行 `backend/scripts/eval_bge_separation.py` 完成 BGE 真实语义验证，预期 BGE 可将 false accepts 降至 <3 并支持阈值收紧至 0.50-0.60。详见 `docs/handoffs/2026-05-31-bge-semantic-recalibration.md`。
+2. 如团队需要正式 sign-off，按 `docs/checklists/internal-preview-smoke.md` 完成真实内部 reviewer demo 走查，并把反馈记录到 `docs/evaluations/2026-05-28-internal-review-feedback.md`。
+3. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
+4. 对真实 LLM 只做本地 smoke；优先运行 OpenCode Go live smoke，并记录 tool/function calling 是否通过或是否回退 structured claims v3。语义级 grounding gate（hallucination reject）的第一版已落地（cosine 阈值 + 标注分离 eval，默认 hashing proxy，`bge` 可 opt-in 升级）；但默认开放真实模型仍需补齐生产级隐私措辞与成本/延迟 SLI，且建议在 hashing proxy 之外用 `bge` 复核分离度后再放宽默认。
+5. 在以下方向中选一条作为下一轮主线：完成 BGE 评估（需网络环境）、network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、PDF 抽取质量启发式/OCR spike；Anthropic 仅在有订阅/key 后再排期。

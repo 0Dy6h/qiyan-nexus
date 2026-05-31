@@ -160,6 +160,33 @@ test("buildAnswerMarkdown includes blocked grounding details", () => {
   assert.ok(md.includes("Grounding 异常证据：chunk-unknown-ref"));
 });
 
+test("buildAnswerMarkdown includes semantic grounding gate details", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    answer: "当前模型草稿未通过引用证据校验，系统已拦截展示。",
+    grounding: {
+      ...SAMPLE_RESULT.grounding,
+      status: "blocked",
+      checked: true,
+      blocked_reason: "semantic_low_support",
+      semantic_threshold: 0.4,
+      min_semantic_score: 0.12,
+    },
+  });
+
+  assert.ok(md.includes("Grounding 拦截原因：semantic_low_support"));
+  assert.ok(md.includes("语义阈值：0.40"));
+  assert.ok(md.includes("最小语义支持度：12%"));
+});
+
+test("buildAnswerMarkdown shows semantic gate as disabled when threshold is null", () => {
+  const md = buildAnswerMarkdown(SAMPLE_RESULT);
+
+  assert.ok(md.includes("语义阈值：未启用"));
+  assert.ok(md.includes("最小语义支持度：未计算"));
+});
+
 test("buildAnswerMarkdown emits empty-citation placeholder when citations are empty", () => {
   const md = buildAnswerMarkdown({ ...SAMPLE_RESULT, citations: [] });
   assert.ok(md.includes("（当前回答没有可核对的引用证据。）"));

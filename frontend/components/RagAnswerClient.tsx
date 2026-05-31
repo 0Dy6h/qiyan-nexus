@@ -52,6 +52,16 @@ function formatGroundingTool(grounding: GroundingMetadata) {
   return grounding.tool_name ?? "无";
 }
 
+function formatSemanticThreshold(grounding: GroundingMetadata) {
+  return grounding.semantic_threshold == null ? "未启用" : grounding.semantic_threshold.toFixed(2);
+}
+
+function formatSemanticScore(grounding: GroundingMetadata) {
+  return grounding.min_semantic_score == null
+    ? "未计算"
+    : `${Math.round(grounding.min_semantic_score * 100)}%`;
+}
+
 function formatGroundingBlockedReason(reason: string | null | undefined) {
   if (reason === "unsupported_evidence_ref") {
     return "存在未提供的证据 ID";
@@ -79,6 +89,9 @@ function formatGroundingBlockedReason(reason: string | null | undefined) {
   }
   if (reason === "blank_claim_text") {
     return "存在内容为空的结构化 claim";
+  }
+  if (reason === "semantic_low_support") {
+    return "存在与引用证据语义支持度过低的 claim";
   }
   return "无";
 }
@@ -343,6 +356,8 @@ export default function RagAnswerClient() {
                 `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
                 `Grounding Tool ${formatGroundingTool(state.result.grounding)}`,
                 `Tool 调用数 ${state.result.grounding.tool_call_count}`,
+                `语义阈值 ${formatSemanticThreshold(state.result.grounding)}`,
+                `最小语义支持度 ${formatSemanticScore(state.result.grounding)}`,
                 `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
                 `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,
