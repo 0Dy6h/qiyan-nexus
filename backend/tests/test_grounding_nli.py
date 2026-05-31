@@ -127,3 +127,31 @@ def test_transformers_nli_backend_is_selectable_without_loading_model():
     assert backend is not None
     assert isinstance(backend, NliBackend)
     assert backend.name == "transformers"
+
+
+def test_adversarial_nli_fixture_is_balanced_and_well_formed():
+    """Lock the structure of the adversarial NLI fixture (no model load in CI).
+
+    These pairs probe NLI failure modes the live-smoke fixture never tested
+    (negation, number tampering, partial support, hedge removal, cross-chunk
+    synthesis, overgeneralization, entity splicing). Scoring on the real model is
+    done out-of-band by the eval doc; here we only guard the data shape so the
+    documented separation result stays meaningful.
+    """
+
+    from pathlib import Path
+
+    from app.schemas.eval import load_grounding_semantic_pairs
+
+    path = Path(__file__).resolve().parents[1] / "data" / "evals" / "grounding_nli_adversarial.json"
+    pairs = load_grounding_semantic_pairs(path)
+
+    assert len(pairs) >= 18
+    supported = [p for p in pairs if p.supported]
+    non_supported = [p for p in pairs if not p.supported]
+    assert supported, "adversarial fixture must contain faithful claims"
+    assert non_supported, "adversarial fixture must contain non-supported claims"
+    assert len({p.id for p in pairs}) == len(pairs), "pair ids must be unique"
+    assert all(p.claim and p.chunk_text for p in pairs)
+    # Every pair must carry a note explaining its intended failure mode / label.
+    assert all(p.note for p in pairs), "each adversarial pair must document its rationale"

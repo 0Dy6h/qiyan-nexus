@@ -1,0 +1,128 @@
+[
+  {
+    "id": "nli-neg-001-faithful",
+    "claim": "肠道微生态失衡与皮肤屏障异常在特应性皮炎中并非互不相关。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "NEGATION (double-negative restatement). Chunk asserts a 可解释关联; '并非互不相关' restates that relatedness. Should PASS. Tests that NLI handles negation without flipping the label."
+  },
+  {
+    "id": "nli-neg-001-hallucinated",
+    "claim": "特应性皮炎与肠-脑-皮肤轴之间不存在任何关联。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": false,
+    "note": "NEGATION (direct contradiction). Chunk asserts a relationship; claim denies any. Should BLOCK (contradiction)."
+  },
+  {
+    "id": "nli-num-002-faithful",
+    "claim": "特应性皮炎患者存在肠道菌群结构改变。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": true,
+    "note": "NUMBER baseline (no number). Plain restatement of the chunk's finding. Should PASS."
+  },
+  {
+    "id": "nli-num-002-hallucinated",
+    "claim": "约78%的特应性皮炎患者存在肠道菌群结构改变。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": false,
+    "note": "NUMBER TAMPERING (hardest). Same sentence + an invented precise statistic (78%) the chunk never gives. Should BLOCK. This is the case cosine is worst at (near-identical text)."
+  },
+  {
+    "id": "nli-num-003-hallucinated",
+    "claim": "规律外用润肤剂可使特应性皮炎复发率降低62%。",
+    "chunk_text": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "supported": false,
+    "note": "NUMBER TAMPERING. Chunk lists emollients as a core point but gives no efficacy figure; claim invents 62%. Should BLOCK."
+  },
+  {
+    "id": "nli-partial-004-faithful",
+    "claim": "特应性皮炎患者存在肠道菌群结构改变，菌群干预可能有助于恢复免疫稳态。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": true,
+    "note": "PARTIAL baseline (fully supported two-clause claim). Both clauses are in the chunk. Should PASS."
+  },
+  {
+    "id": "nli-partial-004-hallucinated",
+    "claim": "特应性皮炎患者存在肠道菌群结构改变，因此益生菌应作为特应性皮炎的一线治疗方案。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": false,
+    "note": "PARTIAL SUPPORT + UNSUPPORTED LEAP. First clause faithful; second clause (益生菌=一线治疗) is a therapeutic leap absent from the chunk. Should BLOCK. Tests whether a true-prefix sneaks a false-suffix through."
+  },
+  {
+    "id": "nli-partial-005-hallucinated",
+    "claim": "PI3K-Akt、NF-kB、JAK-STAT是特应性皮炎相关研究的关键调控轴，因此临床应优先选用JAK抑制剂治疗所有患者。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": false,
+    "note": "PARTIAL SUPPORT + UNSUPPORTED LEAP. True-prefix (the pathways) plus a clinical prescription leap the chunk never makes. Should BLOCK."
+  },
+  {
+    "id": "nli-hedge-006-faithful",
+    "claim": "菌群干预可能有助于特应性皮炎患者免疫稳态的恢复。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": true,
+    "note": "HEDGE PRESERVED. Keeps the chunk's '可能' hedge. Should PASS."
+  },
+  {
+    "id": "nli-hedge-006-hallucinated",
+    "claim": "菌群干预能够确定性地恢复特应性皮炎患者的免疫稳态。",
+    "chunk_text": "文章归纳了特应性皮炎患者肠道菌群结构改变的主要发现，并讨论菌群干预在免疫稳态恢复中的可能作用。",
+    "supported": false,
+    "note": "HEDGE REMOVAL / OVERCLAIM. Chunk says 可能作用 (possible); claim asserts 确定性 (definite). Should BLOCK. Tests modality sensitivity, not just topic."
+  },
+  {
+    "id": "nli-hedge-007-hallucinated",
+    "claim": "中药复方与单体已被证实能完全修复特应性皮炎的角质层屏障。",
+    "chunk_text": "总结 filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色，并讨论中药复方与单体在改善角质层功能、调节炎症因子方面的实验证据。",
+    "supported": false,
+    "note": "HEDGE REMOVAL. Chunk reports 实验证据 of 改善 (experimental evidence of improvement); claim escalates to 已被证实能完全修复 (proven complete repair). Should BLOCK."
+  },
+  {
+    "id": "nli-multichunk-008-faithful-single",
+    "claim": "网络药理学被用于筛选特应性皮炎中药复方的靶点和信号通路。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": true,
+    "note": "MULTI-CHUNK control (single-chunk version). Fully entailed by this one chunk. Should PASS. Paired with the cross-chunk case below to expose the gate's per-ref max-aggregation behavior."
+  },
+  {
+    "id": "nli-multichunk-008-crosschunk",
+    "claim": "网络药理学筛选出的特应性皮炎靶点通路与儿童不同年龄段的湿热、脾虚证型分布相对应。",
+    "chunk_text": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "supported": false,
+    "note": "MULTI-CHUNK / CROSS-CHUNK SYNTHESIS (edge case, label is for THIS single premise). The claim fuses the network chunk with a pediatric-syndrome chunk; against THIS chunk alone it is NOT entailed, so under our per-ref scoring it should BLOCK. This intentionally documents a known gate limitation: a genuinely multi-chunk-supported claim is rejected unless premises are concatenated. See note in the eval doc."
+  },
+  {
+    "id": "nli-faithful-009-reorder",
+    "claim": "在特应性皮炎中，神经免疫调节紊乱、皮肤屏障异常与肠道微生态失衡之间存在可解释的关联。",
+    "chunk_text": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "supported": true,
+    "note": "FAITHFUL ROBUSTNESS (reordered entities). Same content, entities reordered. Should PASS (guards against over-rejection)."
+  },
+  {
+    "id": "nli-faithful-010-synonym",
+    "claim": "瘙痒-搔抓循环中，IL-31与神经肽参与了特应性皮炎瘙痒的维持。",
+    "chunk_text": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "supported": true,
+    "note": "FAITHFUL ROBUSTNESS (synonym/compression). Faithful compression of the itch-loop chunk. Should PASS."
+  },
+  {
+    "id": "nli-entity-011-hallucinated",
+    "claim": "filaggrin与神经酰胺通过激活JAK-STAT通路直接导致特应性皮炎的瘙痒-搔抓循环。",
+    "chunk_text": "总结 filaggrin、神经酰胺与角质层功能异常在特应性皮炎屏障损伤中的角色，并讨论中药复方与单体在改善角质层功能、调节炎症因子方面的实验证据。",
+    "supported": false,
+    "note": "ENTITY SPLICING. Reuses real entities (filaggrin, 神经酰胺) but fabricates a mechanistic causal chain (JAK-STAT, 瘙痒-搔抓循环) not in this barrier chunk. Should BLOCK. Tests resistance to plausible cross-topic entity mashups."
+  },
+  {
+    "id": "nli-faithful-012-pediatric",
+    "claim": "儿童特应性皮炎在不同年龄段呈现湿热、脾虚、血虚风燥等不同证型分布。",
+    "chunk_text": "围绕儿童特应性皮炎在婴幼儿、学龄前与学龄期的年龄分层，归纳湿热、脾虚、血虚风燥等证型分布与对应的文献证据。",
+    "supported": true,
+    "note": "FAITHFUL baseline (pediatric). Direct restatement. Should PASS."
+  },
+  {
+    "id": "nli-faithful-012-overgeneralize",
+    "claim": "所有儿童特应性皮炎患者都属于湿热证型，无需辨证即可统一用药。",
+    "chunk_text": "围绕儿童特应性皮炎在婴幼儿、学龄前与学龄期的年龄分层，归纳湿热、脾虚、血虚风燥等证型分布与对应的文献证据。",
+    "supported": false,
+    "note": "OVERGENERALIZATION. Chunk describes a distribution across multiple 证型; claim collapses to '所有...都是湿热, 无需辨证'. Should BLOCK. Tests universal-quantifier overreach."
+  }
+]
