@@ -99,32 +99,40 @@ def main() -> None:
             print()
 
             # Grounding metadata
+            grounding = response.grounding
             print("Grounding:")
-            print(f"  Status: {response.grounding.status}")
-            print(f"  Policy: {response.grounding.policy}")
-            print(f"  Checked: {response.grounding.checked}")
-            print(f"  Claims: {response.grounding.claim_count}")
-            print(f"  Cited Claims: {response.grounding.cited_claim_count}")
+            print(f"  Status: {grounding.status}")
+            print(f"  Policy: {grounding.policy}")
+            print(f"  Checked: {grounding.checked}")
+            print(f"  Tool: {grounding.tool_name} (calls={grounding.tool_call_count})")
+            print(f"  Provider-native grounding: {grounding.provider_native_grounding}")
+            print(f"  Claims: {grounding.claim_count}")
+            print(f"  Cited Claims: {grounding.cited_claim_count}")
 
-            if response.grounding.status == "blocked":
-                print(f"  ⚠️  BLOCKED: {response.grounding.blocked_reason}")
-                if response.grounding.blocked_claims:
-                    print(f"  Blocked Claims: {len(response.grounding.blocked_claims)}")
-                    for claim in response.grounding.blocked_claims[:3]:
-                        print(f"    - {claim.text[:80]}...")
-                        print(f"      Score: {claim.score:.3f}, Threshold: {claim.threshold:.3f}")
+            if grounding.status == "blocked":
+                print(f"  ⚠️  BLOCKED: {grounding.blocked_reason}")
+                if grounding.unsupported_evidence_refs:
+                    print(f"  Unsupported refs: {grounding.unsupported_evidence_refs}")
 
             # Semantic grounding details
-            if response.grounding.semantic_backend:
+            if grounding.semantic_threshold is not None:
                 print()
                 print("Semantic Grounding:")
-                print(f"  Backend: {response.grounding.semantic_backend}")
-                print(f"  Threshold: {response.grounding.semantic_threshold}")
-                if response.grounding.semantic_scores:
-                    scores = response.grounding.semantic_scores
-                    print(f"  Min Score: {min(scores):.3f}")
-                    print(f"  Max Score: {max(scores):.3f}")
-                    print(f"  Avg Score: {sum(scores) / len(scores):.3f}")
+                print(f"  Threshold: {grounding.semantic_threshold}")
+                print(f"  Min Score: {grounding.min_semantic_score}")
+                claim_scores = [
+                    claim.semantic_score
+                    for claim in grounding.structured_claims
+                    if claim.semantic_score is not None
+                ]
+                if claim_scores:
+                    print(f"  Max Score: {max(claim_scores):.3f}")
+                    print(f"  Avg Score: {sum(claim_scores) / len(claim_scores):.3f}")
+                for claim in grounding.structured_claims:
+                    score = (
+                        f"{claim.semantic_score:.3f}" if claim.semantic_score is not None else "n/a"
+                    )
+                    print(f"    [{score}] {claim.text[:80]}")
 
             # Token usage
             if response.input_tokens or response.output_tokens:
@@ -139,8 +147,9 @@ def main() -> None:
             print()
             print("Retrieval:")
             print(f"  Strategy: {response.retrieval.strategy}")
-            print(f"  Source: {response.retrieval.source}")
-            print(f"  Top K: {response.retrieval.top_k}")
+            print(f"  Source: {response.retrieval.applied_source}")
+            print(f"  Top K: {response.retrieval.applied_top_k}")
+            print(f"  Available citations: {response.retrieval.available_citation_count}")
 
             print()
             print("Answer Preview:")
@@ -150,6 +159,7 @@ def main() -> None:
         except Exception as e:
             print(f"❌ ERROR: {e}")
             import traceback
+
             traceback.print_exc()
             print()
 
