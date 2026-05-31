@@ -325,3 +325,27 @@ pnpm build
 非诊断结论、需结合临床。
 
 本平台不替代医生诊断，不面向普通患者 C 端。
+
+## MVP-C 概念对象（仅 schema 预留）
+
+`backend/app/schemas/molecular.py` 定义了分子对接与分子动力学模拟的概念对象，为未来 MVP-C 阶段预留类型定义，**当前不提供实际功能**。
+
+**已定义的 schema**：
+- `Protein` - 蛋白结构对象（PDB ID、UniProt ID、序列）
+- `Ligand` - 小分子配体对象（SMILES、InChI、分子量）
+- `DockingResult` - 分子对接结果（结合亲和力、结合位点、RMSD）
+- `MDSimulationConfig` - 分子动力学模拟配置（温度、压力、时长、力场）
+- `MDSimulationResult` - MD 模拟结果（轨迹、能量、RMSD/RMSF）
+- `SimulationTask` - 对接/MD 模拟任务（异步任务管理）
+
+**当前状态**：
+- ✅ Schema 定义完成（Pydantic models）
+- ✅ 测试覆盖（11 个 schema 验证测试）
+- ❌ 无 router、service 或 repository 实现
+- ❌ 无前端页面或 API 集成
+- ❌ 不应在当前代码中使用这些对象
+
+**用途**：
+- 为未来 MVP-C 阶段保留类型定义
+- 确保与 network 模块的数据模型一致性（通过 `compound_id` 关联）
+- 提前规划分子对接/MD 模拟的数据结构

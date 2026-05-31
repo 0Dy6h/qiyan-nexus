@@ -170,3 +170,35 @@ Qiyan Nexus 当前定位是面向特应性皮炎（AD）方向医生与科研人
 1. MVP-A 的文献证据链稳定可用。
 2. literature/chunk/citation 命名不阻碍未来关联 herb、formula、compound、target、pathway、protein、ligand 和 simulation_task。
 3. README、AGENTS.md 或后续计划中明确说明网药为 MVP-B，分子对接/MD 为 MVP-C，避免近期开发误接真实重计算。
+
+## 实施状态
+
+**更新日期**: 2026-06-01
+
+### MVP-A（证据工作台）
+- ✅ 已完成：文献检索、文献详情、PDF 上传/解析、RAG 问答、引用卡片、合规声明、访问控制
+- ✅ 已完成：PubMed 实时同步、RAG eval（50 题）、Playwright E2E
+
+### MVP-B（网络药理学）
+- ✅ 已完成：网络药理学任务壳（`/api/network/analyze`、`/network` 页面）
+- ✅ 已完成：herb/formula/compound/target/pathway/disease 概念对象（sample 数据）
+- ✅ 已完成：成分-靶点-通路链条展示
+- ✅ 已完成：GO/KEGG 富集分析（mock，本地 JSON 字典 + scipy 超几何分布）
+- ✅ 已完成：Markdown 报告导出（包含链条 + 富集分析）
+- ✅ 已完成：citation/entity 双向跳转
+- ❌ 未实现：真实 KEGG REST API、STRING 数据库、PPI 网络、网络图可视化
+
+### MVP-C（分子对接/MD 模拟）
+- ✅ **已完成（2026-06-01）**：Schema 预留（`backend/app/schemas/molecular.py`）
+  - `Protein` - 蛋白结构对象
+  - `Ligand` - 小分子配体对象
+  - `DockingResult` - 分子对接结果
+  - `MDSimulationConfig` - MD 模拟配置
+  - `MDSimulationResult` - MD 模拟结果
+  - `SimulationTask` - 对接/MD 模拟任务
+- ✅ 测试覆盖：11 个 schema 验证测试
+- ❌ 无 router、service 或 repository 实现
+- ❌ 无前端页面或 API 集成
+- ❌ 不应在当前代码中使用这些对象
+
+**下一步**：MVP-C schema 已预留，实际功能实施需等待 MVP-B 稳定后再推进。
