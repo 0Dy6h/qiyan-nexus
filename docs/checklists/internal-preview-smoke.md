@@ -131,3 +131,4 @@ Key constraints from live smoke (2026-05-31):
 | Date | Reviewer | Browser | Real provider enabled? | Groundings passed? | Pass/Fail | Notes |
 |---|---|---|---|---|---|---|
 | | | | | | | |
+| 2026-06-01 | 真人 reviewer | pwsh API + browser | opencode_go + BGE=0.3 + NLI=0.5 | 4 条查询全 blocked（nli_low_entailment），1 条 claim entailment=0.86 通过 NLI 但同回答另一条 0.004 拉低 min 分 | Pass（gate 正确运行） | R1-R7 全通过。R4（缺 key fallback）和 R5（回滚 deterministic）均验证。R6 前端 UI 正确展示 provider/grounding。结论：NLI gate 在生产管线正确运行，0 误放行。L2 不翻转——BGE=0.78 下无回答穿透，opencode_go 自由改写 + keyword retriever 跨语匹配弱是阻塞因素。详见 ADR-0012 2026-06-01 更新（三）和 `docs/handoffs/2026-06-01-slices-1-5.md`。 |

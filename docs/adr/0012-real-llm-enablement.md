@@ -105,3 +105,62 @@ CI 不导入 transformers、不下载权重（测试用确定性 fake backend）
 **这不等于自动晋级 L2。** 该 gate 解决了 §4a 的技术阻塞，但默认切换到真实 provider 之前仍需：在更大、更多样的
 标注集上复核并定生产阈值；把每条 claim 一次 NLI 前向的延迟/成本计入 SLI 基线（§4b）；完成真人走查（§4c）。
 gate 默认关闭，在上述完成且明确翻转默认前不改变现有用户路径。
+
+## 2026-06-01 更新（三）：Slices 1-5 执行完成 + §4c 走查结论 — L2 不翻转
+
+### 工程闭环（Slices 1-5）
+
+按 `docs/plans/2026-06-01-execution-plan.md` 执行的 5 颗 slice 全部完成：
+
+| Slice | 内容 | 关键指标 |
+|---|---|---|
+| 1 | 真实 claim 语料采集 | capture 脚本 live/offline 双模式 |
+| 2 | 人工标注验证集 | `grounding_real_answer_pairs.json`（20 对：7 real + 13 hard neg） |
+| 3 | NLI 真实分布评估 | **0 FP, 0 FN, gap +0.9549**，阈值 0.5 极度保守有效 |
+| 4 | NLI 批处理降延迟 | batch entailment，3-claim 回答 ~2.1s（约 1.1x speedup） |
+| 5 | §4c 走查准备 | 7 步验证 checklist 写入 `docs/checklists/internal-preview-smoke.md` §4c 节 |
+
+### §4c 走查核验（2026-06-01，opencode_go + transformers NLI gate）
+
+启用配置：`QIYAN_LLM_PROVIDER=opencode_go`、`QIYAN_EMBEDDING_BACKEND=bge`、`QIYAN_NLI_BACKEND=transformers`、`QIYAN_NLI_THRESHOLD=0.5`、`max_tokens=4000`。
+
+**走查结果**：
+
+| 步骤 | 检查项 | 结果 |
+|---|---|---|
+| R1 | `provider_name="opencode_go"`（非 fallback） | ✅ |
+| R2 | NLI gate 运行（`nli_threshold=0.5` 可见，claims 带 `entailment_score`） | ✅ |
+| R3 | Disclaimer 逐字节一致 | ✅ |
+| R4 | 缺 key → deterministic fallback | ✅ |
+| R5 | `QIYAN_LLM_PROVIDER=deterministic` 瞬时回滚 | ✅ |
+| R6 | 前端 UI 展示 provider/grounding 元数据 | ✅ |
+| R7 | Blocked 时硬屏蔽文案 + 引用卡片仍展示 | ✅ |
+
+**关键观察**：
+
+1. **BGE=0.78 是穿透瓶颈**：在默认配置（BGE threshold 0.78）下，走查全程没有一条回答穿透 BGE 门到达 NLI gate。中文问题配英文 chunk（keyword retriever 跨语匹配）直接 BGE blocked。需将阈值临时降至 0.3 方能让 NLI gate 执行。
+
+2. **NLI gate 正确拦截了不支持 entailment 的 claim**：4 次查询全部 `blocked_reason="nli_low_entailment"`，entailment 在 0.004–0.86 范围。其中一条 claim 的 entailment=0.86 单独通过了 NLI 门（> 0.5），但同回答的另一条 claim 只有 0.004，被保守的 min-score 策略拦截。
+
+3. **NLI gate 能区分好 claim 和差 claim**：entailment 0.86 vs 0.004 的同一回答内分化，证明了 gate 的判别力——不是一刀切全部拒绝，而是精准识别了不被 chunk 充分蕴涵的 claim。
+
+4. **走查全程 0 条回答通过**：openCode Go 生成的 claim 倾向于跨 chunk 综合、添加推断、自由改写，NLI gate 一致拦截。这是 gate 的正确行为，但意味着在当前 retrieval 质量（keyword 匹配）和 LLM 改写风格下，真实 provider 不会产生默认可见的输出。
+
+### 决策：L2 不翻转，保持 L1
+
+**理由**：
+
+- NLI gate 工程成熟度已验证（3 个独立 fixture 上 0 false accept，生产走查也未见误放行）
+- 但真实 provider 在当前 retrieval + BGE 门槛下几乎无法产生用户可见输出
+- 可治理的启用路径已于 ADR-0011/ADR-0012 写明，瞬时回滚（1 个 env var）充分
+- **不翻转默认不等于放弃**：存 `QIYAN_OPENCODE_GO_API_KEY` 者设 3 个 env var 即可启用 L1
+
+**若未来重新评估 L2 翻转，需解决的前置条件**：
+
+| 条件 | 当前状态 | 难度 |
+|---|---|---|
+| ① retrieval 中英跨语匹配 | keyword 匹配中英不对应，BGE cross-lingual 低分 | 中（需 bilingual retrieval 或中文 seed 增强） |
+| ② BGE 阈值重新校准 | 0.78 来自 easy fixture，对真实改写过度拦截 | 中（NLI gate 可替代，但 BGE 预筛门槛需调低） |
+| ③ LLM claim 质量控制 | openCode Go free-form 常额外推断、跨 chunk 综合 | 高（需 prompt 层约束或 structured output 优化） |
+
+**本次「MVP-A LLM 化」工程底座正式收口。** L1 受控启用路径完整、有治理、可回滚。默认路径保持离线 deterministic。

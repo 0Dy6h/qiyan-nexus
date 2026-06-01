@@ -307,6 +307,7 @@ def evaluate_answer_grounding(
         )
 
     min_semantic_score: float | None = None
+    min_entailment_score: float | None = None
     if semantic_threshold is not None and semantic_backend is not None:
         reference_by_ref = _reference_text_by_ref(citations)
         for claim in structured_claims:
@@ -339,6 +340,8 @@ def evaluate_answer_grounding(
                     tool_call_count=tool_call_count,
                     semantic_threshold=semantic_threshold,
                     min_semantic_score=min_semantic_score,
+                    nli_threshold=nli_threshold,
+                    min_entailment_score=min_entailment_score,
                 ),
             )
 
@@ -348,7 +351,6 @@ def evaluate_answer_grounding(
     # on-topic fabrication). See docs/evaluations/2026-06-01-nli-grounding-spike.md.
     # Claims are batched into a single forward pass so that a 3-claim answer costs
     # ~1 NLI invocation instead of ~1 per (claim, ref) pair.
-    min_entailment_score: float | None = None
     if nli_threshold is not None and nli_backend is not None:
         reference_by_ref = _reference_text_by_ref(citations)
         # Collect all (claim_idx, premise, hypothesis) triples

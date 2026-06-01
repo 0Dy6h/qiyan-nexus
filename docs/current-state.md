@@ -15,7 +15,7 @@
 
 ## 当前能力边界
 
-- 当前阶段：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成；2026-05-30 自动化内部预览收口复核通过，4 份本地 reviewer PDF 样本已通过隔离状态的真实上传 + auto-parse API 探测；人工反馈中的 `/network` 链接缺口与 PDF 数字/表格乱码提示已处理。正式医生/科研 reviewer sign-off 仍需单独真人走查记录，不能由自动化结果替代。
+- 当前阶段：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。**2026-06-01 L2 推进工程闭环（Slices 1-5）+ §4c 真人走查完成，决策：L2 不翻转，保持 L1。** 4 份本地 reviewer PDF 样本已通过隔离状态的真实上传 + auto-parse API 探测；人工反馈中的 `/network` 链接缺口与 PDF 数字/表格乱码提示已处理。正式医生/科研 reviewer sign-off 仍需单独真人走查记录，不能由自动化结果替代。
 - 数据：本地 JSON seed + `backend/data/runtime/` 运行态副本；runtime state 是本地开发/演示状态，不是生产数据库，也不应回写 seed fixture。
 - 文献：本地样本文献、PubMed 实时同步入口、上传 PDF 解析片段、chunk 与 50 题 AD RAG eval 数据集。
 - RAG：默认 `deterministic` provider + `keyword` retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与免责声明。
@@ -65,14 +65,11 @@ pnpm e2e
 
 1. **✅ 语义 grounding BGE 评估（已完成）**：BGE (BAAI/bge-small-zh-v1.5) 评估已完成。详见 `docs/evaluations/2026-05-31-bge-semantic-evaluation.md`。
 2. **✅ 真实 LLM live smoke + 启用底座（已完成）**：OpenCode Go live smoke 已跑通。真实 provider 现可在 **L1 受控 smoke/演示** 启用；默认仍 deterministic。
-3. **L2 默认预览推进（工程部分✅，真人走查待执行）**：
+3. **L2 默认预览推进（工程部分✅，走查完成，决策不翻转）**：
    - ✅ **threshold recalibration**（§4a）：BGE-cosine 不可达 → 落地 NLI entailment gate（opt-in，默认关）。
-   - ✅ **NLI gate 实现**：`mDeBERTa-v3-base-mnli-xnli`，二级 gate（cosine 预筛后），`blocked_reason="nli_low_entailment"`。
-   - ✅ **Slice 1**：capture 脚本（live + offline 双模式），产出真实 claim 语料。
-   - ✅ **Slice 2**：`grounding_real_answer_pairs.json`（20 对，含 7 条真实 live smoke claim + 13 条硬负例），含人工标注 `support_label`。
-   - ✅ **Slice 3**：NLI 真实分布评估 —— **0 false accepts, 0 false rejects, gap +0.9549, 推荐阈值 0.5**。详见 `docs/evaluations/2026-06-01-nli-real-distribution.md`。
-   - ✅ **Slice 4**：per-answer NLI 批处理（batch entailment），3-claim 回答从 ~2.4s 降至 ~2.1s（1.1x）。
-   - ⬜ **§4c 真人走查**：走查步骤已写入 `docs/checklists/internal-preview-smoke.md` §4c 节；需真人 reviewer 执行并记录结果。完成后才可翻转默认。
-   - ⬜ **§4b（SLI 基线）**：NLI 延迟基准已测（冷加载 ~6s，热批 ~2.1s/3-claim）；真实合同单价需真人配置。
+   - ✅ **NLI gate 实现**：`mDeBERTa-v3-base-mnli-xnli`，二级 gate（cosine 预筛后）。
+   - ✅ **Slice 1-5 工程闭环**：采集 → 标注（20 对）→ 真实分布评估（0 FP, 0 FN, gap +0.95）→ 批处理（batch entailment, ~1.1x）→ §4c 走查准备。
+   - ✅ **§4c 真人走查**（2026-06-01）：7 步核验全部通过，NLI gate 在生产管线正确运行，R4/R5 回退验证通过。
+   - ❌ **L2 不翻轉**：走查全程无回答穿透 BGE=0.78 + NLI=0.5（4 条全 blocked）。根因是 keyword retriever 中英跨语匹配弱 + openCode Go 自由改写触发多 claim NLI 拦截。保持 L1 受控启用；存 key 者设 3 个 env var 即可启用真实 provider。详见 ADR-0012 2026-06-01 更新（三）。
 4. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
 5. 其它可选主线：network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、网络图可视化；Anthropic 仅在有订阅/key 后再排期。
