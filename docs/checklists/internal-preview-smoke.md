@@ -77,3 +77,57 @@ Default expectation: no real LLM key is required; deterministic provider and key
 | 2026-05-28 | Codex automated closure | Playwright Chromium headless | `ruff format --check`; `ruff check`; `mypy`; `pytest -q` | `pnpm test`; `pnpm typecheck`; `pnpm build`; `pnpm e2e` | Pass | Backend 247 tests passed; frontend 113 tests passed; Playwright 2 specs passed. `pnpm typecheck` is now self-contained through `next typegen && tsc --noEmit`. PubMed parser smoke returned 5 records; default RAG API returned deterministic/keyword/skipped grounding with required disclaimer. Human reviewer walkthrough and reviewer-approved Chinese PDF smoke remain pending. |
 | 2026-05-28 | Codex implementation follow-up | Playwright Chromium headless | `ruff format --check`; `ruff check`; `mypy`; `pytest -q` | `pnpm test`; `pnpm typecheck`; `pnpm build`; `pnpm e2e` | Pass | Backend 249 tests passed; frontend 120 tests passed; Playwright 2 specs passed. Manual P1 findings for `/network` entity chips/links and PDF garbling warning were addressed; local reviewer PDF bodies remain uncommitted. |
 | 2026-05-30 | Codex internal-preview closure | Playwright Chromium headless + isolated API PDF probe | `ruff format --check`; `ruff check`; `mypy`; `pytest -q` | `pnpm test`; `pnpm typecheck`; `pnpm build`; `pnpm e2e` | Pass | Backend 251 tests passed; frontend 120 tests passed; Playwright 2 specs passed. Four local reviewer PDFs were uploaded and auto-parsed through isolated temp runtime/upload paths; three are candidate acceptable and one correctly shows the numeric/table garbling warning. Formal clinician/research reviewer sign-off remains pending unless a separate live session is recorded. |
+
+## §4c — Real LLM Provider Walkthrough (L2 promotion gate)
+
+**Prerequisite**: ADR-0012 L2 prerequisites §4a (threshold calibrated) and NLI
+gate (opt-in, default-off). NLI gate is validated on real-answer distribution
+(0 false accepts, 0 false rejects at threshold 0.5). This walkthrough exercises
+the full pipeline with the real `opencode_go` provider and NLI entailment gate.
+
+### Enable (PowerShell, from backend/)
+
+```powershell
+cd backend
+$env:QIYAN_OPENCODE_GO_API_KEY = [Environment]::GetEnvironmentVariable("QIYAN_OPENCODE_GO_API_KEY","User")
+$env:QIYAN_LLM_PROVIDER = "opencode_go"
+$env:QIYAN_EMBEDDING_BACKEND = "bge"
+$env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.78"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"
+$env:QIYAN_NLI_BACKEND = "transformers"
+$env:QIYAN_NLI_THRESHOLD = "0.5"
+& .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
+```
+
+Key constraints from live smoke (2026-05-31):
+- `max_tokens` must be ≥4000 (1200 silently degrades to deterministic)
+- `deepseek-v4-flash` rejects forced `tool_choice` (HTTP 400); grounding uses
+  structured-claims v3 path
+- NLI gate adds ~2s per answer (batch entailment, after model warm-up)
+
+### Walkthrough Steps
+
+| Step | Operation | Expected result | Record issues |
+|---|---|---|---|
+| R1 | `POST /api/rag/answer` with `{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}` | `provider_name="opencode_go"`, `grounding.status` is `"passed"` or `"blocked"`, NOT `"skipped"` | |
+| R2 | Same request, verify grounding metadata | `grounding.checked=true`, `semantic_threshold=0.78`, `nli_threshold=0.5` present; claims have `semantic_score` and `entailment_score` | |
+| R3 | Same request, verify disclaimer | `disclaimer = "非诊断结论、需结合临床。"` (byte-identical) | |
+| R4 | Use deterministic fallback: remove `QIYAN_OPENCODE_GO_API_KEY`, restart, re-query | `provider_name="deterministic"`, default path unchanged, no error | |
+| R5 | Verify rollback: `QIYAN_LLM_PROVIDER=deterministic` | Instant fallback, no code change needed | |
+| R6 | Check `/rag` UI: real provider answer shows provider name "opencode_go", SLI (latency/cost), export includes provider metadata | All metadata fields visible and accurate | |
+| R7 | If grounding blocks answer with `nli_low_entailment`: verify the hard-block text is shown (NOT the raw draft), citations still appear | Safe fallback behavior, no unverified draft leaked | |
+
+### Expected findings
+
+- **NLI gate behavior**: With the 0.5 threshold, the NLI gate should pass
+  faithful claims (entailment ~0.99) and block unsupported claims. Some claims
+  may be blocked by the BGE cosine pre-filter at 0.78 before reaching NLI.
+- **Latency**: Real provider ~10-15s + NLI gate ~2s per answer (batch entailment,
+  after model warm-up). Total ~12-17s per question.
+- **Cost**: Check `sli.estimated_cost_usd` (null unless real prices configured).
+
+### Completion Record (§4c)
+
+| Date | Reviewer | Browser | Real provider enabled? | Groundings passed? | Pass/Fail | Notes |
+|---|---|---|---|---|---|---|
+| | | | | | | |

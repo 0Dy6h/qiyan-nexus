@@ -61,10 +61,18 @@ pnpm e2e
 
 ## 当前下一步候选
 
-最新项目级状态见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`（✅ 真实 LLM live smoke 已完成）、`docs/evaluations/2026-05-31-bge-semantic-evaluation.md`（✅ BGE 语义评估，推荐阈值 0.78）、`docs/handoffs/2026-05-31-real-llm-enablement.md`、`docs/handoffs/2026-05-31-bge-semantic-recalibration.md` 与更早的 `docs/handoffs/2026-05-30-*`，真实 LLM 启用决策见 ADR-0012、外发数据流向见 ADR-0011、开/关步骤见 `docs/guides/real-llm-enablement-runbook.md`。近期候选方向包括：
+最新项目级状态见 `docs/evaluations/2026-06-01-nli-real-distribution.md`（✅ NLI 真实分布评估：0 FP, 0 FN, gap +0.9549）、`docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`（✅ 真实 LLM live smoke）、`docs/adr/0012-real-llm-enablement.md`、`docs/guides/real-llm-enablement-runbook.md`。**L2 推进** 工程前置已完成（true answer 验证集 + NLI 推断 + 批处理），阻塞项仅剩真人走查（§4c）。近期候选方向包括：
 
-1. **✅ 语义 grounding BGE 评估（已完成）**：BGE (BAAI/bge-small-zh-v1.5) 评估已完成。结果：在阈值 0.78 下实现完美分离（0 false rejects, 0 false accepts, 100% paired separation）。BGE 优于 hashing baseline（clean score gap +0.029 vs -0.259）。详见 `docs/evaluations/2026-05-31-bge-semantic-evaluation.md`。
-2. **✅ 真实 LLM live smoke + 启用底座（已完成）**：OpenCode Go live smoke 已跑通（`provider=opencode_go`，非 fallback）；记录了 `deepseek-v4-flash` 拒绝强制 tool_choice、需 `max_tokens>=4000`、0.78 阈值对真实改写型 claim 偏严等事实。成本/延迟 SLI、外发 PIPL 措辞、ADR-0011/0012 与启用 runbook 已落地。真实 provider 现可在 **L1 受控 smoke/演示** 启用；默认仍 deterministic。
-3. **下一轮真实 LLM 主线候选（L2 默认预览）**：~~扩充 `grounding_semantic_pairs.json` 至真实 LLM 风格 claim 并用 `run_grounding_semantic_separation` 重校准阈值（候选 0.55–0.72）~~ **（2026-06-01 已分析，结论：被阻塞）**。已用 `grounding_semantic_pairs_bge.json`（7 条逐字取自 live smoke 的忠实 claim + 7 条同主题硬负例）在 bge 上扫 0.55–0.78：忠实 claim 0.863–0.963 与硬负例 0.736–0.870 **分布重叠（gap −0.007）**，不存在能同时放行忠实改写、拦截硬负例的阈值。根因是 BGE cosine 度量相似度而非事实蕴含，结构上无法区分「忠实复述」与「同主题臆造」。**未下调阈值（会削弱护栏），保持 L1，默认仍 deterministic。** 详见 `docs/evaluations/2026-06-01-threshold-recalibration.md` 与 ADR-0012 的 2026-06-01 更新。**NLI 蕴含 gate（已落地，opt-in 默认关）**：spike 用 `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`（premise=chunk，hypothesis=claim）在同一 fixture 上把忠实 claim（entailment 0.997–0.999）与硬负例（≤0.001）干净分开，全阈值区间 **0 false accept**（cosine 是 7/7）。已实现为 cosine 之后的二级 gate（`QIYAN_NLI_BACKEND` 默认空=关，`blocked_reason="nli_low_entailment"`），默认行为逐字节不变、CI 不下载模型。详见 `docs/evaluations/2026-06-01-nli-grounding-spike.md`。**对抗性泛化 + 延迟已测（2026-06-01）**：扩充 18 条对抗用例（数字篡改、去 hedge、部分支持+越界、否定、过度泛化、实体拼接、跨 chunk 综合），合并 32 对仍 **0 false accept / 全阈值**，推荐生产阈值 **0.5**；唯一 1 条 false reject 是标注过宽（claim 多了「提供潜在靶点」chunk 未述）。延迟：冷加载 ~6.7s（每进程一次），热态 per-claim p50 854ms / p95 922ms，3-claim 回答 ~2.5s（约为真实 provider 延迟的 +20%）。详见 `docs/evaluations/2026-06-01-nli-latency-and-adversarial.md`。**L2 仍需**：真实回答（非合成）验证集 + 真人走查（§4c），完成后才翻转默认；已知局限：跨 chunk 综合型 claim 会被误拒（需拼接 premise）。
+1. **✅ 语义 grounding BGE 评估（已完成）**：BGE (BAAI/bge-small-zh-v1.5) 评估已完成。详见 `docs/evaluations/2026-05-31-bge-semantic-evaluation.md`。
+2. **✅ 真实 LLM live smoke + 启用底座（已完成）**：OpenCode Go live smoke 已跑通。真实 provider 现可在 **L1 受控 smoke/演示** 启用；默认仍 deterministic。
+3. **L2 默认预览推进（工程部分✅，真人走查待执行）**：
+   - ✅ **threshold recalibration**（§4a）：BGE-cosine 不可达 → 落地 NLI entailment gate（opt-in，默认关）。
+   - ✅ **NLI gate 实现**：`mDeBERTa-v3-base-mnli-xnli`，二级 gate（cosine 预筛后），`blocked_reason="nli_low_entailment"`。
+   - ✅ **Slice 1**：capture 脚本（live + offline 双模式），产出真实 claim 语料。
+   - ✅ **Slice 2**：`grounding_real_answer_pairs.json`（20 对，含 7 条真实 live smoke claim + 13 条硬负例），含人工标注 `support_label`。
+   - ✅ **Slice 3**：NLI 真实分布评估 —— **0 false accepts, 0 false rejects, gap +0.9549, 推荐阈值 0.5**。详见 `docs/evaluations/2026-06-01-nli-real-distribution.md`。
+   - ✅ **Slice 4**：per-answer NLI 批处理（batch entailment），3-claim 回答从 ~2.4s 降至 ~2.1s（1.1x）。
+   - ⬜ **§4c 真人走查**：走查步骤已写入 `docs/checklists/internal-preview-smoke.md` §4c 节；需真人 reviewer 执行并记录结果。完成后才可翻转默认。
+   - ⬜ **§4b（SLI 基线）**：NLI 延迟基准已测（冷加载 ~6s，热批 ~2.1s/3-claim）；真实合同单价需真人配置。
 4. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
 5. 其它可选主线：network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、网络图可视化；Anthropic 仅在有订阅/key 后再排期。
