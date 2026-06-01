@@ -24,7 +24,7 @@
 - Retrieval provider：`keyword` 默认；`vector` / `hybrid` 可通过 `QIYAN_RETRIEVAL_PROVIDER` 显式 opt-in；默认不启用真实 embedding 模型。
 - 跨语言检索：新增确定性 CN↔EN 术语桥（`backend/data/retrieval/cross_lingual_terms.json`，17 组 AD 领域双语术语映射），keyword retriever 现可将中文查询注入英文等价 token，从而命中英文 PubMed 文献（cross_lingual_recall@10 从 0.0 提升至 0.76）。新增 `run_cross_lingual_retrieval_eval()` 评估 harness，支持 keyword/vector/hybrid 三种策略的跨语言 recall、MRR、language_diversity 对比。vector(bge) 在中英跨语场景表现差（0.18），确认 keyword+bridge 为当前唯一有效的跨语策略。详见 `docs/evaluations/2026-06-01-cross-lingual-retrieval-comparison.md`。
 - PDF：本地上传存储；文本型 PDF 通过 `pypdf` 提供预览；扫描件/OCR 暂不支持，失败时回退到文件级占位说明。
-- 网络药理学：`/api/network/analyze`、`/api/network/result/{task_id}`、`/api/network/entities` 与 `/network` 页面已可跑通 mock 分析任务、seed entity、citation/entity 双向跳转，并支持基于当前结果的前端 Markdown 报告导出。**新增 GO/KEGG 富集分析**：从 chains 提取 target symbols，使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value（Bonferroni 校正），返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。前端在结果页面展示富集分析表格（Term ID、通路/功能、类别、重叠基因、P-value、基因列表），限制显示前 10 条。当前为 mock 实现，不代表科研级 KEGG REST API 或真实 FDR 校正。
+- 网络药理学：`/api/network/analyze`、`/api/network/result/{task_id}`、`/api/network/entities` 与 `/network` 页面已可跑通 mock 分析任务、seed entity、citation/entity 双向跳转，并支持基于当前结果的前端 Markdown 报告导出。**新增 GO/KEGG 富集分析**：从 chains 提取 target symbols，使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value（Bonferroni 校正），返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。前端在结果页面展示富集分析表格（Term ID、通路/功能、类别、重叠基因、P-value、基因列表），限制显示前 10 条。当前为 mock 实现，不代表科研级 KEGG REST API 或真实 FDR 校正。**新增结果图可视化（2026-06-01）**：`/network` 结果区在链卡片之上叠加确定性 node-link 图，按 `中药/复方 → 化合物 → 靶点 → 通路 → 疾病` 五层固定布局渲染内联 SVG（纯前端，零 d3/canvas/图表库依赖）。布局由纯函数 `frontend/lib/network-graph.ts` 的 `buildNetworkGraphModel` 计算（同层去重、相邻层连边、坐标确定性可复现，10 条真值单测兜底）；展示组件 `frontend/components/NetworkGraph.tsx` 将边 `score` 映射为线宽/透明度，带 `role="img"`、`aria-label`、每节点 `<title>` tooltip、图例与空态（「暂无网络数据」）。详见 `docs/handoffs/2026-06-01-network-graph-viz.md`。
 - 前端：Next.js App Router + React + Ant Design，页面包括 `/`、`/literature`、`/literature/[id]`、`/rag`、`/evals/rag-ad`、`/compliance`、`/network`。
 - 默认运行不接入真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
@@ -74,7 +74,7 @@ pnpm e2e
    - ❌ **L2 不翻轉**：走查全程无回答穿透 BGE=0.78 + NLI=0.5（4 条全 blocked）。根因是 keyword retriever 中英跨语匹配弱 + openCode Go 自由改写触发多 claim NLI 拦截。保持 L1 受控启用；存 key 者设 3 个 env var 即可启用真实 provider。详见 ADR-0012 2026-06-01 更新（三）。
 4. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
 5. **✅ 跨语言检索改进（已完成）**：keyword + cross-lingual bridge 策略，cross_lingual_recall@10 从 0.0 提升至 0.76。详见 `docs/evaluations/2026-06-01-cross-lingual-retrieval-comparison.md`。
-6. 其它可选主线：network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike、网络图可视化；Anthropic 仅在有订阅/key 后再排期。
+6. 其它可选主线：network report export 后续增强（后端报告接口、PDF/Word）、runtime JSON → SQLite/PostgreSQL spike；**网络图可视化已落地（2026-06-01）**，后续增强候选为 hover 高亮连通边、节点点击聚焦实体；Anthropic 仅在有订阅/key 后再排期。
 7. 下一步候选：
    - ① ~~retrieval 中英跨语匹配~~ → **已完成**（keyword+bridge, 0.76 cross_lingual_recall）
    - ② BGE 阈值 + NLI gate 的真实 LLM 重验证（需真实 key + reviewer）
