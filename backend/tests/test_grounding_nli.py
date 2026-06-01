@@ -28,6 +28,9 @@ class _FakeNliBackend:
     def entailment(self, premise: str, hypothesis: str) -> float:
         return self._scores.get(hypothesis, self._default)
 
+    def entailment_batch(self, premises: list[str], hypotheses: list[str]) -> list[float]:
+        return [self._scores.get(h, self._default) for h in hypotheses]
+
 
 def _citation_with_quote() -> list[CitationCard]:
     return [

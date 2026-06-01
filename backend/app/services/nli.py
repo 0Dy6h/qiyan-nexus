@@ -37,6 +37,14 @@ class NliBackend(Protocol):
         """Return P(premise entails hypothesis) in ``[0, 1]``."""
         ...
 
+    def entailment_batch(self, premises: list[str], hypotheses: list[str]) -> list[float]:
+        """Score a batch of (premise, hypothesis) pairs in one forward pass.
+
+        ``premises[i]`` is paired with ``hypotheses[i]``. Callers MUST ensure
+        ``len(premises) == len(hypotheses)``. Returns one float per pair.
+        """
+        ...
+
 
 def _load_nli_pipeline(model_name: str) -> Any:
     """Import transformers lazily and return a loaded sequence-classification model.
@@ -100,6 +108,30 @@ class TransformersNliBackend:
         probs = torch.softmax(logits, dim=-1)
         assert self._entail_index is not None
         return float(probs[self._entail_index].item())
+
+    def entailment_batch(self, premises: list[str], hypotheses: list[str]) -> list[float]:
+        """Score multiple (premise, hypothesis) pairs in a single forward pass.
+
+        Uses the tokenizer's list-pair API to batch all pairs together, which
+        reduces per-pair latency from O(n) to O(1) model forward passes.
+        """
+        if not premises:
+            return []
+        self._ensure_loaded()
+        torch = self._torch
+        inputs = self._tokenizer(
+            premises,
+            hypotheses,
+            truncation=True,
+            max_length=self._max_length,
+            padding=True,
+            return_tensors="pt",
+        )
+        with torch.no_grad():
+            logits = self._model(**inputs).logits
+        probs = torch.softmax(logits, dim=-1)
+        assert self._entail_index is not None
+        return [float(p[self._entail_index].item()) for p in probs]
 
 
 _BACKENDS: dict[str, type[NliBackend]] = {

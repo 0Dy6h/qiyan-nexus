@@ -346,25 +346,38 @@ def evaluate_answer_grounding(
     # topical pre-filter; NLI decides whether the cited chunk actually entails the
     # claim, which cosine cannot (it can't tell a faithful paraphrase from an
     # on-topic fabrication). See docs/evaluations/2026-06-01-nli-grounding-spike.md.
+    # Claims are batched into a single forward pass so that a 3-claim answer costs
+    # ~1 NLI invocation instead of ~1 per (claim, ref) pair.
     min_entailment_score: float | None = None
     if nli_threshold is not None and nli_backend is not None:
         reference_by_ref = _reference_text_by_ref(citations)
-        for claim in structured_claims:
-            claim_best = 0.0
+        # Collect all (claim_idx, premise, hypothesis) triples
+        batch_premises: list[str] = []
+        batch_hypotheses: list[str] = []
+        pair_claim_idx: list[int] = []
+        for i, claim in enumerate(structured_claims):
             for ref in claim.evidence_refs:
                 reference_text = reference_by_ref.get(ref)
                 if not reference_text:
                     continue
-                claim_best = max(
-                    claim_best,
-                    nli_backend.entailment(reference_text, claim.text),
-                )
-            claim.entailment_score = claim_best
-            min_entailment_score = (
-                claim_best
-                if min_entailment_score is None
-                else min(min_entailment_score, claim_best)
-            )
+                pair_claim_idx.append(i)
+                batch_premises.append(reference_text)
+                batch_hypotheses.append(claim.text)
+
+        # Single batch forward pass
+        if pair_claim_idx:
+            batch_scores = nli_backend.entailment_batch(batch_premises, batch_hypotheses)
+            # Distribute scores back to claims (per-claim best across refs)
+            claim_bests: list[float] = [0.0] * len(structured_claims)
+            for idx, score in zip(pair_claim_idx, batch_scores, strict=True):
+                if score > claim_bests[idx]:
+                    claim_bests[idx] = score
+            for i, claim in enumerate(structured_claims):
+                claim.entailment_score = claim_bests[i] if pair_claim_idx else None
+            min_entailment_score = min(claim_bests)
+        else:
+            for claim in structured_claims:
+                claim.entailment_score = None
 
         if min_entailment_score is not None and min_entailment_score < nli_threshold:
             return (

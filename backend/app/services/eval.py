@@ -224,10 +224,11 @@ def run_nli_real_distribution_eval(
     path = pairs_path or REAL_ANSWER_PAIRS_PATH
     pairs = load_real_answer_pairs(path)
 
-    scored: list[tuple[RealAnswerPair, float]] = []
-    for pair in pairs:
-        score = nli.entailment(pair.premise, pair.claim)
-        scored.append((pair, score))
+    # Batch all pairs into a single NLI forward pass
+    premises = [p.premise for p in pairs]
+    hypotheses = [p.claim for p in pairs]
+    batch_scores = nli.entailment_batch(premises, hypotheses)
+    scored: list[tuple[RealAnswerPair, float]] = list(zip(pairs, batch_scores, strict=True))
 
     # Partition by label
     by_label: dict[str, list[tuple[RealAnswerPair, float]]] = {

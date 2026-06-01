@@ -1,13 +1,13 @@
-"""Measure NLI gate latency for the §4b SLI baseline.
+r"""Measure NLI gate latency for the §4b SLI baseline.
 
-Times the cold model load and warm per-claim entailment forward passes on the
-configured NLI backend, so the per-answer cost of enabling the gate is a measured
-number, not a guess. CPU torch in this environment; numbers will differ on GPU.
+Times the cold model load, warm per-claim individual forward passes, and batch
+entailment on the configured NLI backend, so the per-answer cost is measured.
 
 Run (PowerShell, from backend)::
 
     $env:HF_HUB_OFFLINE = "1"
-    & .uv-test-venv/Scripts/python.exe scripts/bench_nli_latency.py
+    $env:QIYAN_NLI_BACKEND = "transformers"
+    & ./.uv-test-venv/Scripts/python.exe scripts/bench_nli_latency.py
 """
 
 from __future__ import annotations
@@ -74,15 +74,48 @@ def main() -> None:
     p95 = _percentile(per_claim_ms, 0.95)
     mx = max(per_claim_ms)
 
-    print("\nWarm per-claim entailment forward pass:")
+    print("\nWarm per-claim entailment (individual forward passes):")
     print(f"  mean = {mean:.1f} ms")
     print(f"  p50  = {p50:.1f} ms")
     print(f"  p95  = {p95:.1f} ms")
     print(f"  max  = {mx:.1f} ms")
 
+    seq_latency = mean * _TYPICAL_CLAIMS_PER_ANSWER
     print(f"\nPer-answer added latency (x{_TYPICAL_CLAIMS_PER_ANSWER} claims, sequential):")
-    print(f"  p50  ≈ {p50 * _TYPICAL_CLAIMS_PER_ANSWER:.0f} ms")
-    print(f"  p95  ≈ {p95 * _TYPICAL_CLAIMS_PER_ANSWER:.0f} ms")
+    print(f"  mean ≈ {seq_latency:.0f} ms")
+
+    # ── batch benchmark ───────────────────────────────────────────────────
+
+    all_premises = [p.chunk_text for p in pairs]
+    all_hypotheses = [p.claim for p in pairs]
+
+    # Warmup batch
+    _ = backend.entailment_batch(
+        all_premises[:_TYPICAL_CLAIMS_PER_ANSWER], all_hypotheses[:_TYPICAL_CLAIMS_PER_ANSWER]
+    )
+
+    batch_times: list[float] = []
+    for size in [3, 7, 14]:  # typical answer, mid-size, full fixture
+        subset_p = all_premises[:size]
+        subset_h = all_hypotheses[:size]
+        t = time.perf_counter()
+        _ = backend.entailment_batch(subset_p, subset_h)
+        batch_times.append((time.perf_counter() - t) * 1000)
+
+    print("\nBatch entailment (single forward pass per group):")
+    for size, lat in zip([3, 7, 14], batch_times, strict=True):
+        per_pair = lat / size
+        print(f"  {size:>2d} pairs: {lat:.1f} ms total  ({per_pair:.1f} ms/pair)")
+
+    # Compare: 3-claim answer: individual vs batch
+    if batch_times:
+        batch_3 = batch_times[0]
+        print("\nPer-answer comparison (3 claims):")
+        print(f"  Individual (sequential): ≈ {seq_latency:.0f} ms")
+        print(f"  Batch (single forward):   {batch_3:.1f} ms")
+        speedup = seq_latency / batch_3 if batch_3 > 0 else float("inf")
+        print(f"  Speedup:                  {speedup:.1f}x")
+
     print("\nNote: cold load is paid once per process; subsequent answers pay only warm cost.")
 
 
