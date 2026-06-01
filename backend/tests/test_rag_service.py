@@ -44,37 +44,35 @@ def test_answer_question_trims_question():
 def test_answer_question_includes_relevant_citations_for_english_barrier_question():
     """After Slice 2, score-primary sort allows cross-lingual items to surface.
 
-    Chinese items with high cross-lingual token matches can outrank PubMed items.
-    The key invariant is that the results contain relevant citations.
+    Chinese items with high cross-lingual token matches can outrank PubMed items
+    for an English query. Ranking is still deterministic, so we pin the order and
+    assert the barrier-specific paper is retrieved.
     """
     response = answer_question("atopic dermatitis barrier")
 
-    assert len(response.citations) >= 1
-    # At least one citation should be relevant to the query
-    # (either Chinese or PubMed, as cross-lingual retrieval is now enabled)
-    assert response.citations[0].literature_id is not None
+    assert [c.literature_id for c in response.citations] == [
+        "cn-ad-gbs-001",
+        "cn-ad-barrier-006",
+    ]
 
 
 def test_answer_question_limits_citations_by_top_k():
     response = answer_question("特应性皮炎", top_k=1)
 
     assert len(response.citations) == 1
-    # After Slice 2, score-primary sort means the highest-scoring item
-    # (which may be PubMed due to cross-lingual token injection) comes first.
-    # The key invariant is that we get exactly 1 citation.
-    assert response.citations[0].literature_id is not None
+    # After Slice 2, score-primary sort + cross-lingual token injection changes
+    # which item ranks first for a bare Chinese query. Pin the deterministic top
+    # result (against the seed dataset) so a ranking regression is caught.
+    assert response.citations[0].literature_id == "cn-ad-microbiome-003"
 
 
 def test_answer_question_filters_citations_by_source():
     response = answer_question("特应性皮炎 肠道菌群", source="pubmed")
 
     assert len(response.citations) == 2
-    # After Slice 2, ranking order may change due to cross-lingual token injection.
-    # The key invariant is that both citations are PubMed items.
+    # Deterministic order after Slice 2 cross-lingual token injection.
     citation_ids = [citation.literature_id for citation in response.citations]
-    assert all(lid.startswith("pmid-") for lid in citation_ids), (
-        f"Expected all PubMed citations, got: {citation_ids}"
-    )
+    assert citation_ids == ["pmid-40100007", "pmid-40100002"]
 
 
 def test_answer_question_returns_retrieval_metadata_for_positive_matches():

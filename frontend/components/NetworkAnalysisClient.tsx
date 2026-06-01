@@ -22,6 +22,7 @@ import {
 } from "../lib/network-report-export";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import EntityChips from "./EntityChips";
+import NetworkGraph from "./NetworkGraph";
 import StatusPanel from "./StatusPanel";
 
 type NetworkPhase = "idle" | "submitting" | "polling" | "completed" | "error";
@@ -296,6 +297,7 @@ export default function NetworkAnalysisClient() {
               <span>导出报告为 Markdown</span>
             </button>
           </div>
+          <NetworkGraph chains={result.chains} />
           <div style={{ display: "grid", gap: 12 }}>
             {result.chains.map((chain, index) => (
               <article key={`${chain.compound}-${index}`} style={getSurfaceCardStyle()}>
