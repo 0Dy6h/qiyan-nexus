@@ -54,6 +54,23 @@ _KEYWORD_ALIASES: dict[str, list[str]] = {
     "pediatric": ["儿童", "pediatric"],
 }
 
+
+# Short ASCII abbreviation tokens (e.g. "ad") substring-match inside many
+# unrelated English words (adult, adverse, gradient, leading...). Matching them
+# on a word boundary keeps the legitimate "AD" abbreviation signal without the
+# spurious match those words would otherwise contribute, both when injecting
+# cross-lingual tokens and when scoring candidates. CJK keywords never hit this
+# branch (the pattern only matches 1-2 ASCII chars), so single-char CJK matching
+# is unaffected.
+_SHORT_ASCII_TOKEN = re.compile(r"^[a-z0-9]{1,2}$")
+
+
+def _token_matches(token: str, haystack: str) -> bool:
+    if _SHORT_ASCII_TOKEN.match(token):
+        return re.search(rf"\b{re.escape(token)}\b", haystack) is not None
+    return token in haystack
+
+
 # ---------------------------------------------------------------------------
 # Cross-lingual alias loading (Slice 2)
 # ---------------------------------------------------------------------------
@@ -66,16 +83,33 @@ _cross_lingual_cache: dict[str, Any] | None = None
 
 
 def _load_cross_lingual_aliases() -> dict[str, Any]:
-    """Load cross-lingual term map from JSON, with fallback to empty map."""
+    """Load cross-lingual term map from JSON, with fallback to empty map.
+
+    Any failure to produce a usable ``{"alias_map": [...]}`` dict — missing
+    file, malformed JSON, or a non-dict top-level value — falls back to an
+    empty map and logs, rather than propagating out through ``tokenize_query``
+    and breaking every retrieval call.
+    """
     global _cross_lingual_cache
     if _cross_lingual_cache is not None:
         return _cross_lingual_cache
+    fallback: dict[str, Any] = {"alias_map": []}
     try:
         raw = _CROSS_LINGUAL_TERMS_PATH.read_text(encoding="utf-8")
-        _cross_lingual_cache = json.loads(raw)
+        parsed = json.loads(raw)
     except FileNotFoundError:
         _LOGGER.debug("cross_lingual_terms.json not found; using empty alias map")
-        _cross_lingual_cache = {"alias_map": []}
+        _cross_lingual_cache = fallback
+        return _cross_lingual_cache
+    except (OSError, ValueError) as exc:
+        _LOGGER.warning("cross_lingual_terms.json unreadable (%s); using empty alias map", exc)
+        _cross_lingual_cache = fallback
+        return _cross_lingual_cache
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("alias_map"), list):
+        _LOGGER.warning("cross_lingual_terms.json has unexpected shape; using empty alias map")
+        _cross_lingual_cache = fallback
+        return _cross_lingual_cache
+    _cross_lingual_cache = parsed
     return _cross_lingual_cache
 
 
@@ -85,7 +119,7 @@ def tokenize_query(question: str) -> list[str]:
 
     # Step 1: existing alias injection (canonical keys)
     for alias, keywords in _KEYWORD_ALIASES.items():
-        if any(keyword in normalized for keyword in keywords):
+        if any(_token_matches(keyword, normalized) for keyword in keywords):
             tokens.add(alias)
 
     # Step 2: CJK char extraction
@@ -103,14 +137,14 @@ def tokenize_query(question: str) -> list[str]:
         canonical: str = entry.get("canonical", "")
 
         # zh keywords matched → inject en tokens
-        if any(kw in normalized for kw in zh_keywords):
+        if any(_token_matches(kw, normalized) for kw in zh_keywords):
             for en_kw in en_keywords:
                 tokens.add(en_kw)
             if canonical:
                 tokens.add(canonical)
 
         # en keywords matched → inject zh tokens
-        if any(kw in normalized for kw in en_keywords):
+        if any(_token_matches(kw, normalized) for kw in en_keywords):
             for zh_kw in zh_keywords:
                 tokens.add(zh_kw)
             if canonical:
@@ -131,7 +165,7 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
     ]
     score = 0
     for token in query_tokens:
-        if any(token in haystack for haystack in haystacks if haystack):
+        if any(_token_matches(token, haystack) for haystack in haystacks if haystack):
             score += 1
     return score
 

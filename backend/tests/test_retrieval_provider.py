@@ -181,3 +181,79 @@ def test_sort_key_uses_score_as_primary():
     assert ranked[0].item.id == "pmid-test-001", (
         "High-score pubmed should rank above low-score cn when score is primary sort key"
     )
+
+
+# ---------------------------------------------------------------------------
+# Short-token word-boundary matching (prevents "ad" substring false positives)
+# ---------------------------------------------------------------------------
+
+
+def test_short_ascii_token_matches_on_word_boundary_only():
+    """The 2-char "ad" abbreviation must not substring-match inside common words.
+
+    Before this guard, ``"ad" in haystack`` matched *adult, adverse, gradient,
+    leading*… adding a spurious +1 to nearly every English candidate. Matching
+    short ASCII tokens on a word boundary keeps the standalone "AD" signal while
+    dropping those false positives.
+    """
+    from app.services.retrieval.provider import _token_matches
+
+    assert _token_matches("ad", "ad is atopic dermatitis") is True
+    assert _token_matches("ad", "study of ad. patients") is True
+    assert _token_matches("ad", "advanced therapy for adult patients") is False
+    assert _token_matches("ad", "concentration gradient") is False
+    # Longer tokens keep plain substring matching.
+    assert _token_matches("barrier", "skin barrier dysfunction") is True
+    assert _token_matches("il-4", "role of il-4 cytokine") is True
+
+
+def test_short_token_does_not_inject_cross_lingual_terms_from_substring():
+    """An English word merely containing "ad" must not inject the AD Chinese terms."""
+    from app.services.retrieval.provider import tokenize_query
+
+    ad_zh_terms = {"特应性皮炎", "异位性皮炎", "湿疹"}
+
+    # "advanced" contains the substring "ad" but is not the AD abbreviation.
+    advanced_tokens = set(tokenize_query("advanced therapy"))
+    assert ad_zh_terms.isdisjoint(advanced_tokens), (
+        f"'advanced' should not inject AD Chinese terms, got: {sorted(ad_zh_terms & advanced_tokens)}"
+    )
+
+    # Standalone "AD" still injects the Chinese equivalents.
+    standalone_tokens = set(tokenize_query("AD barrier"))
+    assert ad_zh_terms.issubset(standalone_tokens), (
+        f"Standalone 'AD' should inject AD Chinese terms, got: {sorted(standalone_tokens)}"
+    )
+
+
+def test_load_cross_lingual_aliases_falls_back_on_malformed_json(monkeypatch, tmp_path, caplog):
+    """Malformed JSON must fall back to an empty map, not crash every retrieval call."""
+    import logging
+
+    from app.services.retrieval import provider as provider_module
+
+    bad_file = tmp_path / "cross_lingual_terms.json"
+    bad_file.write_text("{ this is not valid json", encoding="utf-8")
+    monkeypatch.setattr(provider_module, "_CROSS_LINGUAL_TERMS_PATH", bad_file)
+    monkeypatch.setattr(provider_module, "_cross_lingual_cache", None)
+
+    with caplog.at_level(logging.WARNING):
+        result = provider_module._load_cross_lingual_aliases()
+
+    assert result == {"alias_map": []}
+    # tokenize_query must still work (no exception propagates).
+    assert isinstance(provider_module.tokenize_query("特应性皮炎"), list)
+
+
+def test_load_cross_lingual_aliases_falls_back_on_non_dict_json(monkeypatch, tmp_path):
+    """A JSON file that parses to a non-dict (e.g. a list) must fall back safely."""
+    from app.services.retrieval import provider as provider_module
+
+    list_file = tmp_path / "cross_lingual_terms.json"
+    list_file.write_text("[1, 2, 3]", encoding="utf-8")
+    monkeypatch.setattr(provider_module, "_CROSS_LINGUAL_TERMS_PATH", list_file)
+    monkeypatch.setattr(provider_module, "_cross_lingual_cache", None)
+
+    result = provider_module._load_cross_lingual_aliases()
+
+    assert result == {"alias_map": []}
