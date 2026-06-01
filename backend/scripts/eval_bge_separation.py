@@ -52,8 +52,7 @@ def main() -> None:
     print("Running evaluation on HASHING backend (baseline)...")
     print("-" * 80)
     hashing_result = run_grounding_semantic_separation(
-        threshold=default_threshold,
-        backend_name="hashing"
+        threshold=default_threshold, backend_name="hashing"
     )
     print_result(hashing_result)
     print()
@@ -63,8 +62,7 @@ def main() -> None:
     print("-" * 80)
     try:
         bge_result = run_grounding_semantic_separation(
-            threshold=default_threshold,
-            backend_name="bge"
+            threshold=default_threshold, backend_name="bge"
         )
         print_result(bge_result)
         print()
@@ -104,11 +102,15 @@ def print_result(result: dict) -> None:
     print("Confusion Matrix:")
     print(f"  Faithful claims (should PASS):")
     print(f"    [OK] Accepted: {result['accepted_faithful']}/{result['faithful_total']}")
-    print(f"    [FAIL] False Rejected: {result['false_rejected_faithful']}/{result['faithful_total']}")
+    print(
+        f"    [FAIL] False Rejected: {result['false_rejected_faithful']}/{result['faithful_total']}"
+    )
     print()
     print(f"  Hallucinated claims (should BLOCK):")
     print(f"    [OK] Rejected: {result['rejected_hallucinated']}/{result['hallucinated_total']}")
-    print(f"    [FAIL] False Accepted: {result['false_accepted_hallucinated']}/{result['hallucinated_total']}")
+    print(
+        f"    [FAIL] False Accepted: {result['false_accepted_hallucinated']}/{result['hallucinated_total']}"
+    )
     print()
 
     print("Score Distribution:")
@@ -128,41 +130,49 @@ def print_comparison(hashing: dict, bge: dict) -> None:
     print("-" * 80)
 
     # False rejects (should be 0)
-    print(f"{'False Rejected Faithful':<40} "
-          f"{hashing['false_rejected_faithful']:<15} "
-          f"{bge['false_rejected_faithful']:<15} "
-          f"{format_delta(hashing['false_rejected_faithful'], bge['false_rejected_faithful'])}")
+    print(
+        f"{'False Rejected Faithful':<40} "
+        f"{hashing['false_rejected_faithful']:<15} "
+        f"{bge['false_rejected_faithful']:<15} "
+        f"{format_delta(hashing['false_rejected_faithful'], bge['false_rejected_faithful'])}"
+    )
 
     # False accepts (should be minimized)
-    print(f"{'False Accepted Hallucinated':<40} "
-          f"{hashing['false_accepted_hallucinated']:<15} "
-          f"{bge['false_accepted_hallucinated']:<15} "
-          f"{format_delta(hashing['false_accepted_hallucinated'], bge['false_accepted_hallucinated'])}")
+    print(
+        f"{'False Accepted Hallucinated':<40} "
+        f"{hashing['false_accepted_hallucinated']:<15} "
+        f"{bge['false_accepted_hallucinated']:<15} "
+        f"{format_delta(hashing['false_accepted_hallucinated'], bge['false_accepted_hallucinated'])}"
+    )
 
     # Paired separation (should be 100%)
-    hashing_sep_pct = hashing['paired_separation'] / hashing['paired_total'] * 100
-    bge_sep_pct = bge['paired_separation'] / bge['paired_total'] * 100
-    print(f"{'Paired Separation %':<40} "
-          f"{hashing_sep_pct:.1f}%{'':<10} "
-          f"{bge_sep_pct:.1f}%{'':<10} "
-          f"{format_delta_pct(hashing_sep_pct, bge_sep_pct)}")
+    hashing_sep_pct = hashing["paired_separation"] / hashing["paired_total"] * 100
+    bge_sep_pct = bge["paired_separation"] / bge["paired_total"] * 100
+    print(
+        f"{'Paired Separation %':<40} "
+        f"{hashing_sep_pct:.1f}%{'':<10} "
+        f"{bge_sep_pct:.1f}%{'':<10} "
+        f"{format_delta_pct(hashing_sep_pct, bge_sep_pct)}"
+    )
 
     # Score gap
-    hashing_gap = hashing['min_faithful_score'] - hashing['max_hallucinated_score']
-    bge_gap = bge['min_faithful_score'] - bge['max_hallucinated_score']
-    print(f"{'Score Gap (min_faithful - max_halluc)':<40} "
-          f"{hashing_gap:.3f}{'':<10} "
-          f"{bge_gap:.3f}{'':<10} "
-          f"{format_delta_float(hashing_gap, bge_gap)}")
+    hashing_gap = hashing["min_faithful_score"] - hashing["max_hallucinated_score"]
+    bge_gap = bge["min_faithful_score"] - bge["max_hallucinated_score"]
+    print(
+        f"{'Score Gap (min_faithful - max_halluc)':<40} "
+        f"{hashing_gap:.3f}{'':<10} "
+        f"{bge_gap:.3f}{'':<10} "
+        f"{format_delta_float(hashing_gap, bge_gap)}"
+    )
 
 
 def print_threshold_recommendation(bge: dict) -> None:
     """Recommend threshold based on BGE score distribution."""
-    min_faithful = bge['min_faithful_score']
-    max_hallucinated = bge['max_hallucinated_score']
-    current_threshold = bge['threshold']
-    false_rejects = bge['false_rejected_faithful']
-    false_accepts = bge['false_accepted_hallucinated']
+    min_faithful = bge["min_faithful_score"]
+    max_hallucinated = bge["max_hallucinated_score"]
+    current_threshold = bge["threshold"]
+    false_rejects = bge["false_rejected_faithful"]
+    false_accepts = bge["false_accepted_hallucinated"]
 
     print(f"Current threshold: {current_threshold}")
     print(f"Min faithful score: {min_faithful:.3f}")
@@ -178,15 +188,21 @@ def print_threshold_recommendation(bge: dict) -> None:
             # Clean separation, can tighten threshold
             recommended = round((min_faithful + max_hallucinated) / 2, 2)
             print(f"[GOOD] Zero false rejects, but {false_accepts} false accepts remain.")
-            print(f"  Score distributions do NOT overlap (gap: {min_faithful - max_hallucinated:.3f})")
+            print(
+                f"  Score distributions do NOT overlap (gap: {min_faithful - max_hallucinated:.3f})"
+            )
             print(f"  Recommendation: Tighten threshold to {recommended:.2f}")
             print(f"  This will block all hallucinations while preserving all faithful claims.")
         else:
             # Overlap exists, need to balance
             print(f"[WARNING] Zero false rejects, but {false_accepts} false accepts remain.")
-            print(f"  Score distributions OVERLAP (min_faithful {min_faithful:.3f} <= max_halluc {max_hallucinated:.3f})")
+            print(
+                f"  Score distributions OVERLAP (min_faithful {min_faithful:.3f} <= max_halluc {max_hallucinated:.3f})"
+            )
             print(f"  Recommendation: Keep threshold at {current_threshold} (conservative)")
-            print(f"  OR accept some false rejects to reduce false accepts (requires domain judgment)")
+            print(
+                f"  OR accept some false rejects to reduce false accepts (requires domain judgment)"
+            )
     elif false_rejects > 0:
         print(f"[ERROR] BLOCKING FAITHFUL CLAIMS: {false_rejects} false rejects!")
         print(f"  Recommendation: LOWER threshold to {min_faithful:.2f} or below")

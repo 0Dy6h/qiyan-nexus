@@ -1,0 +1,202 @@
+[
+  {
+    "claim": "特应性皮炎与肠-脑-皮肤轴密切相关，该轴失调表现为肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "supported",
+    "source": "live_smoke_2026-05-31_q1",
+    "semantic_score_bge": 0.716,
+    "label_note": "Claim faithfully restates the chunk: '密切相关' corresponds to '从...视角讨论...存在可解释关联', and '肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱' is verbatim."
+  },
+  {
+    "claim": "肠道菌群失衡，尤其是双歧杆菌、乳酸杆菌减少，与特应性皮炎发病相关，菌群干预可能有助于恢复免疫稳态。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "partial",
+    "source": "live_smoke_2026-05-31_q1",
+    "semantic_score_bge": 0.782,
+    "label_note": "Chunk mentions '肠道微生态失衡' (gut microecological imbalance) but does NOT name specific bacteria (双歧杆菌, 乳酸杆菌) nor assert that microbiome intervention can restore immune homeostasis. General gut-skin axis theme is supported; specific claims about bacteria species and intervention efficacy are NOT grounded."
+  },
+  {
+    "claim": "脾虚湿蕴、血虚风燥等中医证候与肠-脑-皮肤轴环节失调存在可解释关联，为特应性皮炎治疗提供靶点。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "partial",
+    "source": "live_smoke_2026-05-31_q1",
+    "semantic_score_bge": 0.881,
+    "label_note": "The correlation claim ('脾虚湿蕴...血虚风燥...存在可解释关联') is directly supported by the chunk. However '为特应性皮炎治疗提供靶点' (provides treatment targets) is NOT in the source — the source only states correlations exist, not that they constitute treatment targets. Scope overreach pattern."
+  },
+  {
+    "claim": "中医药干预特应性皮炎瘙痒的机制涉及调节IL-31、神经肽等介质，以及瘙痒-搔抓循环的恶性环路。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "supported",
+    "source": "live_smoke_2026-05-31_q2",
+    "semantic_score_bge": 0.700,
+    "label_note": "IL-31, 神经肽 (neuropeptides), and 瘙痒-搔抓循环 (itch-scratch cycle) are directly in the chunk. '调节...介质' is a reasonable inference from the review context. Faithful restatement."
+  },
+  {
+    "claim": "网络药理学分析提示特应性皮炎常用方剂的作用机制常涉及PI3K-Akt、NF-kB、JAK-STAT等关键信号通路。",
+    "premise": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "premise_chunk_id": "chunk-cn-ad-network-007-pathway",
+    "premise_literature_id": "cn-ad-network-007",
+    "support_label": "supported",
+    "source": "live_smoke_2026-05-31_q2",
+    "semantic_score_bge": 0.727,
+    "label_note": "All key entities (网络药理学, 常用方剂, PI3K-Akt/NF-kB/JAK-STAT) and the relationship ('作用机制常涉及' = '被频繁列为关键调控轴') are in the chunk. Faithful paraphrase."
+  },
+  {
+    "claim": "中西医结合诊疗共识将皮肤屏障维护、规律外用润肤剂、辨证施治与长期管理列为特应性皮炎的核心管理要点。",
+    "premise": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "premise_chunk_id": "chunk-cn-ad-guideline-004-management",
+    "premise_literature_id": "cn-ad-guideline-004",
+    "support_label": "supported",
+    "source": "live_smoke_2026-05-31_q3",
+    "semantic_score_bge": 0.920,
+    "label_note": "Near word-for-word restatement. All elements (皮肤屏障维护, 规律外用润肤剂, 辨证施治, 长期管理) are in the chunk."
+  },
+  {
+    "claim": "特应性皮炎中医证候研究强调脾虚湿蕴、血虚风燥等证候与皮肤屏障及神经免疫调节之间的联系。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "supported",
+    "source": "live_smoke_2026-05-31_q3",
+    "semantic_score_bge": 0.591,
+    "label_note": "Despite a low BGE score (0.591 — the deterministic retriever matched this claim to the wrong chunk), the claim IS supported by this chunk. '脾虚湿蕴、血虚风燥' and '皮肤屏障...神经免疫调节' are present. The claim drops '肠道微生态失衡' and rephrases '神经免疫调节紊乱' as '神经免疫调节之间的联系', which is a narrower but faithful summary. Note: the retriever's wrong match is why BGE scored it low — this is a retrieval quality issue, not a hallucination."
+  },
+  {
+    "claim": "黄芩中的黄芩苷通过抑制NF-kB通路减轻特应性皮炎皮肤炎症，临床研究显示外用黄芩制剂可使SCORAD评分下降约40%。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk mentions TCM pruritus interventions but does NOT mention 黄芩苷, NF-kB inhibition, or SCORAD scoring. Fabricated specific mechanism + quantitative efficacy claim."
+  },
+  {
+    "claim": "菌群干预在特应性皮炎中的治愈率可达90%以上，主要通过口服双歧杆菌和乳酸杆菌制剂实现。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk mentions '肠道微生态失衡' in passing but does NOT state cure rates, specific bacteria intervention protocols, or 90% efficacy claims. Topically similar vocabulary to the source but fabricated quantitative claim."
+  },
+  {
+    "claim": "特应性皮炎发病机制中，JAK-STAT通路是唯一的关键信号通路，其它通路如NF-kB、PI3K-Akt的作用可忽略不计。",
+    "premise": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "premise_chunk_id": "chunk-cn-ad-network-007-pathway",
+    "premise_literature_id": "cn-ad-network-007",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk lists PI3K-Akt, NF-kB, JAK-STAT as co-equal key regulatory axes. The claim falsely asserts JAK-STAT exclusivity and dismisses other pathways — a toxicity-claim pattern not present in the source."
+  },
+  {
+    "claim": "中西医结合诊疗共识推荐激素类药物作为特应性皮炎一线治疗。",
+    "premise": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "premise_chunk_id": "chunk-cn-ad-guideline-004-management",
+    "premise_literature_id": "cn-ad-guideline-004",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk lists skin barrier maintenance, moisturizers, TCM pattern differentiation, and long-term management — it does NOT mention corticosteroids or any pharmaceutical recommendation. Falsely substitutes TCM-consensus content with Western pharma recommendation."
+  },
+  {
+    "claim": "IL-31是特应性皮炎瘙痒的唯一介质，阻断IL-31即可完全消除瘙痒症状。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk mentions IL-31 AND neuropeptides as interacting mediators. The claim asserts IL-31 exclusivity and makes an absolute efficacy claim ('完全消除') — both unsupported."
+  },
+  {
+    "claim": "脾虚湿蕴型特应性皮炎患者应避免所有外用润肤剂，单纯口服中药即可治愈。",
+    "premise": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "premise_chunk_id": "chunk-cn-ad-guideline-004-management",
+    "premise_literature_id": "cn-ad-guideline-004",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk recommends moisturizers and TCM pattern differentiation as complementary. The claim contradicts by saying to AVOID moisturizers and claims cure by oral TCM alone. Dangerous fabrication."
+  },
+  {
+    "claim": "特应性皮炎与肠-脑-皮肤轴之间没有明确关联，肠道菌群研究证据不足以支持任何临床建议。",
+    "premise": "文章从肠-脑-皮肤轴视角讨论特应性皮炎的中医证候演变，提出脾虚湿蕴、血虚风燥与肠道微生态失衡、皮肤屏障异常和神经免疫调节紊乱之间存在可解释关联。",
+    "premise_chunk_id": "chunk-cn-ad-gbs-001-abstract",
+    "premise_literature_id": "cn-ad-gbs-001",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk explicitly discusses gut-brain-skin axis correlations. The claim falsely denies the association the chunk asserts. Negation pattern — contradicts the source."
+  },
+  {
+    "claim": "网络药理学分析仅适用于中药单体成分研究，对复方研究无参考价值。",
+    "premise": "综述指出网络药理学方法常用于筛选中药复方的活性成分、靶点和信号通路，PI3K-Akt、NF-kB、JAK-STAT 等被频繁列为特应性皮炎相关研究的关键调控轴。",
+    "premise_chunk_id": "chunk-cn-ad-network-007-pathway",
+    "premise_literature_id": "cn-ad-network-007",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Hard negative (authored). The chunk explicitly states network pharmacology is used for '中药复方' (TCM formulas). Claim falsely restricts applicability to single compounds. Contradiction pattern."
+  },
+  {
+    "claim": "黄芩在治疗特应性皮炎中通过调节IL-31、神经肽和瘙痒-搔抓循环发挥作用，其作用机制也与PI3K-Akt、NF-kB、JAK-STAT通路有关。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "partial",
+    "source": "authored_cross_doc_negative",
+    "semantic_score_bge": null,
+    "label_note": "Cross-document partial support. The chunk supports the IL-31/neuropeptide/itch-scratch portion, but does NOT mention 黄芩 (Scutellaria) or PI3K-Akt/NF-kB/JAK-STAT pathways. The first half is supported by this chunk; the second half requires chunk-cn-ad-network-007-pathway and the drug-specific chunk as additional evidence."
+  },
+  {
+    "claim": "中医药治疗特应性皮炎的优势在于辨证施治和长期管理，配合皮肤屏障维护和润肤剂使用可改善患者生活质量。",
+    "premise": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "premise_chunk_id": "chunk-cn-ad-guideline-004-management",
+    "premise_literature_id": "cn-ad-guideline-004",
+    "support_label": "partial",
+    "source": "authored_cross_doc_negative",
+    "semantic_score_bge": null,
+    "label_note": "Partial support. The chunk lists TCM differentiation + long-term management + skin barrier + moisturizers as core points. The claim adds '改善患者生活质量' (improves quality of life) which is a reasonable clinical inference but not explicitly stated in this chunk. Most content is supported; QoL improvement claim is unsupported inference."
+  },
+  {
+    "claim": "中西医结合诊疗共识将皮肤屏障维护、规律外用润肤剂、辨证施治与长期管理列为特应性皮炎的核心管理要点。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "unsupported",
+    "source": "authored_cross_topic_mismatch",
+    "semantic_score_bge": null,
+    "label_note": "Supported claim paired with WRONG chunk. The claim is about consensus guidelines (correctly supported by chunk-cn-ad-guideline-004-management) but this chunk is about IL-31 and pruritus mechanisms. None of the claim's entities appear in this premise. Tests whether NLI correctly rejects a factually-supported claim when paired with an irrelevant premise."
+  },
+  {
+    "claim": "黄芩、黄连、黄柏三味中药联合使用可显著降低特应性皮炎患者血清IgE水平，有效率可达85%。",
+    "premise": "围绕特应性皮炎瘙痒环路，综述 IL-31、神经肽与瘙痒-搔抓循环之间的相互作用，并梳理中医药内外治在瘙痒控制中的应用思路与文献证据。",
+    "premise_chunk_id": "chunk-cn-ad-pruritus-005-mechanism",
+    "premise_literature_id": "cn-ad-pruritus-005",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Fabricated TCM formula efficacy claim. The chunk discusses TCM pruritus interventions generally but does not mention 黄芩/黄连/黄柏 combination, serum IgE levels, or 85% efficacy. Specific drug names + lab marker + quantitative efficacy — all unsupported."
+  },
+  {
+    "claim": "特应性皮炎患者皮肤屏障功能异常主要表现为filaggrin基因突变导致的角质层脂质代谢紊乱。",
+    "premise": "中西医结合诊疗专家共识把皮肤屏障维护、规律外用润肤剂、辨证施治和长期管理列为特应性皮炎的核心要点，并提醒所有结论须结合医生临床判断。",
+    "premise_chunk_id": "chunk-cn-ad-guideline-004-management",
+    "premise_literature_id": "cn-ad-guideline-004",
+    "support_label": "unsupported",
+    "source": "authored_hard_negative",
+    "semantic_score_bge": null,
+    "label_note": "Fabricated mechanism claim. The chunk mentions '皮肤屏障维护' (barrier maintenance) as a core management point but does NOT discuss filaggrin gene mutations, stratum corneum lipid metabolism, or any specific molecular mechanism. Topically related ('皮肤屏障') but factually unsupported."
+  }
+]

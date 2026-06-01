@@ -37,10 +37,7 @@ def main() -> None:
 
     print("Running evaluation on HASHING backend (lexical overlap proxy)...")
     print("-" * 80)
-    result = run_grounding_semantic_separation(
-        threshold=default_threshold,
-        backend_name="hashing"
-    )
+    result = run_grounding_semantic_separation(threshold=default_threshold, backend_name="hashing")
 
     print(f"Backend: {result['backend_name']}")
     print(f"Threshold: {result['threshold']}")
@@ -49,11 +46,15 @@ def main() -> None:
     print("Confusion Matrix:")
     print(f"  Faithful claims (should PASS):")
     print(f"    [OK] Accepted: {result['accepted_faithful']}/{result['faithful_total']}")
-    print(f"    [FAIL] False Rejected: {result['false_rejected_faithful']}/{result['faithful_total']}")
+    print(
+        f"    [FAIL] False Rejected: {result['false_rejected_faithful']}/{result['faithful_total']}"
+    )
     print()
     print(f"  Hallucinated claims (should BLOCK):")
     print(f"    [OK] Rejected: {result['rejected_hallucinated']}/{result['hallucinated_total']}")
-    print(f"    [FAIL] False Accepted: {result['false_accepted_hallucinated']}/{result['hallucinated_total']}")
+    print(
+        f"    [FAIL] False Accepted: {result['false_accepted_hallucinated']}/{result['hallucinated_total']}"
+    )
     print()
 
     print("Score Distribution:")
@@ -71,18 +72,26 @@ def main() -> None:
     print("ANALYSIS")
     print("=" * 80)
 
-    false_rejects = result['false_rejected_faithful']
-    false_accepts = result['false_accepted_hallucinated']
+    false_rejects = result["false_rejected_faithful"]
+    false_accepts = result["false_accepted_hallucinated"]
 
     print(f"\n[HASHING BACKEND PERFORMANCE]")
     print(f"  - Zero false rejects: {false_rejects == 0} (conservative, safe)")
-    print(f"  - False accepts: {false_accepts}/{result['hallucinated_total']} (lexical overlap limitation)")
-    print(f"  - Paired separation: {result['paired_separation']}/{result['paired_total']} (100% = perfect)")
+    print(
+        f"  - False accepts: {false_accepts}/{result['hallucinated_total']} (lexical overlap limitation)"
+    )
+    print(
+        f"  - Paired separation: {result['paired_separation']}/{result['paired_total']} (100% = perfect)"
+    )
 
-    if result['min_faithful_score'] > result['max_hallucinated_score']:
-        print(f"  - Score distributions: CLEAN SEPARATION (gap: {result['min_faithful_score'] - result['max_hallucinated_score']:.3f})")
+    if result["min_faithful_score"] > result["max_hallucinated_score"]:
+        print(
+            f"  - Score distributions: CLEAN SEPARATION (gap: {result['min_faithful_score'] - result['max_hallucinated_score']:.3f})"
+        )
     else:
-        print(f"  - Score distributions: OVERLAP (min_faithful {result['min_faithful_score']:.3f} <= max_halluc {result['max_hallucinated_score']:.3f})")
+        print(
+            f"  - Score distributions: OVERLAP (min_faithful {result['min_faithful_score']:.3f} <= max_halluc {result['max_hallucinated_score']:.3f})"
+        )
 
     print(f"\n[BGE BACKEND EXPECTATIONS]")
     print(f"  Based on test suite comments and handoff documentation:")
@@ -111,7 +120,9 @@ def main() -> None:
     print("=" * 80)
     print()
     print("1. Run BGE evaluation when network/proxy is available:")
-    print("   HTTPS_PROXY=http://172.26.0.1:7897 .venv/Scripts/python.exe scripts/eval_bge_separation.py")
+    print(
+        "   HTTPS_PROXY=http://172.26.0.1:7897 .venv/Scripts/python.exe scripts/eval_bge_separation.py"
+    )
     print()
     print("2. Compare BGE vs hashing false accept rates")
     print()
