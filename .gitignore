@@ -55,3 +55,8 @@ yarn-error.log*
 
 # CodeGraph local index (per-machine, never commit)
 .codegraph/
+
+# OpenCode local config (per-machine MCP paths, never commit)
+opencode.json
+opencode.jsonc
+.opencode/
