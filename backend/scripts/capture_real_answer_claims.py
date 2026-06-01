@@ -135,6 +135,7 @@ SMOKE_QUESTIONS: list[dict] = [
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -165,17 +166,20 @@ def _enrich_claim(claim: dict, chunk_repo: InMemoryChunkRepository) -> dict:
     cited_chunks: list[dict] = []
     for ref in claim.get("evidence_refs", []):
         chunk = chunk_repo.get_chunk_by_id(ref)
-        cited_chunks.append({
-            "chunk_id": ref,
-            "text": chunk.text if chunk else "CHUNK_NOT_FOUND",
-            "literature_id": chunk.literature_id if chunk else None,
-            "section": chunk.section if chunk else None,
-        })
+        cited_chunks.append(
+            {
+                "chunk_id": ref,
+                "text": chunk.text if chunk else "CHUNK_NOT_FOUND",
+                "literature_id": chunk.literature_id if chunk else None,
+                "section": chunk.section if chunk else None,
+            }
+        )
     claim["cited_chunks"] = cited_chunks
     return claim
 
 
 # ── LIVE mode ────────────────────────────────────────────────────────────────
+
 
 def run_live_capture(chunk_repo: InMemoryChunkRepository) -> Path:
     """Run RAG with opencode_go on a subset of eval questions, capture claims."""
@@ -214,20 +218,22 @@ def run_live_capture(chunk_repo: InMemoryChunkRepository) -> Path:
             claim_entries.append(entry)
             total_claims += 1
 
-        results.append({
-            "question_id": q.get("id", f"live-{i}"),
-            "question": q["question"],
-            "source_preference": q.get("source_preference", "all"),
-            "provider_name": resp.provider_name,
-            "grounding_status": resp.grounding.status,
-            "blocked_reason": resp.grounding.blocked_reason,
-            "answer": resp.answer,
-            "citations": [
-                {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
-                for c in resp.citations
-            ],
-            "claims": claim_entries,
-        })
+        results.append(
+            {
+                "question_id": q.get("id", f"live-{i}"),
+                "question": q["question"],
+                "source_preference": q.get("source_preference", "all"),
+                "provider_name": resp.provider_name,
+                "grounding_status": resp.grounding.status,
+                "blocked_reason": resp.grounding.blocked_reason,
+                "answer": resp.answer,
+                "citations": [
+                    {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
+                    for c in resp.citations
+                ],
+                "claims": claim_entries,
+            }
+        )
         print(f"  ✓ {len(claim_entries)} claims, status={resp.grounding.status}", flush=True)
 
     meta = _build_capture_meta("live_opencode_go", len(results), total_claims)
@@ -235,6 +241,7 @@ def run_live_capture(chunk_repo: InMemoryChunkRepository) -> Path:
 
 
 # ── OFFLINE mode ─────────────────────────────────────────────────────────────
+
 
 def run_offline_capture(chunk_repo: InMemoryChunkRepository) -> Path:
     """Use deterministic RAG on smoke questions + pre-recorded claim texts."""
@@ -283,27 +290,32 @@ def run_offline_capture(chunk_repo: InMemoryChunkRepository) -> Path:
             claim_entries.append(claim_entry)
             total_claims += 1
 
-        results.append({
-            "question_id": "smoke-2026-05-31",
-            "question": question,
-            "source_preference": entry.get("source_preference", "all"),
-            "provider_name": resp.provider_name,
-            "grounding_status": resp.grounding.status,
-            "blocked_reason": resp.grounding.blocked_reason,
-            "answer": resp.answer,
-            "citations": [
-                {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
-                for c in resp.citations
-            ],
-            "claims": claim_entries,
-        })
-        print(f"    ✓ {len(claim_entries)} claims, {len(chunk_lookup)} candidate chunks", flush=True)
+        results.append(
+            {
+                "question_id": "smoke-2026-05-31",
+                "question": question,
+                "source_preference": entry.get("source_preference", "all"),
+                "provider_name": resp.provider_name,
+                "grounding_status": resp.grounding.status,
+                "blocked_reason": resp.grounding.blocked_reason,
+                "answer": resp.answer,
+                "citations": [
+                    {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
+                    for c in resp.citations
+                ],
+                "claims": claim_entries,
+            }
+        )
+        print(
+            f"    ✓ {len(claim_entries)} claims, {len(chunk_lookup)} candidate chunks", flush=True
+        )
 
     meta = _build_capture_meta("offline_smoke_2026-05-31", len(results), total_claims)
     return _write_output(meta, results, "offline")
 
 
 # ── output ───────────────────────────────────────────────────────────────────
+
 
 def _write_output(meta: dict, results: list[dict], mode: str) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M")
@@ -313,13 +325,16 @@ def _write_output(meta: dict, results: list[dict], mode: str) -> Path:
     payload = {"capture_meta": meta, "questions": results}
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    print(f"\n✅ Captured {meta['total_claims']} claims from {meta['questions_captured']} questions",
-          flush=True)
+    print(
+        f"\n✅ Captured {meta['total_claims']} claims from {meta['questions_captured']} questions",
+        flush=True,
+    )
     print(f"   Output: {out_path}", flush=True)
     return out_path
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     print("=" * 70)
