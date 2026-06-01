@@ -164,3 +164,65 @@ gate 默认关闭，在上述完成且明确翻转默认前不改变现有用户
 | ③ LLM claim 质量控制 | openCode Go free-form 常额外推断、跨 chunk 综合 | 高（需 prompt 层约束或 structured output 优化） |
 
 **本次「MVP-A LLM 化」工程底座正式收口。** L1 受控启用路径完整、有治理、可回滚。默认路径保持离线 deterministic。
+
+## 2026-06-01 更新（四）：跨语言检索改进 — 条件①部分缓解，L2 仍不翻转
+
+### 背景
+
+更新（三）识别了 L2 翻转的三项前置条件，其中条件①「retrieval 中英跨语匹配」被列为根因：
+keyword retriever 存在 `language_bonus` 主排序硬屏障 + `_KEYWORD_ALIASES` 覆盖不足，导致中文
+查询对英文 PubMed 文献的跨语言召回为零（中文查询 → cn 文献 100% 命中，pmid 文献 0% 命中）。
+
+### 改进（Slice 1-3, feat/cross-lingual-retrieval）
+
+实施了 3 个 slices 的跨语言检索改进：
+
+| Slice | 内容 | 关键结果 |
+|---|---|---|
+| **1** | 跨语言检索 eval harness | 新增 `run_cross_lingual_retrieval_eval()`，测量 cross_lingual_recall@10、MRR、language_diversity |
+| **2** | 确定性 CN↔EN 术语桥 | (a) 排序键从 `(language_bonus, score, year)` → `(score, language_bonus, year)`；(b) 17 组 AD 领域双语术语映射（`cross_lingual_terms.json`）；(c) `tokenize_query` 注入跨语言等价 token |
+| **3** | 检索后端对比 | keyword+bridge、vector(hashing)、vector(bge)、hybrid 四种策略对比 |
+
+### 结果
+
+**keyword + cross-lingual bridge** 是唯一有效的跨语言策略：
+
+| 指标 | 修复前 | 修复后 |
+|------|--------|--------|
+| cross_lingual_recall@10 | **0.00** | **0.76** |
+| monolingual_recall@10 | 1.00 | 1.00（未退化） |
+| language_diversity | 0.00 | 0.31 |
+
+对比其他后端：
+
+| Strategy | Backend | Cross Recall |
+|----------|---------|:-----------:|
+| keyword | n/a | **0.7647** |
+| vector | bge | 0.1765 |
+| hybrid | bge | 0.6471 |
+
+### 对 L2 决策的影响
+
+条件①（retrieval 中英跨语匹配）**部分缓解**：
+
+- ✅ 关键词层面的跨语言召回显著改善（0.76），中文查询可以找到英文文献
+- ✅ 改进是确定性的、离线的，不引入新依赖，不改变默认路径
+- ✅ 现有 50 题 RAG eval 通过率无退化（347 测试全绿）
+
+**但仍不足够翻转 L2**：
+
+- ⚠️ BGE embedding 层面的跨语言匹配依然薄弱（0.1765）；BGE-cosine 预筛门（条件②）在中英跨语场景下仍会拦截
+- ⚠️ NLI gate 拦截率取决于 LLM 生成的 claim 是否被其引用的 chunk 充分蕴含；keyword bridge 改善了"找到英文 chunk"的能力，但不改善"LLM 改写是否忠实"（条件③）
+- ⚠️ 最终验证仍需真人 reviewer 用真实 LLM + NLI gate 重新走查
+
+### 决策
+
+**L2 不翻转，保持 L1。** 条件① 从阻塞降级为部分缓解，但条件②（BGE 阈值）和条件③（LLM claim 质量）未解决。若后续重新评估 L2 翻转，三条件现状更新为：
+
+| 条件 | 当前状态 | 难度 |
+|------|---------|------|
+| ① retrieval 中英跨语匹配 | ✅ 部分缓解（keyword bridge, 0.76 cross recall） | 低（可继续扩展术语映射覆盖剩余 4/17 弱召回题） |
+| ② BGE 阈值重新校准 | ❌ BGE-cosine 模型类限制未解决（NLI gate 作为替代存在但需 BGE 先放行） | 中（需 BGE 预筛门槛调低 + NLI 二级 gate 配合验证） |
+| ③ LLM claim 质量控制 | ❌ openCode Go 自由改写风格未变 | 高（需 prompt 层约束） |
+
+**回滚不变**：`QIYAN_LLM_PROVIDER=deterministic` 或清空即时关闭。
