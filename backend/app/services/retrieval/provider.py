@@ -11,11 +11,13 @@ remains in ``answer_question``; this module only owns the per-candidate score.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 
 from app.schemas.chunk import LiteratureChunk
 from app.schemas.literature import LiteratureItem
@@ -52,16 +54,68 @@ _KEYWORD_ALIASES: dict[str, list[str]] = {
     "pediatric": ["儿童", "pediatric"],
 }
 
+# ---------------------------------------------------------------------------
+# Cross-lingual alias loading (Slice 2)
+# ---------------------------------------------------------------------------
+
+_CROSS_LINGUAL_TERMS_PATH = (
+    Path(__file__).resolve().parents[3] / "data" / "retrieval" / "cross_lingual_terms.json"
+)
+
+_cross_lingual_cache: dict[str, Any] | None = None
+
+
+def _load_cross_lingual_aliases() -> dict[str, Any]:
+    """Load cross-lingual term map from JSON, with fallback to empty map."""
+    global _cross_lingual_cache
+    if _cross_lingual_cache is not None:
+        return _cross_lingual_cache
+    try:
+        raw = _CROSS_LINGUAL_TERMS_PATH.read_text(encoding="utf-8")
+        _cross_lingual_cache = json.loads(raw)
+    except FileNotFoundError:
+        _LOGGER.debug("cross_lingual_terms.json not found; using empty alias map")
+        _cross_lingual_cache = {"alias_map": []}
+    return _cross_lingual_cache
+
 
 def tokenize_query(question: str) -> list[str]:
     normalized = question.lower().strip()
     tokens = set(re.findall(r"[a-z0-9\-]+", normalized))
+
+    # Step 1: existing alias injection (canonical keys)
     for alias, keywords in _KEYWORD_ALIASES.items():
         if any(keyword in normalized for keyword in keywords):
             tokens.add(alias)
+
+    # Step 2: CJK char extraction
     for char in normalized:
         if "一" <= char <= "鿿":
             tokens.add(char)
+
+    # Step 3: cross-lingual token injection (Slice 2)
+    # For each alias entry, if ANY zh keyword appears in the query,
+    # inject ALL en tokens from that entry (and vice versa for en→zh).
+    cross_map = _load_cross_lingual_aliases()
+    for entry in cross_map.get("alias_map", []):
+        zh_keywords: list[str] = entry.get("zh", [])
+        en_keywords: list[str] = entry.get("en", [])
+        canonical: str = entry.get("canonical", "")
+
+        # zh keywords matched → inject en tokens
+        if any(kw in normalized for kw in zh_keywords):
+            for en_kw in en_keywords:
+                tokens.add(en_kw)
+            if canonical:
+                tokens.add(canonical)
+
+        # en keywords matched → inject zh tokens
+        if any(kw in normalized for kw in en_keywords):
+            for zh_kw in zh_keywords:
+                tokens.add(zh_kw)
+            if canonical:
+                tokens.add(canonical)
+
     return sorted(tokens)
 
 
@@ -159,7 +213,7 @@ class KeywordRetrievalProvider:
                     )
                 )
         ranked.sort(
-            key=lambda c: (c.language_bonus, c.score, c.item.year),
+            key=lambda c: (c.score, c.language_bonus, c.item.year),
             reverse=True,
         )
         return ranked

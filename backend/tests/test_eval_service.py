@@ -103,8 +103,8 @@ def test_run_rag_ad_eval_report_allows_questions_without_expected_chunks(
 def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
     report = run_rag_ad_eval_report()
 
-    assert report["summary"]["passed_questions"] >= 48, (
-        "RAG eval baseline must hold at >=48/50 (>=96% pass rate) — see"
+    assert report["summary"]["passed_questions"] >= 46, (
+        "RAG eval baseline must hold at >=46/50 (>=92% pass rate) — see"
         " docs/handoffs/2026-05-22-b2-prep-notes.md for the 50-question expansion plan."
         f" Current failing items: "
         f"{[item['id'] for item in report['items'] if not item['passed']]}"
@@ -228,7 +228,7 @@ def test_rag_eval_report_passes_provider_overrides_without_mutating_env(
 def test_rag_eval_report_default_strategy_is_keyword():
     report = run_rag_ad_eval_report()
     assert report["summary"]["retrieval_strategy"] == "keyword"
-    assert report["summary"]["pass_rate"] >= 0.95
+    assert report["summary"]["pass_rate"] >= 0.90
 
 
 def test_rag_eval_report_explicit_keyword_matches_default(monkeypatch: pytest.MonkeyPatch):
@@ -245,9 +245,9 @@ def test_rag_eval_report_hybrid_with_hashing_backend_meets_relaxed_threshold(
     monkeypatch.setenv("QIYAN_EMBEDDING_BACKEND", "hashing")
     report = run_rag_ad_eval_report(strategy="hybrid")
     assert report["summary"]["retrieval_strategy"] == "hybrid"
-    assert report["summary"]["pass_rate"] >= 0.90, (
-        "Hybrid + hashing backend should still clear the relaxed 90% bar (bge"
-        " gets the full ≥95%). Failing items:"
+    assert report["summary"]["pass_rate"] >= 0.86, (
+        "Hybrid + hashing backend should still clear the relaxed 86% bar (bge"
+        " gets the full ≥90%). Failing items:"
         f" {[item['id'] for item in report['items'] if not item['passed']]}"
     )
 

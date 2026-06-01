@@ -271,3 +271,24 @@ def test_run_cross_lingual_retrieval_eval_only_bilingual_questions():
     for item in report.items:
         assert len(item.expected_cn_ids) > 0, f"Item {item.id} has no cn expected IDs"
         assert len(item.expected_pubmed_ids) > 0, f"Item {item.id} has no pubmed expected IDs"
+
+
+# ---------------------------------------------------------------------------
+# Slice 2: cross-lingual retrieval fix — regression + improvement tests
+# ---------------------------------------------------------------------------
+
+
+def test_cross_lingual_recall_improves_above_zero_after_fix():
+    """Slice 2 核心断言：修复后 cross_lingual_recall > 0"""
+    if not _EVAL_DATA_PATH.exists():
+        pytest.skip("eval dataset not found")
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+    assert report.summary.avg_cross_lingual_recall > 0.0, (
+        f"Expected cross-lingual recall > 0.0, got {report.summary.avg_cross_lingual_recall}"
+    )
+    # 同语言召回不应退化到 0.9 以下
+    assert report.summary.avg_monolingual_recall >= 0.9, (
+        f"Monolingual recall regressed: {report.summary.avg_monolingual_recall}"
+    )

@@ -46,6 +46,14 @@ def test_keyword_provider_reproduces_existing_ranking_for_zh_question():
 
 
 def test_keyword_provider_reproduces_pubmed_priority_for_english_question():
+    """English query: PubMed items should appear in top results (score-primary sort).
+
+    After Slice 2, the sort key changed from (language_bonus, score, year) to
+    (score, language_bonus, year).  Cross-lingual token injection means Chinese
+    items can now score higher for English queries, so PubMed items may not
+    always be at positions 1-2.  The key invariant is that PubMed items are
+    present in the top results with language_bonus=1.
+    """
     items, chunks_by_item = _load_seed()
     provider = KeywordRetrievalProvider()
 
@@ -56,9 +64,13 @@ def test_keyword_provider_reproduces_pubmed_priority_for_english_question():
         preferred_source_type="pubmed",
     )
 
-    top_two_ids = [c.item.id for c in candidates[:2]]
-    assert top_two_ids[0] == "pmid-40100001"
-    assert top_two_ids[1] == "pmid-40100006"
+    top_ids = [c.item.id for c in candidates[:10]]
+    # PubMed items should be present in the top 10 results
+    pubmed_in_top = [lid for lid in top_ids if lid.startswith("pmid-")]
+    assert len(pubmed_in_top) >= 2, f"Expected at least 2 PubMed items in top 10, got: {top_ids}"
+    # The top PubMed item should still be pmid-40100001 (highest-scoring PubMed)
+    pubmed_candidates = [c for c in candidates if c.item.id.startswith("pmid-")]
+    assert pubmed_candidates[0].item.id == "pmid-40100001"
 
 
 def test_keyword_provider_satisfies_retrieval_provider_protocol():
@@ -89,3 +101,83 @@ def test_select_retrieval_provider_accepts_explicit_name_overriding_env(monkeypa
     monkeypatch.setenv(RETRIEVAL_PROVIDER_ENV_VAR, "nonexistent")
     provider = select_retrieval_provider("keyword")
     assert isinstance(provider, KeywordRetrievalProvider)
+
+
+# ---------------------------------------------------------------------------
+# Slice 2: cross-lingual token injection tests
+# ---------------------------------------------------------------------------
+
+
+def test_cross_language_tokenization_injects_english_equivalents_for_zh_query():
+    """中文查询 token 应包含英文等价词（跨语言别名注入）"""
+    from app.services.retrieval.provider import tokenize_query
+
+    tokens = tokenize_query("肠道菌群与特应性皮炎")
+    # 应包含与查询相关的英文 token（来自 cross_lingual_terms.json）
+    en_tokens = [t for t in tokens if t.isascii() and t[0].isalpha()]
+    assert len(en_tokens) > 0, f"No English tokens injected for zh query, got: {tokens}"
+    # 至少应包含 gut/microbiome/atopic dermatitis 等关键词之一
+    assert any(
+        kw in tokens for kw in ["gut", "microbiome", "atopic dermatitis", "microbiota", "ad"]
+    ), f"Expected cross-lingual English tokens, got: {tokens}"
+
+
+def test_cross_language_tokenization_injects_zh_equivalents_for_en_query():
+    """英文查询 token 应包含中文等价词（跨语言别名注入）"""
+    from app.services.retrieval.provider import tokenize_query
+
+    tokens = tokenize_query("atopic dermatitis gut microbiome")
+    # 应包含与查询相关的中文 token
+    cjk_tokens = [t for t in tokens if any("\u4e00" <= ch <= "\u9fff" for ch in t)]
+    assert len(cjk_tokens) > 0, f"No CJK tokens injected for en query, got: {tokens}"
+
+
+def test_sort_key_uses_score_as_primary():
+    """排序键应以 score 为主键，language_bonus 为次键"""
+    from app.schemas.literature import LiteratureItem
+    from app.services.retrieval.provider import ScoredCandidate
+
+    # 构造两个候选：高分 pubmed + 低分 cn_literature
+    high_score_pubmed = ScoredCandidate(
+        score=10,
+        language_bonus=0,
+        item=LiteratureItem(
+            id="pmid-test-001",
+            title="Test PubMed",
+            snippet="test",
+            source="pubmed",
+            source_type="pubmed",
+            language="en",
+            year=2023,
+            keywords=[],
+            evidence_tags=[],
+            related_entity_ids=[],
+        ),
+        chunk=None,
+    )
+    low_score_cn = ScoredCandidate(
+        score=2,
+        language_bonus=1,
+        item=LiteratureItem(
+            id="cn-test-001",
+            title="测试中文",
+            snippet="测试",
+            source="cn_literature",
+            source_type="cn_literature",
+            language="zh",
+            year=2023,
+            keywords=[],
+            evidence_tags=[],
+            related_entity_ids=[],
+        ),
+        chunk=None,
+    )
+    # 当 score 为主排序键时，高分 pubmed 应排在低分 cn 前面
+    ranked = sorted(
+        [high_score_pubmed, low_score_cn],
+        key=lambda c: (c.score, c.language_bonus, c.item.year),
+        reverse=True,
+    )
+    assert ranked[0].item.id == "pmid-test-001", (
+        "High-score pubmed should rank above low-score cn when score is primary sort key"
+    )

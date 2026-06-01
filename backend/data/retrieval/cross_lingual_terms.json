@@ -1,0 +1,89 @@
+{
+  "alias_map": [
+    {
+      "canonical": "gut",
+      "zh": ["肠", "肠道", "肠-脑"],
+      "en": ["gut", "microbiome", "intestinal", "microbiota"]
+    },
+    {
+      "canonical": "skin_barrier",
+      "zh": ["屏障", "皮肤屏障", "表皮屏障"],
+      "en": ["barrier", "filaggrin", "epidermal barrier", "skin barrier"]
+    },
+    {
+      "canonical": "immune",
+      "zh": ["免疫", "炎症", "免疫调节", "免疫反应"],
+      "en": ["immune", "inflammation", "cytokine", "th2", "jak", "il-4", "il-13", "il-31"]
+    },
+    {
+      "canonical": "pruritus",
+      "zh": ["瘙痒", "瘙痒症", "搔痒"],
+      "en": ["pruritus", "itch", "pruritic"]
+    },
+    {
+      "canonical": "formula",
+      "zh": ["方剂", "复方", "中药复方", "中药"],
+      "en": ["formula", "herbal", "herb", "decoction", "tcm"]
+    },
+    {
+      "canonical": "network",
+      "zh": ["网络药理学", "分子对接", "分子模拟", "靶点", "通路"],
+      "en": ["network pharmacology", "molecular docking", "target", "pathway", "ppi"]
+    },
+    {
+      "canonical": "pediatric",
+      "zh": ["儿童", "小儿", "婴幼儿"],
+      "en": ["pediatric", "children", "infant", "childhood"]
+    },
+    {
+      "canonical": "atopic_dermatitis",
+      "zh": ["特应性皮炎", "异位性皮炎", "湿疹"],
+      "en": ["atopic dermatitis", "eczema", "ad"]
+    },
+    {
+      "canonical": "microbiome",
+      "zh": ["菌群", "微生物组", "微生物群", "肠道菌群"],
+      "en": ["microbiome", "microbiota", "flora", "dysbiosis", "probiotic", "prebiotic"]
+    },
+    {
+      "canonical": "tcm_syndrome",
+      "zh": ["证候", "辨证", "证型", "中医证", "湿热", "脾虚", "血热", "阴虚", "阳虚"],
+      "en": ["syndrome", "pattern", "tcm pattern", "damp-heat", "spleen deficiency", "blood heat"]
+    },
+    {
+      "canonical": "therapy",
+      "zh": ["治疗", "干预", "治法", "外治", "针灸", "拔罐"],
+      "en": ["therapy", "treatment", "intervention", "acupuncture", "topical", "external"]
+    },
+    {
+      "canonical": "mechanism",
+      "zh": ["机制", "机理", "作用机制", "信号通路"],
+      "en": ["mechanism", "signaling", "pathway", "jak-stat", "nf-kb", "mapk"]
+    },
+    {
+      "canonical": "skin_lesion",
+      "zh": ["皮损", "皮疹", "红斑", "丘疹", "苔藓样变"],
+      "en": ["lesion", "erythema", "rash", "eczematous", "lichenification"]
+    },
+    {
+      "canonical": "clinical",
+      "zh": ["临床", "疗效", "有效率", "随机对照", "meta"],
+      "en": ["clinical", "efficacy", "randomized", "meta-analysis", "rct", "systematic review"]
+    },
+    {
+      "canonical": "biomarker",
+      "zh": ["生物标志物", "指标", "ige", "嗜酸性粒细胞", "tarc"],
+      "en": ["biomarker", "ige", "eosinophil", "tarc", "scorad", "easi"]
+    },
+    {
+      "canonical": "neuroimmune",
+      "zh": ["神经免疫", "神经源性", "神经肽", "p物质"],
+      "en": ["neuroimmune", "neuropeptide", "substance p", "nerve", "neuron"]
+    },
+    {
+      "canonical": "quality_of_life",
+      "zh": ["生活质量", "睡眠", "焦虑", "心理"],
+      "en": ["quality of life", "sleep", "anxiety", "depression", "psychological", "dlqi"]
+    }
+  ]
+}
