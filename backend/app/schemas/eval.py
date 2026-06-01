@@ -92,3 +92,43 @@ class RealAnswerPair(BaseModel):
 def load_real_answer_pairs(data_path: Path) -> list[RealAnswerPair]:
     raw_items = json.loads(data_path.read_text(encoding="utf-8"))
     return [RealAnswerPair(**item) for item in raw_items]
+
+
+class CrossLingualRetrievalItem(BaseModel):
+    """Per-question cross-lingual retrieval metrics."""
+
+    id: str
+    question: str
+    source_preference: str
+    question_language: str  # "zh" | "en"
+    expected_cn_ids: list[str]  # expected cn-* literature IDs
+    expected_pubmed_ids: list[str]  # expected pmid-* literature IDs
+    top_k: int
+    retrieved_ids: list[str]  # top-k unique literature IDs from rank()
+    cn_hit_count: int  # cn-* hits in retrieved
+    pubmed_hit_count: int  # pmid-* hits in retrieved
+    monolingual_recall: float  # same-language recall
+    cross_lingual_recall: float  # cross-language recall
+    language_diversity: float  # min(cn,pubmed) / max(cn,pubmed,1)
+    mean_reciprocal_rank: float  # MRR of first expected hit
+    precision_at_k: float  # expected hits / top_k
+
+
+class CrossLingualRetrievalSummary(BaseModel):
+    """Aggregated cross-lingual retrieval metrics."""
+
+    total_questions: int
+    top_k: int
+    retrieval_strategy: str
+    avg_monolingual_recall: float
+    avg_cross_lingual_recall: float
+    avg_language_diversity: float
+    avg_precision_at_k: float
+    avg_mrr: float
+
+
+class CrossLingualRetrievalReport(BaseModel):
+    """Full cross-lingual retrieval evaluation report."""
+
+    summary: CrossLingualRetrievalSummary
+    items: list[CrossLingualRetrievalItem]
