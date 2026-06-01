@@ -5,8 +5,10 @@ from app.schemas.eval import (
     RagEvalItemResult,
     RagEvalReport,
     RagEvalSummary,
+    RealAnswerPair,
     load_grounding_semantic_pairs,
     load_rag_eval_dataset,
+    load_real_answer_pairs,
 )
 from app.services.grounding import score_claim_support
 from app.services.llm.provider import DEFAULT_PROVIDER_NAME
@@ -23,6 +25,11 @@ _SEMANTIC_PAIRS_PATH = (
 # analysis on the bge backend; not part of the locked hashing-default invariants.
 SEMANTIC_PAIRS_BGE_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_semantic_pairs_bge.json"
+)
+# Real-answer validation set (Slice 2): 20 pairs from live smoke claims + authored
+# hard negatives, labeled with support_label ∈ {supported, partial, unsupported}.
+REAL_ANSWER_PAIRS_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_real_answer_pairs.json"
 )
 
 
@@ -177,4 +184,122 @@ def run_grounding_semantic_separation(
         "max_hallucinated_score": round(max(score for _, score in hallucinated), 3),
         "paired_separation": paired_separation,
         "paired_total": len(faithful),
+    }
+
+
+def run_nli_real_distribution_eval(
+    threshold: float = 0.5,
+    pairs_path: Path | None = None,
+) -> dict[str, Any]:
+    """Evaluate the NLI entailment gate on the real-answer labeled validation set.
+
+    Loads ``grounding_real_answer_pairs.json`` (the Slice 2 fixture), scores each
+    claim-premise pair with the NLI entailment backend, and returns a confusion
+    matrix at the given threshold.
+
+    The `partial` label is tracked separately from `supported` / `unsupported`:
+    partial claims are excluded from strict false-accept/false-reject counts
+    (they are borderline by definition).
+
+    Requires ``QIYAN_NLI_BACKEND=transformers`` to be set; otherwise raises
+    ``ValueError``. The NLI model is lazily loaded on first call.
+
+    Returns a dict with:
+    - threshold, total_pairs
+    - label_counts: {"supported", "partial", "unsupported"}
+    - strict: confusion matrix (supported vs unsupported only)
+    - per_pair: list of (support_label, entailment_score, accepted) for all pairs
+    - per_label_stats: min/max/mean entailment per label
+    """
+    from app.services.nli import select_nli_backend
+
+    nli = select_nli_backend()
+    if nli is None:
+        raise ValueError(
+            "NLI backend not configured. Set QIYAN_NLI_BACKEND=transformers "
+            "to enable NLI entailment evaluation. (Default: no NLI backend, "
+            "the gate is off.)"
+        )
+
+    path = pairs_path or REAL_ANSWER_PAIRS_PATH
+    pairs = load_real_answer_pairs(path)
+
+    scored: list[tuple[RealAnswerPair, float]] = []
+    for pair in pairs:
+        score = nli.entailment(pair.premise, pair.claim)
+        scored.append((pair, score))
+
+    # Partition by label
+    by_label: dict[str, list[tuple[RealAnswerPair, float]]] = {
+        "supported": [],
+        "partial": [],
+        "unsupported": [],
+    }
+    for pair, score in scored:
+        by_label[pair.support_label].append((pair, score))
+
+    # Strict confusion matrix (supported vs unsupported, partial excluded)
+    strict_accepted_supported = sum(1 for _, score in by_label["supported"] if score >= threshold)
+    strict_rejected_unsupported = sum(
+        1 for _, score in by_label["unsupported"] if score < threshold
+    )
+    false_rejects = len(by_label["supported"]) - strict_accepted_supported
+    false_accepts = len(by_label["unsupported"]) - strict_rejected_unsupported
+
+    # Partial: accepted vs rejected (informational only)
+    partial_accepted = sum(1 for _, score in by_label["partial"] if score >= threshold)
+    partial_rejected = len(by_label["partial"]) - partial_accepted
+
+    def _score_stats(
+        entries: list[tuple[RealAnswerPair, float]],
+    ) -> dict[str, float | None]:
+        scores = [s for _, s in entries]
+        if not scores:
+            return {"min": None, "max": None, "mean": None}
+        return {
+            "min": round(min(scores), 4),
+            "max": round(max(scores), 4),
+            "mean": round(sum(scores) / len(scores), 4),
+        }
+
+    per_pair = [
+        {
+            "support_label": pair.support_label,
+            "source": pair.source,
+            "entailment_score": round(score, 4),
+            "accepted": score >= threshold,
+            "claim_preview": pair.claim[:80],
+            "premise_preview": pair.premise[:80],
+        }
+        for pair, score in scored
+    ]
+
+    return {
+        "threshold": threshold,
+        "total_pairs": len(pairs),
+        "label_counts": {label: len(entries) for label, entries in by_label.items()},
+        "strict": {
+            "supported_total": len(by_label["supported"]),
+            "unsupported_total": len(by_label["unsupported"]),
+            "accepted_supported": strict_accepted_supported,
+            "rejected_unsupported": strict_rejected_unsupported,
+            "false_rejects": false_rejects,
+            "false_accepts": false_accepts,
+            "accuracy": round(
+                (strict_accepted_supported + strict_rejected_unsupported)
+                / max(len(by_label["supported"]) + len(by_label["unsupported"]), 1),
+                4,
+            ),
+        },
+        "partial": {
+            "total": len(by_label["partial"]),
+            "accepted": partial_accepted,
+            "rejected": partial_rejected,
+        },
+        "per_label_stats": {
+            "supported": _score_stats(by_label["supported"]),
+            "partial": _score_stats(by_label["partial"]),
+            "unsupported": _score_stats(by_label["unsupported"]),
+        },
+        "per_pair": per_pair,
     }

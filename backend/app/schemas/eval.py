@@ -74,3 +74,21 @@ def load_rag_eval_dataset(data_path: Path) -> list[RagEvalQuestion]:
 def load_grounding_semantic_pairs(data_path: Path) -> list[GroundingSemanticPair]:
     raw_items = json.loads(data_path.read_text(encoding="utf-8"))
     return [GroundingSemanticPair(**item) for item in raw_items]
+
+
+class RealAnswerPair(BaseModel):
+    """A labeled claim-premise pair from the real-answer validation set (Slice 2)."""
+
+    claim: str = Field(min_length=1)
+    premise: str = Field(min_length=1)
+    premise_chunk_id: str = ""
+    premise_literature_id: str = ""
+    support_label: str = Field(default="unsupported")  # supported | partial | unsupported
+    source: str = ""
+    semantic_score_bge: float | None = None
+    label_note: str = ""
+
+
+def load_real_answer_pairs(data_path: Path) -> list[RealAnswerPair]:
+    raw_items = json.loads(data_path.read_text(encoding="utf-8"))
+    return [RealAnswerPair(**item) for item in raw_items]
