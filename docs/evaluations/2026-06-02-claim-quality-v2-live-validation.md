@@ -4,6 +4,8 @@ date: 2026-06-02
 provider: `opencode_go`
 default decision: keep `deterministic`; do not flip L2
 runtime artifact: `backend/data/runtime/captured_real_claims_live_20260602_0846.json` (gitignored)
+reviewer packet: `docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`
+price SLI baseline: `docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`
 
 ## Goal
 
@@ -12,7 +14,9 @@ Validate whether the 2026-06-01 claim-quality prompt/schema v2 improved real
 no unsupported evidence IDs, no raw draft leakage, and measurable BGE/NLI scores.
 
 This was a technical live validation with a quick claim-level review of passed
-answers. It is not a formal clinician/research reviewer sign-off.
+answers. Follow-up reviewer confirmation was completed on 2026-06-02 by user
+confirmation of the six passed-claim verdicts in
+`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`.
 
 ## Configuration
 
@@ -55,6 +59,13 @@ faithfulness. This is an evaluation profile, not a default preview flip.
 | Token usage | 6,040 input / 14,984 output total |
 | Estimated cost | `null` / not recorded; no real price env configured |
 
+Cost follow-up: `docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`
+retrofits the recorded token usage with the current `deepseek-v4-flash` price
+baseline (`$0.14` / 1M input, `$0.28` / 1M output), estimating `$0.005042` total
+cost for this 10-question capture. The original capture still correctly records
+`estimated_cost_usd=null` because the price env vars were not configured during
+that run.
+
 Passed answers:
 
 | Question | Claims | Min semantic | Min entailment | Review note |
@@ -63,6 +74,25 @@ Passed answers:
 | `rag-eval-007` JAK-STAT pathway | 1 | 0.5893 | 0.9990 | Claim is directly supported by the cited JAK-STAT review chunk. |
 | `rag-eval-008` network pharmacology usage | 2 | 0.5783 | 0.9985 | Claims are directly supported by the cited network-pharmacology chunks. |
 | `rag-eval-010` long-term management consensus | 1 | 0.9553 | 0.7446 | Claim is directly supported by the cited consensus-management chunk. |
+
+## Codex Technical Evidence-Support Review
+
+date: 2026-06-02
+packet: `docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`
+reviewer: Codex technical review
+status: technical evidence-support review complete; user-confirmed formal reviewer verdicts complete
+
+Result:
+- Claims reviewed: 6
+- Supported: 6
+- Unsupported: 0
+- Unclear: 0
+- Formal confirmation: confirmed by user on 2026-06-02; no verdict revisions.
+
+Interpretation:
+- All six passed claims were directly supported by their cited chunks in this technical review.
+- This supports continued controlled L1 demo/evaluation use of the `BGE=0.3 + NLI=0.5` profile.
+- This does not approve L2/default preview because a separate ADR-quality profile decision remains open.
 
 Blocked answers:
 
@@ -102,15 +132,17 @@ Rationale:
   smoke/demo path.
 - The evaluation profile required lowering the BGE prefilter to 0.3; this needs
   a separate ADR-quality decision before production/default use.
-- Only a technical quick review was performed; formal clinician/research reviewer
-  sign-off remains outstanding.
-- Cost SLI is still not configured with real contract prices.
+- Codex technical evidence-support review found 6/6 passed claims supported by
+  their cited chunks, and the user confirmed those six verdicts on 2026-06-02.
+- Price SLI baseline has been recorded separately from the original capture:
+  `$0.005042` estimated total cost at current `deepseek-v4-flash` public token
+  prices. Formal budgeting should still re-check provider contract pricing.
 
 ## Next Recommendation
 
-If continuing the L2 line, the next narrow slice should be a reviewer walkthrough
-using this same profile (`opencode_go + BGE=0.3 + NLI=0.5`) and the four passed
-questions above. The reviewer should inspect every passed claim against its
-cited chunk and decide whether the lower BGE prefilter plus NLI gate is an
-acceptable L1 demo profile. Default provider must remain `deterministic` unless a
-new ADR explicitly changes that decision.
+If continuing the L2 line, do not repeat the 2026-06-01 §4c reviewer walkthrough
+that already verified gate, fallback, rollback, and UI metadata behavior. The
+narrow delta packet now has user-confirmed verdicts for all six passed claims.
+The remaining decision is whether the lower BGE prefilter plus NLI gate is
+acceptable beyond controlled L1 demo/evaluation use. Default provider must
+remain `deterministic` unless a new ADR explicitly changes that decision.

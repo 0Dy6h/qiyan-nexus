@@ -29,10 +29,11 @@ These are enforced by code + tests; do not disable them to "make it work":
 - **L1 — controlled smoke / demo (enabled now).** Real provider in a local or
   controlled environment with the gate on. `semantic_low_support` blocks are
   expected and are the hallucination guardrail working.
-- **L2 — default preview path (NOT enabled).** Blocked on: threshold recalibration
-  with real-LLM-style claims, real per-token price config + SLI baseline, and a
-  human reviewer walkthrough. Do not flip the default to a real provider until
-  these are done.
+- **L2 — default preview path (NOT enabled).** The reviewer-verdict delta and
+  price SLI baseline are now complete. Remaining blocker: a governance decision
+  on whether the lower-BGE-prefilter + NLI profile should enter L2/default-preview
+  discussion. Do not flip the default to a real provider unless ADR-0012 is
+  explicitly updated with that decision.
 
 ## Enable (L1 controlled smoke / demo)
 
@@ -46,9 +47,11 @@ $env:QIYAN_LLM_PROVIDER = "opencode_go"
 $env:QIYAN_EMBEDDING_BACKEND = "bge"
 $env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.78"
 $env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"   # REQUIRED: 1200 silently degrades to fallback
-# Optional cost SLI: set real contract prices (USD per million tokens)
-$env:QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK = "0.0"
-$env:QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK = "0.0"
+# Optional cost SLI: set real prices (USD per million tokens).
+# 2026-06-02 deepseek-v4-flash baseline: input 0.14, output 0.28.
+# Re-check provider pricing/contract before using these for budgeting.
+$env:QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK = "0.14"
+$env:QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK = "0.28"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
@@ -71,6 +74,10 @@ Claim-quality constraints (2026-06-01 prompt/schema v2):
   0 unsupported refs, 0 schema parse failures, and 4/10 answers passed under the
   evaluation profile `BGE=0.3 + NLI=0.5`. See
   `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`.
+- 2026-06-02 price SLI baseline uses `deepseek-v4-flash` input `$0.14` / 1M
+  tokens and output `$0.28` / 1M tokens. The 10-question live capture estimates
+  `$0.005042` total cost. See
+  `docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`.
 
 ## Verify it is actually live
 
@@ -113,6 +120,17 @@ Expected output: `backend/data/runtime/captured_real_claims_live_<timestamp>.jso
 Do not commit this runtime JSON. Convert it into an evaluation note under
 `docs/evaluations/` with aggregate counts, blocked reasons, semantic/NLI score
 ranges, and reviewer notes for any passed answers.
+
+For the 2026-06-02 capture, use the existing delta-only reviewer packet instead
+of repeating the 2026-06-01 §4c walkthrough:
+
+```powershell
+cd backend
+& .\.uv-test-venv\Scripts\python.exe scripts\build_reviewer_packet.py `
+  --input data\runtime\captured_real_claims_live_20260602_0846.json `
+  --output ..\docs\evaluations\2026-06-02-l2-passed-claims-reviewer-packet.md `
+  --question-ids rag-eval-005,rag-eval-007,rag-eval-008,rag-eval-010
+```
 
 ## Observe (SLI)
 
@@ -160,17 +178,27 @@ offline deterministic with no external egress.
    `nli_low_entailment`. This resolves the §4a technical limitation but is **not**
    an automatic L2 flip — still validate on a larger labeled set + pick a
    production threshold, fold the NLI forward-pass latency/cost into the SLI
-   baseline, and run the reviewer walkthrough first. See
+   baseline, and keep reviewer verdicts separate from the already-completed
+   §4c gate walkthrough. See
    `docs/evaluations/2026-06-01-nli-grounding-spike.md`.
 2. Configure real `QIYAN_OPENCODE_GO_PRICE_*` and record an SLI baseline.
-3. Run a human reviewer walkthrough per
-   `docs/checklists/internal-preview-smoke.md` and record feedback.
+   **Done 2026-06-02 for the captured `deepseek-v4-flash` profile.** Baseline:
+   6,040 input tokens + 14,984 output tokens → `$0.005042` estimated total cost
+   at `$0.14` / 1M input and `$0.28` / 1M output. Re-check prices before
+   production budgeting.
+3. ~~Run a human reviewer walkthrough per
+   `docs/checklists/internal-preview-smoke.md` and record feedback.~~ **Done
+   2026-06-01 for gate/fallback/rollback/UI metadata.** Do not repeat this as
+   the next L2 step.
 4. ~~Re-run live claim capture after prompt/schema v2 and record claim count,
    evidence-ref count, blocked reasons, semantic scores, and entailment scores.~~
    **Done 2026-06-02.** Result: 10 questions, 14 claims, 14/14 exactly one
    evidence ref, 4 answers passed, 6 blocked by `nli_low_entailment`, no raw draft
    leakage. This improves L1 but does not flip L2; see
    `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`.
-5. Before any default change, get formal reviewer sign-off on passed claims and
-   make a separate ADR-quality decision on whether `BGE=0.3 + NLI=0.5` is an
-   acceptable default-preview profile.
+5. ~~Before any default change, have a formal clinician/research reviewer confirm
+   or revise the Codex technical verdicts in
+   `docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`.~~ **Done
+   2026-06-02 by user confirmation: 6 supported / 0 unsupported / 0 unclear.**
+   Next, make a separate ADR-quality decision on whether `BGE=0.3 + NLI=0.5` is
+   an acceptable default-preview profile.
