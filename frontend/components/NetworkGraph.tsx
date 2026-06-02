@@ -216,13 +216,28 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           return (
             <g
               key={node.id}
+              tabIndex={0}
+              role="button"
+              aria-pressed={isFocused}
+              aria-label={`${LAYER_LABEL_MAP[node.layer] ?? node.layer}: ${node.label}`}
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() => setHoveredNodeId(null)}
+              onFocus={() => setHoveredNodeId(node.id)}
+              onBlur={() => setHoveredNodeId(null)}
               onClick={(e) => {
                 e.stopPropagation();
                 setFocusedNodeId(focusedNodeId === node.id ? null : node.id);
               }}
-              style={{ cursor: "pointer" }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setFocusedNodeId(focusedNodeId === node.id ? null : node.id);
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setFocusedNodeId(null);
+                }
+              }}
+              style={{ cursor: "pointer", outline: "none" }}
             >
               {/* Focus ring */}
               {isFocused ? (
