@@ -213,7 +213,7 @@
     "question": "如果一个回答引用了特应性皮炎相关文献，最少应该满足哪些合规要求？",
     "source_preference": "all",
     "difficulty": "hard",
-    "expected_literature_ids": ["cn-ad-guideline-004", "pmid-40100004"],
+    "expected_literature_ids": ["cn-ad-guideline-004"],
     "expected_chunk_ids": ["chunk-cn-ad-guideline-004-management"],
     "must_include": ["非诊断结论", "引用来源"],
     "must_not_include": ["替代医生诊断", "隐私数据上传建议"],

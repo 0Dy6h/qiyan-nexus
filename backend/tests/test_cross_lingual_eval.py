@@ -7,6 +7,7 @@ import pytest
 from app.schemas.eval import (
     CrossLingualRetrievalItem,
     CrossLingualRetrievalReport,
+    load_rag_eval_dataset,
 )
 from app.services.retrieval_eval import (
     _classify_id,
@@ -300,9 +301,11 @@ def test_cross_lingual_recall_improves_above_zero_after_fix():
 # ---------------------------------------------------------------------------
 
 # 基线 avg_cross_lingual_recall。Slice 6 把 0.7647 抬到 0.7941；Slice 7 让 035/047 各自
-# 从 0 → 1.0（两题都只期望一个 cross-lingual id：pmid-40100002），聚合再升一阶。
-# 锁紧贴的实测值，沿用 Slice 6 风格。
-_CROSS_LINGUAL_RECALL_BASELINE = 0.9118
+# 从 0 → 1.0（两题都只期望一个 cross-lingual id：pmid-40100002），聚合升至 0.9118；
+# Slice 8 expected-label 审计把 pmid-40100004 从 rag-eval-020 移除，rag-eval-020 失去
+# pubmed 期望被 bilingual 过滤剔除（17→16 题），剩余 15 题完美 + rag-eval-011 单题
+# 0.5，聚合 (15+0.5)/16 = 0.9688。锁紧贴的实测值，沿用 Slice 6/7 风格。
+_CROSS_LINGUAL_RECALL_BASELINE = 0.9688
 
 
 def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRetrievalItem:
@@ -315,8 +318,15 @@ def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRe
 def test_rag_eval_011_cross_lingual_recall_above_zero():
     """rag-eval-011（中英文献 AD 微生态研究对比）此前 cross_lingual_recall=0：
     查询词「微生态」触发不了任何 microbiome/gut 桥，期望英文文献拿不到主题性跨语 token。
-    扩展术语桥后应 > 0——至少召回 pmid-40100002（带 gut_skin_axis 标签，吃到 +7 tag-bonus）；
-    pmid-40100009 缺 gut_skin_axis 标签，纯数据无法拉进 top-10，属已知结构性上限。"""
+    扩展术语桥后应 > 0——至少召回 pmid-40100002（带 gut_skin_axis 标签，吃到 +7 tag-bonus）。
+
+    pmid-40100009（皮肤微生态 + S. aureus）目前仍在 top-10 之外，归因 **keyword-bridge
+    ceiling**：「微生态」桥到 `gut` canonical，而非 `microbiome` / `skin_microbiome`，
+    pmid-40100009 的 evidence_tags（`microbiome`, `skin_barrier`, `flare`）拿不到 +7
+    tag-bonus。Per 2026-06-02 expected-label audit，pmid-40100009 作为 EN 皮肤微生态视角
+    对比 CN 肠道微生态视角是合法期望，保留在 expected_literature_ids；进一步提升需多语
+    embedding（bge-m3 / multilingual-e5-large）或扩展桥语义，而非数据侧补标签。
+    详见 docs/evaluations/2026-06-02-expected-label-audit.md。"""
     if not _EVAL_DATA_PATH.exists():
         pytest.skip("eval dataset not found")
     report = run_cross_lingual_retrieval_eval(
@@ -375,3 +385,25 @@ def test_rag_eval_047_cross_lingual_recall_equals_one():
         f"rag-eval-047 cross-lingual recall should be 1.0, got {item.cross_lingual_recall}"
     )
     assert "pmid-40100002" in item.retrieved_ids
+
+
+# ---------------------------------------------------------------------------
+# Slice 8: expected-label 审计（2026-06-02）
+# - rag-eval-020：pmid-40100004（草药系统综述）与「合规要求」主题不重叠，
+#   expected_chunk_ids 也未收录其 chunk，从 expected_literature_ids 移除。
+# - rag-eval-011：pmid-40100009（皮肤微生态 + S. aureus）作为 EN 视角合法保留；
+#   retrieval miss 归因 keyword-bridge ceiling，详见上面 011 测的 docstring。
+# 详见 docs/evaluations/2026-06-02-expected-label-audit.md。
+# ---------------------------------------------------------------------------
+
+
+def test_rag_eval_020_expected_literature_locks_audit_verdict():
+    """2026-06-02 expected-label audit 结论：pmid-40100004（herbal systematic
+    review）与 rag-eval-020 合规题主题不重叠，且 expected_chunk_ids 也未收录其
+    chunk，故从 expected_literature_ids 移除；cn-ad-guideline-004 作为
+    consensus/guideline 文献保留。移除后 rag-eval-020 失去 pubmed 期望，被
+    run_cross_lingual_retrieval_eval 的 bilingual 过滤剔除（17→16 题）。"""
+    questions = load_rag_eval_dataset(_EVAL_DATA_PATH)
+    q = next(q for q in questions if q.id == "rag-eval-020")
+    assert q.expected_literature_ids == ["cn-ad-guideline-004"]
+    assert q.expected_chunk_ids == ["chunk-cn-ad-guideline-004-management"]
