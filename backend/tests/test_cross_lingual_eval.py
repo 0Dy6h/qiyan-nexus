@@ -292,3 +292,51 @@ def test_cross_lingual_recall_improves_above_zero_after_fix():
     assert report.summary.avg_monolingual_recall >= 0.9, (
         f"Monolingual recall regressed: {report.summary.avg_monolingual_recall}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Slice 6: 跨语言术语桥扩展（"微生态" → gut，闭合 rag-eval-011）
+# ---------------------------------------------------------------------------
+
+# 扩展前基线 avg_cross_lingual_recall（17 双语题中 13 题完美）。术语桥扩展只能升不能降。
+_CROSS_LINGUAL_RECALL_BASELINE = 0.7647
+
+
+def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRetrievalItem:
+    for item in report.items:
+        if item.id == qid:
+            return item
+    raise AssertionError(f"question {qid} not found in cross-lingual report")
+
+
+def test_rag_eval_011_cross_lingual_recall_above_zero():
+    """rag-eval-011（中英文献 AD 微生态研究对比）此前 cross_lingual_recall=0：
+    查询词「微生态」触发不了任何 microbiome/gut 桥，期望英文文献拿不到主题性跨语 token。
+    扩展术语桥后应 > 0——至少召回 pmid-40100002（带 gut_skin_axis 标签，吃到 +7 tag-bonus）；
+    pmid-40100009 缺 gut_skin_axis 标签，纯数据无法拉进 top-10，属已知结构性上限。"""
+    if not _EVAL_DATA_PATH.exists():
+        pytest.skip("eval dataset not found")
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+    item = _item_by_id(report, "rag-eval-011")
+    assert item.cross_lingual_recall > 0.0, (
+        f"rag-eval-011 cross-lingual recall should improve above 0, got {item.cross_lingual_recall}"
+    )
+    assert "pmid-40100002" in item.retrieved_ids
+
+
+def test_cross_lingual_term_bridge_no_aggregate_regression():
+    """术语桥扩展不得让聚合 cross/mono recall 回归。"""
+    if not _EVAL_DATA_PATH.exists():
+        pytest.skip("eval dataset not found")
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+    assert report.summary.avg_cross_lingual_recall >= _CROSS_LINGUAL_RECALL_BASELINE, (
+        f"cross-lingual recall regressed below baseline {_CROSS_LINGUAL_RECALL_BASELINE}: "
+        f"{report.summary.avg_cross_lingual_recall}"
+    )
+    assert report.summary.avg_monolingual_recall == 1.0, (
+        f"monolingual recall regressed: {report.summary.avg_monolingual_recall}"
+    )
