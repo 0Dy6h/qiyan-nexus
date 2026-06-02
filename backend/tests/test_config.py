@@ -16,6 +16,8 @@ def test_default_settings(monkeypatch):
         "QIYAN_OPENCODE_GO_MODEL",
         "QIYAN_OPENCODE_GO_MAX_TOKENS",
         "QIYAN_OPENCODE_GO_TEMPERATURE",
+        "QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK",
+        "QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK",
     ]:
         monkeypatch.delenv(env_var, raising=False)
     get_settings.cache_clear()

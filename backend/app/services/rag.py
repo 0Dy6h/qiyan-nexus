@@ -3,11 +3,9 @@ import time
 from datetime import UTC, datetime
 
 from app.core.config import get_settings
-from app.repositories.chunk import InMemoryChunkRepository
-from app.repositories.literature import InMemoryLiteratureRepository
 from app.repositories.runtime_storage import (
-    resolve_chunk_storage_path,
-    resolve_literature_storage_path,
+    get_chunk_repository,
+    get_literature_repository,
 )
 from app.schemas.literature import LiteratureSource
 from app.schemas.rag import (
@@ -30,8 +28,8 @@ from app.services.retrieval.provider import (
 
 DISCLAIMER = "非诊断结论、需结合临床。"
 _LOGGER = logging.getLogger(__name__)
-_REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
-_CHUNK_REPOSITORY = InMemoryChunkRepository(resolve_chunk_storage_path())
+_REPOSITORY = get_literature_repository()
+_CHUNK_REPOSITORY = get_chunk_repository()
 
 
 def _estimate_cost_usd(

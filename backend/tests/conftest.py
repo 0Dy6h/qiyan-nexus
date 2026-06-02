@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,11 @@ def isolate_runtime_state(
 ) -> None:
     """Keep tests deterministic even after local demo uploads mutate runtime JSON."""
 
-    if request.node.path.name in {"test_config.py", "test_runtime_storage.py"}:
+    if request.node.path.name in {
+        "test_config.py",
+        "test_runtime_storage.py",
+        "test_literature_sync_api.py",
+    }:
         yield
         return
 
@@ -37,20 +42,57 @@ def isolate_runtime_state(
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
 
     from app.core.config import get_settings
-    from app.repositories.chunk import InMemoryChunkRepository
-    from app.repositories.literature import InMemoryLiteratureRepository
+    from app.repositories.runtime_storage import (
+        clear_chunk_repository_cache,
+        clear_literature_repository_cache,
+        clear_network_task_repository_cache,
+    )
     from app.services import fake_parser, literature, rag
     from app.services.retrieval.vector_index import reset_chunk_vector_index_cache
 
     get_settings.cache_clear()
     reset_chunk_vector_index_cache()
 
-    monkeypatch.setattr(literature, "_REPOSITORY", InMemoryLiteratureRepository(literature_path))
-    monkeypatch.setattr(rag, "_REPOSITORY", InMemoryLiteratureRepository(literature_path))
-    monkeypatch.setattr(rag, "_CHUNK_REPOSITORY", InMemoryChunkRepository(chunk_path))
-    monkeypatch.setattr(fake_parser, "_CHUNK_REPOSITORY", InMemoryChunkRepository(chunk_path))
+    backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
+
+    if backend == "sqlite":
+        # SQLite backend: set DB path to tmp, clear caches, let factories create repos
+        sqlite_path = tmp_path / "test.sqlite3"
+        monkeypatch.setenv("QIYAN_SQLITE_DB_PATH", str(sqlite_path))
+        clear_literature_repository_cache()
+        clear_chunk_repository_cache()
+        clear_network_task_repository_cache()
+
+        from app.repositories.runtime_storage import (
+            get_chunk_repository,
+            get_literature_repository,
+            get_network_task_repository,
+        )
+
+        lit_repo = get_literature_repository()
+        chunk_repo = get_chunk_repository()
+        nt_repo = get_network_task_repository()
+        monkeypatch.setattr(literature, "_REPOSITORY", lit_repo)
+        monkeypatch.setattr(rag, "_REPOSITORY", lit_repo)
+        monkeypatch.setattr(rag, "_CHUNK_REPOSITORY", chunk_repo)
+        monkeypatch.setattr(fake_parser, "_CHUNK_REPOSITORY", chunk_repo)
+        monkeypatch.setattr("app.services.network._get_repository", lambda: nt_repo)
+    else:
+        # JSON (default) backend: direct InMemory repositories
+        from app.repositories.chunk import InMemoryChunkRepository
+        from app.repositories.literature import InMemoryLiteratureRepository
+
+        monkeypatch.setattr(
+            literature, "_REPOSITORY", InMemoryLiteratureRepository(literature_path)
+        )
+        monkeypatch.setattr(rag, "_REPOSITORY", InMemoryLiteratureRepository(literature_path))
+        monkeypatch.setattr(rag, "_CHUNK_REPOSITORY", InMemoryChunkRepository(chunk_path))
+        monkeypatch.setattr(fake_parser, "_CHUNK_REPOSITORY", InMemoryChunkRepository(chunk_path))
 
     yield
 
     get_settings.cache_clear()
     reset_chunk_vector_index_cache()
+    clear_literature_repository_cache()
+    clear_chunk_repository_cache()
+    clear_network_task_repository_cache()

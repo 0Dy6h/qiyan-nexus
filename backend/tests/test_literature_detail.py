@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.repositories.literature import InMemoryLiteratureRepository
 
 
 def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
@@ -16,7 +17,7 @@ def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_data_path),
+        InMemoryLiteratureRepository(temp_data_path),
     )
 
     client = TestClient(app)
@@ -63,7 +64,7 @@ def test_literature_detail_returns_404_for_unknown_id(monkeypatch, tmp_path: Pat
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_data_path),
+        InMemoryLiteratureRepository(temp_data_path),
     )
 
     client = TestClient(app)
@@ -87,7 +88,7 @@ def test_literature_detail_carries_related_entity_ids_for_linked_records(
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_data_path),
+        InMemoryLiteratureRepository(temp_data_path),
     )
 
     client = TestClient(app)

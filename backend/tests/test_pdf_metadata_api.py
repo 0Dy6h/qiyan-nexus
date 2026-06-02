@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.repositories.literature import InMemoryLiteratureRepository
 
 
 def reset_sample_data(original_path: Path, temp_path: Path) -> None:
@@ -22,7 +23,7 @@ def test_pdf_metadata_upload_endpoint_updates_literature_record(monkeypatch, tmp
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_path),
+        InMemoryLiteratureRepository(temp_path),
     )
 
     client = TestClient(app)
@@ -64,7 +65,7 @@ def test_pdf_metadata_upload_endpoint_returns_404_for_unknown_literature_id(
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_path),
+        InMemoryLiteratureRepository(temp_path),
     )
 
     client = TestClient(app)

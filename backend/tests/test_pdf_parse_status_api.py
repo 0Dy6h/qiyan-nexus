@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.repositories.literature import InMemoryLiteratureRepository
 
 
 def reset_sample_data(original_path: Path, temp_path: Path) -> None:
@@ -19,7 +20,7 @@ def test_pdf_parse_status_endpoint_updates_existing_pending_record(monkeypatch, 
     temp_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_path)
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_path)
+    repository = InMemoryLiteratureRepository(temp_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
@@ -66,7 +67,7 @@ def test_pdf_parse_status_endpoint_returns_real_file_parse_result_fields(
     storage_path = storage_dir / "pdf-cn-ad-gbs-001-ad-evidence-pdf.pdf"
     storage_path.write_bytes(b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n")
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_path)
+    repository = InMemoryLiteratureRepository(temp_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
@@ -126,7 +127,7 @@ def test_pdf_parse_status_endpoint_rejects_record_without_pending_upload(
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_path),
+        InMemoryLiteratureRepository(temp_path),
     )
 
     client = TestClient(app)

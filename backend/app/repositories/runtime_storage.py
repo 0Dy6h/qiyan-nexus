@@ -1,5 +1,13 @@
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.repositories.protocols import (
+        ChunkRepository,
+        LiteratureRepository,
+        NetworkTaskRepositoryProtocol,
+    )
 
 _SAMPLE_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
@@ -7,6 +15,27 @@ _SAMPLE_PATH = (
 _CHUNK_SAMPLE_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
 )
+
+_lit_repo_cache: "LiteratureRepository | None" = None
+_lit_repo_cache_backend: str | None = None
+
+_chunk_repo_cache: "ChunkRepository | None" = None
+_chunk_repo_cache_backend: str | None = None
+
+_nt_repo_cache: "NetworkTaskRepositoryProtocol | None" = None
+_nt_repo_cache_backend: str | None = None
+
+
+def _close_if_sqlite(repo: object | None) -> None:
+    """Close a repository's SQLite connection if it has one.
+
+    JSON/in-memory repositories have no ``close`` method, so this is a no-op
+    for them. SQLite repositories expose ``close()`` to release the connection
+    and file lock (important on Windows when tmp dirs are cleaned up).
+    """
+    close = getattr(repo, "close", None)
+    if callable(close):
+        close()
 
 
 def resolve_literature_storage_path() -> Path:
@@ -101,3 +130,138 @@ def resolve_vector_index_cache_path() -> Path:
         target = Path(__file__).resolve().parents[2] / "data" / "runtime" / "vector_index_state.npy"
     target.parent.mkdir(parents=True, exist_ok=True)
     return target
+
+
+def resolve_sqlite_db_path() -> Path:
+    """Return path to the SQLite database file.
+
+    Env override: QIYAN_SQLITE_DB_PATH.
+    Default: backend/data/runtime/qiyan_state.sqlite3
+    """
+    env_path = os.environ.get("QIYAN_SQLITE_DB_PATH")
+    if env_path:
+        return Path(env_path)
+    return Path(__file__).resolve().parents[2] / "data" / "runtime" / "qiyan_state.sqlite3"
+
+
+def get_literature_repository() -> "LiteratureRepository":
+    """Factory: return a LiteratureRepository based on QIYAN_STATE_BACKEND.
+
+    - ``"json"`` (default) → InMemoryLiteratureRepository
+    - ``"sqlite"``          → SqliteLiteratureRepository
+
+    Results are cached at module level; call
+    :func:`clear_literature_repository_cache` to reset (e.g. in tests).
+    """
+    global _lit_repo_cache, _lit_repo_cache_backend
+
+    backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
+
+    if _lit_repo_cache is not None and _lit_repo_cache_backend == backend:
+        return _lit_repo_cache
+
+    _close_if_sqlite(_lit_repo_cache)
+
+    if backend == "sqlite":
+        from app.repositories.sqlite_literature import SqliteLiteratureRepository
+
+        db_path = resolve_sqlite_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _lit_repo_cache = SqliteLiteratureRepository(db_path)
+    else:
+        from app.repositories.literature import InMemoryLiteratureRepository
+
+        _lit_repo_cache = InMemoryLiteratureRepository(resolve_literature_storage_path())
+
+    _lit_repo_cache_backend = backend
+    return _lit_repo_cache
+
+
+def clear_literature_repository_cache() -> None:
+    """Reset the module-level repository cache (for use in tests)."""
+    global _lit_repo_cache, _lit_repo_cache_backend
+    _close_if_sqlite(_lit_repo_cache)
+    _lit_repo_cache = None
+    _lit_repo_cache_backend = None
+
+
+def get_chunk_repository() -> "ChunkRepository":
+    """Factory: return a ChunkRepository based on QIYAN_STATE_BACKEND.
+
+    - ``"json"`` (default) → InMemoryChunkRepository
+    - ``"sqlite"``          → SqliteChunkRepository
+
+    Results are cached at module level; call
+    :func:`clear_chunk_repository_cache` to reset (e.g. in tests).
+    """
+    global _chunk_repo_cache, _chunk_repo_cache_backend
+
+    backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
+
+    if _chunk_repo_cache is not None and _chunk_repo_cache_backend == backend:
+        return _chunk_repo_cache
+
+    _close_if_sqlite(_chunk_repo_cache)
+
+    if backend == "sqlite":
+        from app.repositories.sqlite_chunk import SqliteChunkRepository
+
+        db_path = resolve_sqlite_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _chunk_repo_cache = SqliteChunkRepository(db_path)
+    else:
+        from app.repositories.chunk import InMemoryChunkRepository
+
+        _chunk_repo_cache = InMemoryChunkRepository(resolve_chunk_storage_path())
+
+    _chunk_repo_cache_backend = backend
+    return _chunk_repo_cache
+
+
+def clear_chunk_repository_cache() -> None:
+    """Reset the module-level chunk repository cache (for use in tests)."""
+    global _chunk_repo_cache, _chunk_repo_cache_backend
+    _close_if_sqlite(_chunk_repo_cache)
+    _chunk_repo_cache = None
+    _chunk_repo_cache_backend = None
+
+
+def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
+    """Factory: return a NetworkTaskRepository based on QIYAN_STATE_BACKEND.
+
+    - ``"json"`` (default) → NetworkTaskRepository (InMemory)
+    - ``"sqlite"``          → SqliteNetworkTaskRepository
+
+    Results are cached at module level; call
+    :func:`clear_network_task_repository_cache` to reset (e.g. in tests).
+    """
+    global _nt_repo_cache, _nt_repo_cache_backend
+
+    backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
+
+    if _nt_repo_cache is not None and _nt_repo_cache_backend == backend:
+        return _nt_repo_cache
+
+    _close_if_sqlite(_nt_repo_cache)
+
+    if backend == "sqlite":
+        from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
+
+        db_path = resolve_sqlite_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _nt_repo_cache = SqliteNetworkTaskRepository(db_path)
+    else:
+        from app.repositories.network_tasks import NetworkTaskRepository
+
+        _nt_repo_cache = NetworkTaskRepository(resolve_network_tasks_storage_path())
+
+    _nt_repo_cache_backend = backend
+    return _nt_repo_cache
+
+
+def clear_network_task_repository_cache() -> None:
+    """Reset the module-level network task repository cache (for use in tests)."""
+    global _nt_repo_cache, _nt_repo_cache_backend
+    _close_if_sqlite(_nt_repo_cache)
+    _nt_repo_cache = None
+    _nt_repo_cache_backend = None
