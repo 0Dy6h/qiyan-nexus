@@ -19,6 +19,10 @@ These are enforced by code + tests; do not disable them to "make it work":
 3. Missing key / HTTP error / gateway failure / empty content → fall back to
    deterministic. `/api/rag/answer` never hard-fails for the user.
 4. The API key lives only in the environment. Never commit it or log it.
+5. Claim scope is constrained before generation: each claim should cite exactly
+   one supplied evidence ID and be directly entailed by that evidence text. The
+   system prompt forbids cross-citation synthesis and unsupported efficacy,
+   target, quality-of-life, causality, or guideline-status claims.
 
 ## Maturity levels (ADR-0012 §4)
 
@@ -56,6 +60,18 @@ Model-specific constraints (from the 2026-05-31 live smoke):
 - `max_tokens` must be ≥4000 so content survives after reasoning. At 1200 the
   response is `finish_reason=length` with empty content → deterministic fallback.
 
+Claim-quality constraints (2026-06-01 prompt/schema v2):
+
+- The provider is instructed to output 1-3 short claims.
+- Each claim may cite only one evidence ID.
+- In the prompt payload, `证据文本（claim 只能基于此字段）` is the only field the
+  model should use as factual support; title/source/reason/confidence are
+  metadata for traceability, not facts to expand.
+- 2026-06-02 live validation recorded 14/14 claims with exactly one evidence ref,
+  0 unsupported refs, 0 schema parse failures, and 4/10 answers passed under the
+  evaluation profile `BGE=0.3 + NLI=0.5`. See
+  `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`.
+
 ## Verify it is actually live
 
 ```powershell
@@ -73,6 +89,30 @@ Expected: `Provider: opencode_go` (not `deterministic`). If you see
 - `ValueError status=None` with empty content → raise `max_tokens`.
 - HTTP 400 with tools → that is the forced-tool_choice rejection; the provider
   already retries the no-tools structured path, so this alone should not block.
+
+## Capture claim-quality validation data
+
+Use this when validating prompt/schema quality, not as a default-preview
+configuration. It intentionally lowers the BGE cosine prefilter to `0.3` so the
+NLI entailment gate can evaluate real cross-lingual/paraphrased claims.
+
+```powershell
+cd backend
+$env:QIYAN_OPENCODE_GO_API_KEY = [Environment]::GetEnvironmentVariable("QIYAN_OPENCODE_GO_API_KEY","User")
+$env:QIYAN_LLM_PROVIDER = "opencode_go"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"
+$env:QIYAN_EMBEDDING_BACKEND = "bge"
+$env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.3"
+$env:QIYAN_NLI_BACKEND = "transformers"
+$env:QIYAN_NLI_THRESHOLD = "0.5"
+$env:PYTHONUTF8 = "1"
+& .\.uv-test-venv\Scripts\python.exe scripts\capture_real_answer_claims.py
+```
+
+Expected output: `backend/data/runtime/captured_real_claims_live_<timestamp>.json`.
+Do not commit this runtime JSON. Convert it into an evaluation note under
+`docs/evaluations/` with aggregate counts, blocked reasons, semantic/NLI score
+ranges, and reviewer notes for any passed answers.
 
 ## Observe (SLI)
 
@@ -125,4 +165,12 @@ offline deterministic with no external egress.
 2. Configure real `QIYAN_OPENCODE_GO_PRICE_*` and record an SLI baseline.
 3. Run a human reviewer walkthrough per
    `docs/checklists/internal-preview-smoke.md` and record feedback.
-4. Only then update the default and the fact-source docs.
+4. ~~Re-run live claim capture after prompt/schema v2 and record claim count,
+   evidence-ref count, blocked reasons, semantic scores, and entailment scores.~~
+   **Done 2026-06-02.** Result: 10 questions, 14 claims, 14/14 exactly one
+   evidence ref, 4 answers passed, 6 blocked by `nli_low_entailment`, no raw draft
+   leakage. This improves L1 but does not flip L2; see
+   `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`.
+5. Before any default change, get formal reviewer sign-off on passed claims and
+   make a separate ADR-quality decision on whether `BGE=0.3 + NLI=0.5` is an
+   acceptable default-preview profile.

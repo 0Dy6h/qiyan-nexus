@@ -226,3 +226,85 @@ keyword retriever 存在 `language_bonus` 主排序硬屏障 + `_KEYWORD_ALIASES
 | ③ LLM claim 质量控制 | ❌ openCode Go 自由改写风格未变 | 高（需 prompt 层约束） |
 
 **回滚不变**：`QIYAN_LLM_PROVIDER=deterministic` 或清空即时关闭。
+
+## 2026-06-01 更新（五）：Claim 质控 prompt/schema v2 落地，默认仍不翻转
+
+针对更新（三）（四）中识别的条件③「openCode Go 自由改写、跨 chunk 综合、额外推断」，
+已落地一轮 AFK 可测的 claim 质控收紧：
+
+- `GROUNDING_SYSTEM_PROMPT` 明确要求每条 claim 只能引用 1 个证据 ID，并且只能由该证据 ID
+  对应的 `证据文本` 直接蕴含。
+- prompt 明确禁止跨引用综合，禁止把多个证据片段合并成一条 claim。
+- prompt 明确禁止添加引用片段没有明示的治疗疗效、靶点、生活质量、因果或指南地位。
+- 发给 provider 的 citation 文本把 `证据文本（claim 只能基于此字段）` 与标题、来源、匹配依据、
+  置信度等元数据分离，减少模型把元数据扩写成事实 claim 的机会。
+- OpenCode Go function schema 从最多 4 条 claim 收紧为最多 3 条 claim，并要求每条 claim 最多
+  1 个 `evidence_ref`。兼容 structured-claims v3 的后端解析与 grounding 校验保持不变。
+- `/rag` 前端类型、元数据区与 Markdown 导出补齐 NLI 字段：
+  `nli_threshold`、`min_entailment_score`、`structured_claims[].entailment_score`。
+
+**决策不变**：这不是 L2 默认翻转。默认 RAG 路径仍为离线 `deterministic`；真实 provider 仍只在
+L1 受控 smoke/演示中通过 env 显式启用。该收紧降低了 provider 生成越界 claim 的概率，但真实效果
+必须通过有 key 的 live 采样重新验证，不能由离线单测替代。
+
+**下一次重新评估 L2 时的额外验收**：
+
+1. 用 `backend/scripts/capture_real_answer_claims.py` 对 prompt/schema v2 重新采集 5-10 个真实问题。
+2. 记录每条回答的 `claim_count`、每条 claim 的 `evidence_refs` 数量、`blocked_reason`、
+   `semantic_score` 与 `entailment_score`。
+3. 确认没有 raw provider draft 泄漏；blocked 时仍只展示 hard-block 文案与 citation cards。
+4. 若仍全部 blocked，保持 L1；若出现 passed 回答，再做 reviewer 逐条核对后单独记录启用判断。
+
+## 2026-06-02 更新（六）：Claim 质控 v2 live validation 完成，L2 仍不翻转
+
+按更新（五）的额外验收，已用真实 `opencode_go` key 对 prompt/schema v2 重新采样 10 个问题。
+记录见 `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`，runtime 原始采样为
+`backend/data/runtime/captured_real_claims_live_20260602_0846.json`（gitignored，不提交）。
+
+### 配置
+
+- `QIYAN_LLM_PROVIDER=opencode_go`
+- `QIYAN_OPENCODE_GO_MAX_TOKENS=4000`
+- `QIYAN_EMBEDDING_BACKEND=bge`
+- `QIYAN_GROUNDING_SEMANTIC_THRESHOLD=0.3`
+- `QIYAN_NLI_BACKEND=transformers`
+- `QIYAN_NLI_THRESHOLD=0.5`
+
+`BGE=0.3` 是本次技术验证 profile：上一轮 §4c 已证明 `BGE=0.78` 会在真实跨语/改写 claim 上先于
+NLI 过度拦截。本次降低 cosine 预筛是为了让 NLI gate 评估事实蕴含，不代表默认预览配置。
+
+### 结果
+
+| 指标 | 结果 |
+|---|---:|
+| 问题数 | 10 |
+| claim 总数 | 14 |
+| provider fallback | 0 |
+| grounding passed | 4 个回答 |
+| grounding blocked | 6 个回答 |
+| blocked reason | 6 个 `nli_low_entailment` |
+| 0 evidence ref claims | 0 |
+| 1 evidence ref claims | 14 |
+| multi evidence refs claims | 0 |
+| unsupported ref / schema parse failure | 0 |
+| semantic score range | 0.3394-0.9553 |
+| entailment score range | 0.0004-0.9990 |
+
+快速 claim-level review 显示 4 个 passed 回答均可从其 cited chunk 直接核对：英文 PubMed chunk 支撑
+filaggrin/barrier/JAK-STAT/network-pharmacology claims，中文 consensus chunk 支撑长期管理 claim。
+但这只是技术走查，不是正式医生/科研 reviewer sign-off。
+
+### 决策
+
+**L2 仍不翻转，保持 L1。**
+
+本次 live validation 的正面结论是：claim-quality v2 已明显改善结构化输出质量（14/14 单证据引用，
+无 unsupported refs，无 parse failure），并且在 `BGE=0.3 + NLI=0.5` profile 下首次出现 4 个
+真实 provider passed 回答。负面/未闭合点是：该 profile 需要显式降低 BGE 预筛；NLI 仍拦截 6/10
+回答；成本 SLI 仍未配置真实合同价格；正式 reviewer sign-off 尚未完成。
+
+后续若继续推进 L2，不应再做“是否能调用真实模型”的工程验证，而应聚焦三件事：
+
+1. 正式 reviewer 逐条核验 4 个 passed 回答的 claim 与 cited chunk。
+2. 单独决策是否接受 lower-BGE-prefilter + NLI gate 作为 L1/L2 profile。
+3. 配置真实 `QIYAN_OPENCODE_GO_PRICE_*` 并记录成本/延迟 SLI 基线。

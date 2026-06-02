@@ -25,6 +25,7 @@ export type GroundedClaim = {
   text: string;
   evidence_refs: string[];
   semantic_score?: number | null;
+  entailment_score?: number | null;
 };
 
 export type GroundingMetadata = {
@@ -43,6 +44,8 @@ export type GroundingMetadata = {
   tool_call_count: number;
   semantic_threshold?: number | null;
   min_semantic_score?: number | null;
+  nli_threshold?: number | null;
+  min_entailment_score?: number | null;
 };
 
 export type ProviderSli = {

@@ -71,6 +71,16 @@ function formatSemanticScore(grounding: GroundingMetadata) {
     : `${Math.round(grounding.min_semantic_score * 100)}%`;
 }
 
+function formatNliThreshold(grounding: GroundingMetadata) {
+  return grounding.nli_threshold == null ? "未启用" : grounding.nli_threshold.toFixed(2);
+}
+
+function formatNliScore(grounding: GroundingMetadata) {
+  return grounding.min_entailment_score == null
+    ? "未计算"
+    : `${Math.round(grounding.min_entailment_score * 100)}%`;
+}
+
 function formatGroundingBlockedReason(reason: string | null | undefined) {
   if (reason === "unsupported_evidence_ref") {
     return "存在未提供的证据 ID";
@@ -101,6 +111,9 @@ function formatGroundingBlockedReason(reason: string | null | undefined) {
   }
   if (reason === "semantic_low_support") {
     return "存在与引用证据语义支持度过低的 claim";
+  }
+  if (reason === "nli_low_entailment") {
+    return "存在未被引用证据蕴含的结构化 claim";
   }
   return "无";
 }
@@ -367,6 +380,8 @@ export default function RagAnswerClient() {
                 `Tool 调用数 ${state.result.grounding.tool_call_count}`,
                 `语义阈值 ${formatSemanticThreshold(state.result.grounding)}`,
                 `最小语义支持度 ${formatSemanticScore(state.result.grounding)}`,
+                `NLI 阈值 ${formatNliThreshold(state.result.grounding)}`,
+                `最小蕴含支持度 ${formatNliScore(state.result.grounding)}`,
                 `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
                 `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,

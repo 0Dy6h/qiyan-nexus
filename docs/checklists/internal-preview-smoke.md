@@ -104,6 +104,9 @@ Key constraints from live smoke (2026-05-31):
 - `deepseek-v4-flash` rejects forced `tool_choice` (HTTP 400); grounding uses
   structured-claims v3 path
 - NLI gate adds ~2s per answer (batch entailment, after model warm-up)
+- Claim-quality prompt/schema v2 asks for 1-3 claims, one evidence ID per claim,
+  and direct entailment from `证据文本（claim 只能基于此字段）`; do not treat this as
+  L2 evidence until a live capture is recorded.
 
 ### Walkthrough Steps
 
@@ -116,6 +119,7 @@ Key constraints from live smoke (2026-05-31):
 | R5 | Verify rollback: `QIYAN_LLM_PROVIDER=deterministic` | Instant fallback, no code change needed | |
 | R6 | Check `/rag` UI: real provider answer shows provider name "opencode_go", SLI (latency/cost), export includes provider metadata | All metadata fields visible and accurate | |
 | R7 | If grounding blocks answer with `nli_low_entailment`: verify the hard-block text is shown (NOT the raw draft), citations still appear | Safe fallback behavior, no unverified draft leaked | |
+| R8 | Export Markdown from `/rag` and inspect grounding metadata | Export includes NLI threshold, minimum entailment score, and per-claim `semantic_score` / `entailment_score` when present | |
 
 ### Expected findings
 
@@ -125,6 +129,9 @@ Key constraints from live smoke (2026-05-31):
 - **Latency**: Real provider ~10-15s + NLI gate ~2s per answer (batch entailment,
   after model warm-up). Total ~12-17s per question.
 - **Cost**: Check `sli.estimated_cost_usd` (null unless real prices configured).
+- **Claim quality**: For prompt/schema v2, record whether the model returns 1-3
+  claims, whether each claim has exactly one evidence ref, and whether blocked
+  answers are due to BGE, NLI, malformed JSON, or unsupported evidence IDs.
 
 ### Completion Record (§4c)
 
@@ -132,3 +139,4 @@ Key constraints from live smoke (2026-05-31):
 |---|---|---|---|---|---|---|
 | | | | | | | |
 | 2026-06-01 | 真人 reviewer | pwsh API + browser | opencode_go + BGE=0.3 + NLI=0.5 | 4 条查询全 blocked（nli_low_entailment），1 条 claim entailment=0.86 通过 NLI 但同回答另一条 0.004 拉低 min 分 | Pass（gate 正确运行） | R1-R7 全通过。R4（缺 key fallback）和 R5（回滚 deterministic）均验证。R6 前端 UI 正确展示 provider/grounding。结论：NLI gate 在生产管线正确运行，0 误放行。L2 不翻转——BGE=0.78 下无回答穿透，opencode_go 自由改写 + keyword retriever 跨语匹配弱是阻塞因素。详见 ADR-0012 2026-06-01 更新（三）和 `docs/handoffs/2026-06-01-slices-1-5.md`。 |
+| 2026-06-02 | Codex technical live validation | pwsh API capture | opencode_go + BGE=0.3 + NLI=0.5 | 4/10 回答 passed，6/10 blocked（均为 `nli_low_entailment`）；14/14 claims 均为单 evidence ref | Pass（技术验证，不是正式 reviewer sign-off） | Claim-quality prompt/schema v2 live capture 完成：无 fallback、无 schema parse failure、无 unsupported refs、无 raw draft 泄漏。4 个 passed 回答经快速 claim-level review 与 cited chunks 对齐。L2 仍不翻转；详见 `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md` 与 ADR-0012 更新（六）。 |

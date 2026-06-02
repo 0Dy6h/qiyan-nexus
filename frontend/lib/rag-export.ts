@@ -23,6 +23,14 @@ function formatSemanticScore(score: number | null | undefined): string {
   return score == null ? "未计算" : `${Math.round(score * 100)}%`;
 }
 
+function formatNliThreshold(threshold: number | null | undefined): string {
+  return threshold == null ? "未启用" : threshold.toFixed(2);
+}
+
+function formatNliScore(score: number | null | undefined): string {
+  return score == null ? "未计算" : `${Math.round(score * 100)}%`;
+}
+
 function formatCitationBlock(citation: CitationCard, index: number): string {
   const lines: string[] = [];
   lines.push(`### 引用 ${index + 1} — ${citation.title}`);
@@ -71,6 +79,8 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
   sections.push(`- Tool 调用数：${result.grounding.tool_call_count}`);
   sections.push(`- 语义阈值：${formatSemanticThreshold(result.grounding.semantic_threshold)}`);
   sections.push(`- 最小语义支持度：${formatSemanticScore(result.grounding.min_semantic_score)}`);
+  sections.push(`- NLI 阈值：${formatNliThreshold(result.grounding.nli_threshold)}`);
+  sections.push(`- 最小蕴含支持度：${formatNliScore(result.grounding.min_entailment_score)}`);
   sections.push(`- Grounding 拦截原因：${result.grounding.blocked_reason ?? "无"}`);
   sections.push(`- 句级引用覆盖：${result.grounding.cited_claim_count}/${result.grounding.claim_count}`);
   sections.push(
@@ -104,6 +114,8 @@ export function buildAnswerMarkdown(result: RagAnswerResponse): string {
       sections.push(claim.text);
       sections.push("");
       sections.push(`evidence_refs：${joinOrFallback(claim.evidence_refs, "无")}`);
+      sections.push(`semantic_score：${formatSemanticScore(claim.semantic_score)}`);
+      sections.push(`entailment_score：${formatNliScore(claim.entailment_score)}`);
       sections.push("");
     });
   }
