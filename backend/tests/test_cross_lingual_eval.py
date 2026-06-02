@@ -296,10 +296,13 @@ def test_cross_lingual_recall_improves_above_zero_after_fix():
 
 # ---------------------------------------------------------------------------
 # Slice 6: 跨语言术语桥扩展（"微生态" → gut，闭合 rag-eval-011）
+# Slice 7: alias_tag_bonus 识别 cross-lingual canonical（闭合 rag-eval-035/047）
 # ---------------------------------------------------------------------------
 
-# 扩展前基线 avg_cross_lingual_recall（17 双语题中 13 题完美）。术语桥扩展只能升不能降。
-_CROSS_LINGUAL_RECALL_BASELINE = 0.7647
+# 基线 avg_cross_lingual_recall。Slice 6 把 0.7647 抬到 0.7941；Slice 7 让 035/047 各自
+# 从 0 → 1.0（两题都只期望一个 cross-lingual id：pmid-40100002），聚合再升一阶。
+# 锁紧贴的实测值，沿用 Slice 6 风格。
+_CROSS_LINGUAL_RECALL_BASELINE = 0.9118
 
 
 def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRetrievalItem:
@@ -340,3 +343,35 @@ def test_cross_lingual_term_bridge_no_aggregate_regression():
     assert report.summary.avg_monolingual_recall == 1.0, (
         f"monolingual recall regressed: {report.summary.avg_monolingual_recall}"
     )
+
+
+def test_rag_eval_035_cross_lingual_recall_equals_one():
+    """rag-eval-035（中文查询，期望 cn-ad-microbiome-003 + pmid-40100002）：
+    Slice 7 前 pmid-40100002 卡在 rank 11，cross_lingual_recall=0。
+    扩展 alias_tag_bonus 识别 cross-lingual canonical 后，``microbiome`` 标签也吃到 +7
+    桥接奖励，pmid-40100002 进入 top-10，单题召回应达 1.0。"""
+    if not _EVAL_DATA_PATH.exists():
+        pytest.skip("eval dataset not found")
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+    item = _item_by_id(report, "rag-eval-035")
+    assert item.cross_lingual_recall == 1.0, (
+        f"rag-eval-035 cross-lingual recall should be 1.0, got {item.cross_lingual_recall}"
+    )
+    assert "pmid-40100002" in item.retrieved_ids
+
+
+def test_rag_eval_047_cross_lingual_recall_equals_one():
+    """rag-eval-047（中文查询，期望 cn-ad-review-010 + pmid-40100002）：症状与根因
+    同 035，扩展 alias_tag_bonus 后 pmid-40100002 进入 top-10，单题召回应达 1.0。"""
+    if not _EVAL_DATA_PATH.exists():
+        pytest.skip("eval dataset not found")
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+    item = _item_by_id(report, "rag-eval-047")
+    assert item.cross_lingual_recall == 1.0, (
+        f"rag-eval-047 cross-lingual recall should be 1.0, got {item.cross_lingual_recall}"
+    )
+    assert "pmid-40100002" in item.retrieved_ids

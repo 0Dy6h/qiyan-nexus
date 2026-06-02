@@ -30,6 +30,12 @@ def _load_seed():
 
 
 def test_keyword_provider_reproduces_existing_ranking_for_zh_question():
+    """After Slice 7, alias_tag_bonus also recognises cross-lingual canonicals
+    (microbiome, atopic_dermatitis, ...). The query "特应性皮炎和肠-脑-皮肤轴..." injects
+    both ``gut`` (legacy) and ``microbiome`` (cross-lingual) canonicals; chunk-microbiome-003
+    has both tags so it edges ahead of chunk-gbs-001 (only ``gut_skin_axis`` matches).
+    Both docs remain top-2 — the change is a tie-break swap.
+    """
     items, chunks_by_item = _load_seed()
     provider = KeywordRetrievalProvider()
 
@@ -41,8 +47,8 @@ def test_keyword_provider_reproduces_existing_ranking_for_zh_question():
     )
 
     top_two = [(c.item.id, c.chunk.chunk_id if c.chunk else None) for c in candidates[:2]]
-    assert top_two[0] == ("cn-ad-gbs-001", "chunk-cn-ad-gbs-001-abstract")
-    assert top_two[1][0] == "cn-ad-microbiome-003"
+    assert top_two[0] == ("cn-ad-microbiome-003", "chunk-cn-ad-microbiome-003-abstract")
+    assert top_two[1][0] == "cn-ad-gbs-001"
 
 
 def test_keyword_provider_reproduces_pubmed_priority_for_english_question():
@@ -257,3 +263,61 @@ def test_load_cross_lingual_aliases_falls_back_on_non_dict_json(monkeypatch, tmp
     result = provider_module._load_cross_lingual_aliases()
 
     assert result == {"alias_map": []}
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: alias_tag_bonus recognises cross-lingual canonicals
+# ---------------------------------------------------------------------------
+
+
+def test_alias_tag_bonus_honours_cross_lingual_canonicals():
+    """alias_tag_bonus must honour canonicals declared only in cross_lingual_terms.json.
+
+    Previously the eligibility check was ``token in _KEYWORD_ALIASES`` (the in-code
+    8-entry dict), so canonicals injected by the cross-lingual bridge — ``microbiome``,
+    ``atopic_dermatitis``, ``tcm_syndrome``, ... — silently failed to earn the +2/+7
+    bonus even when the document's evidence_tags carried the canonical string. That
+    structurally underweighted cross-lingual hits (closes rag-eval-035/047).
+    """
+    from app.services.retrieval.provider import alias_tag_bonus
+
+    # ``microbiome`` is a cross-lingual-only canonical (not in _KEYWORD_ALIASES).
+    # A chunk tag containing "microbiome" must contribute one match.
+    bonus = alias_tag_bonus(
+        tags=["microbiome", "severity"],
+        query_tokens=["microbiome"],
+        weight=7,
+    )
+    assert bonus == 7, f"Expected +7 for microbiome canonical match, got {bonus}"
+
+    # ``atopic_dermatitis`` is also cross-lingual-only — same contract.
+    bonus = alias_tag_bonus(
+        tags=["atopic_dermatitis"],
+        query_tokens=["atopic_dermatitis"],
+        weight=2,
+    )
+    assert bonus == 2
+
+    # Tokens not in either alias set → no bonus.
+    bonus = alias_tag_bonus(
+        tags=["microbiome"],
+        query_tokens=["unrelated_token"],
+        weight=7,
+    )
+    assert bonus == 0
+
+    # The legacy _KEYWORD_ALIASES path must keep working.
+    bonus = alias_tag_bonus(
+        tags=["gut_skin_axis"],
+        query_tokens=["gut"],
+        weight=7,
+    )
+    assert bonus == 7
+
+    # Mixed: one legacy canonical + one cross-lingual canonical, two matches → 2×weight.
+    bonus = alias_tag_bonus(
+        tags=["gut_skin_axis", "microbiome"],
+        query_tokens=["gut", "microbiome"],
+        weight=7,
+    )
+    assert bonus == 14
