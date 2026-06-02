@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { buildNetworkGraphModel } from "../lib/network-graph";
 import type { NetworkChain } from "../lib/api/network";
 
@@ -45,6 +45,7 @@ function getEdgeStyle(score: number): {
 export default function NetworkGraph({ chains }: NetworkGraphProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const nodeRefs = useRef(new Map<string, SVGGElement>());
 
   const model = buildNetworkGraphModel(chains);
   const { layers, nodes, edges } = model;
@@ -109,6 +110,30 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
   const focusedNode = focusedNodeId
     ? nodes.find((n) => n.id === focusedNodeId) ?? null
     : null;
+
+  // Arrow-key navigation: ArrowUp/Down move within the current layer;
+  // ArrowLeft/Right move to the node with the closest Y in the adjacent layer.
+  const layerOrder = layers.map((l) => l.key);
+  function findAdjacentNodeId(currentId: string, key: string): string | null {
+    const cur = nodeMap.get(currentId);
+    if (!cur) return null;
+    const sameLayer = nodes.filter((n) => n.layer === cur.layer);
+    const inLayerIndex = sameLayer.findIndex((n) => n.id === currentId);
+    if (key === "ArrowDown") {
+      return inLayerIndex < sameLayer.length - 1 ? sameLayer[inLayerIndex + 1]!.id : null;
+    }
+    if (key === "ArrowUp") {
+      return inLayerIndex > 0 ? sameLayer[inLayerIndex - 1]!.id : null;
+    }
+    const layerIndex = layerOrder.indexOf(cur.layer);
+    const targetLayerIndex = key === "ArrowRight" ? layerIndex + 1 : layerIndex - 1;
+    if (targetLayerIndex < 0 || targetLayerIndex >= layerOrder.length) return null;
+    const targetLayer = nodes.filter((n) => n.layer === layerOrder[targetLayerIndex]);
+    if (targetLayer.length === 0) return null;
+    return targetLayer.reduce((best, n) =>
+      Math.abs(n.y - cur.y) < Math.abs(best.y - cur.y) ? n : best,
+    ).id;
+  }
 
   return (
     <div style={{ overflowX: "auto", marginTop: 24 }}>
@@ -216,6 +241,13 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           return (
             <g
               key={node.id}
+              ref={(el) => {
+                if (el) {
+                  nodeRefs.current.set(node.id, el);
+                } else {
+                  nodeRefs.current.delete(node.id);
+                }
+              }}
               tabIndex={0}
               role="button"
               aria-pressed={isFocused}
@@ -235,6 +267,17 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
                 } else if (event.key === "Escape") {
                   event.preventDefault();
                   setFocusedNodeId(null);
+                } else if (
+                  event.key === "ArrowUp" ||
+                  event.key === "ArrowDown" ||
+                  event.key === "ArrowLeft" ||
+                  event.key === "ArrowRight"
+                ) {
+                  const nextId = findAdjacentNodeId(node.id, event.key);
+                  if (nextId) {
+                    event.preventDefault();
+                    nodeRefs.current.get(nextId)?.focus();
+                  }
                 }
               }}
               style={{ cursor: "pointer", outline: "none" }}

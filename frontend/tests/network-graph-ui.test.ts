@@ -83,3 +83,22 @@ test("NetworkGraph onKeyDown handles Enter/Space toggle and Escape clear", () =>
   assert(source.includes('event.key === "Escape"'));
   assert(source.includes("setFocusedNodeId(null)"));
 });
+
+test("NetworkGraph onKeyDown handles ArrowUp/Down within layer and ArrowLeft/Right across layers", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  // Ref map to programmatically move browser focus between nodes
+  assert(source.includes("useRef"));
+  assert.match(source, /Map<string, SVGGElement>/);
+  // Ref callback on the node group attaches/detaches via the map
+  assert.match(source, /ref=\{\(el\) =>/);
+
+  // Arrow key branches present
+  assert(source.includes('event.key === "ArrowUp"'));
+  assert(source.includes('event.key === "ArrowDown"'));
+  assert(source.includes('event.key === "ArrowLeft"'));
+  assert(source.includes('event.key === "ArrowRight"'));
+
+  // Programmatic focus call after navigation
+  assert.match(source, /\.focus\(\)/);
+});
