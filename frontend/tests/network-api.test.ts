@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   buildNetworkAnalyzeUrl,
+  buildNetworkReportUrl,
   buildNetworkResultUrl,
   getNetworkAnalysisTypeLabel,
 } from "../lib/api/network";
@@ -123,6 +124,60 @@ test("fetchNetworkResult throws when the response is not ok", async () => {
   try {
     const { fetchNetworkResult } = await import(`../lib/api/network?ts=${Date.now()}`);
     await assert.rejects(fetchNetworkResult("network-missing-task"), /Network result request failed/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("buildNetworkReportUrl encodes task id and points at report endpoint", () => {
+  assert.equal(
+    buildNetworkReportUrl("network-abc123"),
+    "http://127.0.0.1:8000/api/network/result/network-abc123/report",
+  );
+});
+
+test("fetchNetworkReportMarkdown returns markdown text on 200", async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: { url: URL | RequestInfo }[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo) => {
+    captured.push({ url });
+    return {
+      ok: true,
+      async text() {
+        return "# Qiyan Nexus 网络药理学报告导出\n\n- task_id：network-abc123\n";
+      },
+    } as Response;
+  }) as typeof globalThis.fetch;
+
+  try {
+    const { fetchNetworkReportMarkdown } = await import(`../lib/api/network?ts=${Date.now()}`);
+    const markdown = await fetchNetworkReportMarkdown("network-abc123");
+
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].url, "http://127.0.0.1:8000/api/network/result/network-abc123/report");
+    assert.ok(markdown.startsWith("# Qiyan Nexus"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("fetchNetworkReportMarkdown throws when the response is not ok", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    return {
+      ok: false,
+      async json() {
+        return { detail: "Network analysis task not found" };
+      },
+    } as Response;
+  }) as typeof globalThis.fetch;
+
+  try {
+    const { fetchNetworkReportMarkdown } = await import(`../lib/api/network?ts=${Date.now()}`);
+    await assert.rejects(
+      fetchNetworkReportMarkdown("network-missing-task"),
+      /Network report request failed/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

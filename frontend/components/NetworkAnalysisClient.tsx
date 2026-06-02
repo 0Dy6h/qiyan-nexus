@@ -5,6 +5,7 @@ import { DownloadOutlined } from "@ant-design/icons";
 import { useSearchParams } from "next/navigation";
 
 import {
+  fetchNetworkReportMarkdown,
   fetchNetworkResult,
   getNetworkAnalysisTypeLabel,
   NetworkAnalysisResult,
@@ -16,10 +17,7 @@ import {
   fetchNetworkEntities,
   type NetworkEntity,
 } from "../lib/api/network-entities";
-import {
-  buildNetworkReportFileName,
-  buildNetworkReportMarkdown,
-} from "../lib/network-report-export";
+import { buildNetworkReportFileName } from "../lib/network-report-export";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import EntityChips from "./EntityChips";
 import NetworkGraph from "./NetworkGraph";
@@ -97,13 +95,13 @@ export default function NetworkAnalysisClient() {
     await runAnalysis(trimmedQuery, analysisType);
   }
 
-  function onDownloadReport() {
+  async function onDownloadReport() {
     if (!result) {
       return;
     }
 
     try {
-      const markdown = buildNetworkReportMarkdown(result);
+      const markdown = await fetchNetworkReportMarkdown(result.task_id);
       const fileName = buildNetworkReportFileName(result.task_id);
       const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
       const url = URL.createObjectURL(blob);

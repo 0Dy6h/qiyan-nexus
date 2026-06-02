@@ -14,7 +14,7 @@ test("network analysis client exposes completed-result markdown export", () => {
   const clientSource = getSource("components/NetworkAnalysisClient.tsx");
 
   assert.match(clientSource, /DownloadOutlined/);
-  assert.match(clientSource, /buildNetworkReportMarkdown/);
+  assert.match(clientSource, /fetchNetworkReportMarkdown/);
   assert.match(clientSource, /buildNetworkReportFileName/);
   assert.match(clientSource, /aria-label="导出报告为 Markdown"/);
   assert.match(clientSource, />\s*导出报告为 Markdown\s*</);
@@ -23,6 +23,7 @@ test("network analysis client exposes completed-result markdown export", () => {
 test("network analysis client downloads the report through a browser blob", () => {
   const clientSource = getSource("components/NetworkAnalysisClient.tsx");
 
+  assert.match(clientSource, /await fetchNetworkReportMarkdown\(result\.task_id\)/);
   assert.match(clientSource, /new Blob\(\[markdown\], \{ type: "text\/markdown;charset=utf-8" \}\)/);
   assert.match(clientSource, /URL\.createObjectURL\(blob\)/);
   assert.match(clientSource, /anchor\.download = fileName/);
