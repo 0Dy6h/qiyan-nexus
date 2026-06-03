@@ -103,13 +103,17 @@ def test_generate_answer_posts_chat_completion_and_extracts_usage(monkeypatch):
     assert "[1]" not in user_content
     assert "引用 1" in user_content
     assert "证据ID：cn-ad-gbs-001" in user_content
+    assert "证据文本（claim 只能基于此字段）" in user_content
+    assert "标题（元数据）" in user_content
     assert "只输出 JSON" in system_content
     assert '"claims"' in system_content
     assert '"text"' in system_content
     assert '"evidence_refs"' in system_content
     assert "不得使用未提供的证据 ID" in system_content
+    assert "每条 claim 只能引用一个证据ID" in system_content
+    assert "不要跨引用综合" in system_content
     assert "每条 claim" in system_content
-    assert "输出 2-4 条短中文证据句" in system_content
+    assert "输出 1-3 条短中文证据句" in system_content
     assert "不要输出标题、参考文献列表" in system_content
     assert "不要使用数字序号方括号引用" in system_content
     assert "不要带免责声明" in system_content
@@ -171,8 +175,13 @@ def test_generate_answer_prefers_openai_compatible_tool_calls(monkeypatch):
         "function": {"name": "record_grounded_claims"},
     }
     assert payload["tools"][0]["type"] == "function"
-    assert payload["tools"][0]["function"]["name"] == "record_grounded_claims"
-    assert payload["tools"][0]["function"]["strict"] is True
+    function_schema = payload["tools"][0]["function"]
+    assert function_schema["name"] == "record_grounded_claims"
+    assert function_schema["strict"] is True
+    claims_schema = function_schema["parameters"]["properties"]["claims"]
+    assert claims_schema["maxItems"] == 3
+    evidence_refs_schema = claims_schema["items"]["properties"]["evidence_refs"]
+    assert evidence_refs_schema["maxItems"] == 1
     assert draft.provider_name == "opencode_go"
     assert draft.grounding_policy == "opencode_go_tool_use_v1"
     assert draft.provider_native_grounding is True

@@ -30,7 +30,7 @@ GROUNDING_FUNCTION_SCHEMA = {
                 "claims": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 4,
+                    "maxItems": 3,
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
@@ -39,6 +39,7 @@ GROUNDING_FUNCTION_SCHEMA = {
                             "evidence_refs": {
                                 "type": "array",
                                 "minItems": 1,
+                                "maxItems": 1,
                                 "items": {"type": "string", "minLength": 1},
                             },
                         },

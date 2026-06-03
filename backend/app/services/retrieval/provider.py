@@ -170,12 +170,31 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
     return score
 
 
+def _canonical_token_set() -> set[str]:
+    """Tokens eligible for the ``alias_tag_bonus`` substring-against-tag bonus.
+
+    Union of the in-code ``_KEYWORD_ALIASES`` keys and every ``canonical`` declared
+    in ``cross_lingual_terms.json``. Recomputed each call — the set is ~25 items so
+    cost is negligible, and skipping memoisation keeps the existing monkeypatch
+    pattern (``setattr(provider_module, "_cross_lingual_cache", None)``) sufficient
+    for cache invalidation in tests.
+    """
+    canonicals: set[str] = set(_KEYWORD_ALIASES.keys())
+    cross_map = _load_cross_lingual_aliases()
+    for entry in cross_map.get("alias_map", []):
+        canonical = entry.get("canonical", "")
+        if canonical:
+            canonicals.add(canonical)
+    return canonicals
+
+
 def alias_tag_bonus(tags: list[str], query_tokens: list[str], weight: int) -> int:
     if not tags:
         return 0
+    canonical_tokens = _canonical_token_set()
     matched = 0
     for token in query_tokens:
-        if token in _KEYWORD_ALIASES and any(token in tag for tag in tags):
+        if token in canonical_tokens and any(token in tag for tag in tags):
             matched += 1
     return matched * weight
 

@@ -46,6 +46,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.repositories.chunk import InMemoryChunkRepository  # noqa: E402
 from app.repositories.runtime_storage import resolve_chunk_storage_path  # noqa: E402
+from app.schemas.rag import RagAnswerResponse  # noqa: E402
 from app.services.rag import answer_question  # noqa: E402
 
 # ── constants ────────────────────────────────────────────────────────────────
@@ -148,7 +149,29 @@ def _load_chunk_repo() -> InMemoryChunkRepository:
     return InMemoryChunkRepository(chunk_path)
 
 
-def _build_capture_meta(source: str, question_count: int, claim_count: int) -> dict:
+def _increment_count(counts: dict[str, int], value: object) -> None:
+    if not isinstance(value, str) or not value:
+        return
+    counts[value] = counts.get(value, 0) + 1
+
+
+def _build_capture_meta(source: str, results: list[dict]) -> dict:
+    grounding_status_counts: dict[str, int] = {}
+    blocked_reason_counts: dict[str, int] = {}
+    provider_counts: dict[str, int] = {}
+    total_claims = 0
+    claims_with_zero_refs = 0
+    claims_with_one_ref = 0
+    claims_with_multi_refs = 0
+    for result in results:
+        total_claims += int(result.get("claim_count", 0))
+        claims_with_zero_refs += int(result.get("claims_with_zero_refs", 0))
+        claims_with_one_ref += int(result.get("claims_with_one_ref", 0))
+        claims_with_multi_refs += int(result.get("claims_with_multi_refs", 0))
+        _increment_count(grounding_status_counts, result.get("grounding_status"))
+        _increment_count(blocked_reason_counts, result.get("blocked_reason"))
+        _increment_count(provider_counts, result.get("provider_name"))
+
     return {
         "source": source,
         "captured_at": _now_iso(),
@@ -156,8 +179,14 @@ def _build_capture_meta(source: str, question_count: int, claim_count: int) -> d
         "embedding_backend": os.getenv("QIYAN_EMBEDDING_BACKEND", "hashing"),
         "semantic_threshold": os.getenv("QIYAN_GROUNDING_SEMANTIC_THRESHOLD", "not_set"),
         "max_tokens": os.getenv("QIYAN_OPENCODE_GO_MAX_TOKENS", "not_set"),
-        "questions_captured": question_count,
-        "total_claims": claim_count,
+        "questions_captured": len(results),
+        "total_claims": total_claims,
+        "grounding_status_counts": grounding_status_counts,
+        "blocked_reason_counts": blocked_reason_counts,
+        "provider_counts": provider_counts,
+        "claims_with_zero_refs": claims_with_zero_refs,
+        "claims_with_one_ref": claims_with_one_ref,
+        "claims_with_multi_refs": claims_with_multi_refs,
     }
 
 
@@ -178,6 +207,63 @@ def _enrich_claim(claim: dict, chunk_repo: InMemoryChunkRepository) -> dict:
     return claim
 
 
+def _count_claim_ref_shapes(claim_entries: list[dict]) -> dict[str, int]:
+    zero_refs = 0
+    one_ref = 0
+    multi_refs = 0
+    for claim in claim_entries:
+        ref_count = len(claim.get("evidence_refs", []))
+        if ref_count == 0:
+            zero_refs += 1
+        elif ref_count == 1:
+            one_ref += 1
+        else:
+            multi_refs += 1
+    return {
+        "claims_with_zero_refs": zero_refs,
+        "claims_with_one_ref": one_ref,
+        "claims_with_multi_refs": multi_refs,
+    }
+
+
+def _build_question_capture_entry(
+    *,
+    question_id: str,
+    question: str,
+    source_preference: str,
+    response: RagAnswerResponse,
+    claim_entries: list[dict],
+) -> dict:
+    sli = response.sli
+    grounding = response.grounding
+    entry = {
+        "question_id": question_id,
+        "question": question,
+        "source_preference": source_preference,
+        "provider_name": response.provider_name,
+        "retrieval_strategy": response.retrieval.strategy,
+        "grounding_status": grounding.status,
+        "blocked_reason": grounding.blocked_reason,
+        "claim_count": len(claim_entries),
+        **_count_claim_ref_shapes(claim_entries),
+        "min_semantic_score": grounding.min_semantic_score,
+        "semantic_threshold": grounding.semantic_threshold,
+        "min_entailment_score": grounding.min_entailment_score,
+        "nli_threshold": grounding.nli_threshold,
+        "input_tokens": response.input_tokens,
+        "output_tokens": response.output_tokens,
+        "provider_latency_ms": sli.provider_latency_ms if sli else None,
+        "estimated_cost_usd": sli.estimated_cost_usd if sli else None,
+        "answer": response.answer,
+        "citations": [
+            {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
+            for c in response.citations
+        ],
+        "claims": claim_entries,
+    }
+    return entry
+
+
 # ── LIVE mode ────────────────────────────────────────────────────────────────
 
 
@@ -192,7 +278,6 @@ def run_live_capture(chunk_repo: InMemoryChunkRepository) -> Path:
     sample = questions_raw[:LIVE_QUESTION_LIMIT]
 
     results: list[dict] = []
-    total_claims = 0
 
     for i, q in enumerate(sample, 1):
         print(f"[{i}/{len(sample)}] {q['question'][:60]}...", flush=True)
@@ -216,27 +301,19 @@ def run_live_capture(chunk_repo: InMemoryChunkRepository) -> Path:
             }
             _enrich_claim(entry, chunk_repo)
             claim_entries.append(entry)
-            total_claims += 1
 
         results.append(
-            {
-                "question_id": q.get("id", f"live-{i}"),
-                "question": q["question"],
-                "source_preference": q.get("source_preference", "all"),
-                "provider_name": resp.provider_name,
-                "grounding_status": resp.grounding.status,
-                "blocked_reason": resp.grounding.blocked_reason,
-                "answer": resp.answer,
-                "citations": [
-                    {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
-                    for c in resp.citations
-                ],
-                "claims": claim_entries,
-            }
+            _build_question_capture_entry(
+                question_id=q.get("id", f"live-{i}"),
+                question=q["question"],
+                source_preference=q.get("source_preference", "all"),
+                response=resp,
+                claim_entries=claim_entries,
+            )
         )
         print(f"  ✓ {len(claim_entries)} claims, status={resp.grounding.status}", flush=True)
 
-    meta = _build_capture_meta("live_opencode_go", len(results), total_claims)
+    meta = _build_capture_meta("live_opencode_go", results)
     return _write_output(meta, results, "live")
 
 
@@ -249,7 +326,6 @@ def run_offline_capture(chunk_repo: InMemoryChunkRepository) -> Path:
     print("   Run deterministic RAG to get citation chunks for pairing.", flush=True)
 
     results: list[dict] = []
-    total_claims = 0
 
     for entry in SMOKE_QUESTIONS:
         question = entry["question"]
@@ -288,29 +364,21 @@ def run_offline_capture(chunk_repo: InMemoryChunkRepository) -> Path:
                 "all_candidate_chunks": list(chunk_lookup.values()),
             }
             claim_entries.append(claim_entry)
-            total_claims += 1
 
         results.append(
-            {
-                "question_id": "smoke-2026-05-31",
-                "question": question,
-                "source_preference": entry.get("source_preference", "all"),
-                "provider_name": resp.provider_name,
-                "grounding_status": resp.grounding.status,
-                "blocked_reason": resp.grounding.blocked_reason,
-                "answer": resp.answer,
-                "citations": [
-                    {"literature_id": c.literature_id, "chunk_id": c.chunk_id, "title": c.title}
-                    for c in resp.citations
-                ],
-                "claims": claim_entries,
-            }
+            _build_question_capture_entry(
+                question_id="smoke-2026-05-31",
+                question=question,
+                source_preference=entry.get("source_preference", "all"),
+                response=resp,
+                claim_entries=claim_entries,
+            )
         )
         print(
             f"    ✓ {len(claim_entries)} claims, {len(chunk_lookup)} candidate chunks", flush=True
         )
 
-    meta = _build_capture_meta("offline_smoke_2026-05-31", len(results), total_claims)
+    meta = _build_capture_meta("offline_smoke_2026-05-31", results)
     return _write_output(meta, results, "offline")
 
 

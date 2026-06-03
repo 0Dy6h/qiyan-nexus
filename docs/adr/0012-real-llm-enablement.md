@@ -226,3 +226,222 @@ keyword retriever 存在 `language_bonus` 主排序硬屏障 + `_KEYWORD_ALIASES
 | ③ LLM claim 质量控制 | ❌ openCode Go 自由改写风格未变 | 高（需 prompt 层约束） |
 
 **回滚不变**：`QIYAN_LLM_PROVIDER=deterministic` 或清空即时关闭。
+
+## 2026-06-01 更新（五）：Claim 质控 prompt/schema v2 落地，默认仍不翻转
+
+针对更新（三）（四）中识别的条件③「openCode Go 自由改写、跨 chunk 综合、额外推断」，
+已落地一轮 AFK 可测的 claim 质控收紧：
+
+- `GROUNDING_SYSTEM_PROMPT` 明确要求每条 claim 只能引用 1 个证据 ID，并且只能由该证据 ID
+  对应的 `证据文本` 直接蕴含。
+- prompt 明确禁止跨引用综合，禁止把多个证据片段合并成一条 claim。
+- prompt 明确禁止添加引用片段没有明示的治疗疗效、靶点、生活质量、因果或指南地位。
+- 发给 provider 的 citation 文本把 `证据文本（claim 只能基于此字段）` 与标题、来源、匹配依据、
+  置信度等元数据分离，减少模型把元数据扩写成事实 claim 的机会。
+- OpenCode Go function schema 从最多 4 条 claim 收紧为最多 3 条 claim，并要求每条 claim 最多
+  1 个 `evidence_ref`。兼容 structured-claims v3 的后端解析与 grounding 校验保持不变。
+- `/rag` 前端类型、元数据区与 Markdown 导出补齐 NLI 字段：
+  `nli_threshold`、`min_entailment_score`、`structured_claims[].entailment_score`。
+
+**决策不变**：这不是 L2 默认翻转。默认 RAG 路径仍为离线 `deterministic`；真实 provider 仍只在
+L1 受控 smoke/演示中通过 env 显式启用。该收紧降低了 provider 生成越界 claim 的概率，但真实效果
+必须通过有 key 的 live 采样重新验证，不能由离线单测替代。
+
+**下一次重新评估 L2 时的额外验收**：
+
+1. 用 `backend/scripts/capture_real_answer_claims.py` 对 prompt/schema v2 重新采集 5-10 个真实问题。
+2. 记录每条回答的 `claim_count`、每条 claim 的 `evidence_refs` 数量、`blocked_reason`、
+   `semantic_score` 与 `entailment_score`。
+3. 确认没有 raw provider draft 泄漏；blocked 时仍只展示 hard-block 文案与 citation cards。
+4. 若仍全部 blocked，保持 L1；若出现 passed 回答，再做 reviewer 逐条核对后单独记录启用判断。
+
+## 2026-06-02 更新（六）：Claim 质控 v2 live validation 完成，L2 仍不翻转
+
+按更新（五）的额外验收，已用真实 `opencode_go` key 对 prompt/schema v2 重新采样 10 个问题。
+记录见 `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`，runtime 原始采样为
+`backend/data/runtime/captured_real_claims_live_20260602_0846.json`（gitignored，不提交）。
+
+### 配置
+
+- `QIYAN_LLM_PROVIDER=opencode_go`
+- `QIYAN_OPENCODE_GO_MAX_TOKENS=4000`
+- `QIYAN_EMBEDDING_BACKEND=bge`
+- `QIYAN_GROUNDING_SEMANTIC_THRESHOLD=0.3`
+- `QIYAN_NLI_BACKEND=transformers`
+- `QIYAN_NLI_THRESHOLD=0.5`
+
+`BGE=0.3` 是本次技术验证 profile：上一轮 §4c 已证明 `BGE=0.78` 会在真实跨语/改写 claim 上先于
+NLI 过度拦截。本次降低 cosine 预筛是为了让 NLI gate 评估事实蕴含，不代表默认预览配置。
+
+### 结果
+
+| 指标 | 结果 |
+|---|---:|
+| 问题数 | 10 |
+| claim 总数 | 14 |
+| provider fallback | 0 |
+| grounding passed | 4 个回答 |
+| grounding blocked | 6 个回答 |
+| blocked reason | 6 个 `nli_low_entailment` |
+| 0 evidence ref claims | 0 |
+| 1 evidence ref claims | 14 |
+| multi evidence refs claims | 0 |
+| unsupported ref / schema parse failure | 0 |
+| semantic score range | 0.3394-0.9553 |
+| entailment score range | 0.0004-0.9990 |
+
+快速 claim-level review 显示 4 个 passed 回答均可从其 cited chunk 直接核对：英文 PubMed chunk 支撑
+filaggrin/barrier/JAK-STAT/network-pharmacology claims，中文 consensus chunk 支撑长期管理 claim。
+但这只是技术走查，不是正式医生/科研 reviewer sign-off。
+
+### 决策
+
+**L2 仍不翻转，保持 L1。**
+
+本次 live validation 的正面结论是：claim-quality v2 已明显改善结构化输出质量（14/14 单证据引用，
+无 unsupported refs，无 parse failure），并且在 `BGE=0.3 + NLI=0.5` profile 下首次出现 4 个
+真实 provider passed 回答。负面/未闭合点是：该 profile 需要显式降低 BGE 预筛；NLI 仍拦截 6/10
+回答；成本 SLI 仍未配置真实合同价格；正式 reviewer sign-off 尚未完成。
+
+后续若继续推进 L2，不应再做“是否能调用真实模型”的工程验证，而应聚焦三件事：
+
+1. 正式 reviewer 逐条核验 4 个 passed 回答的 claim 与 cited chunk。
+2. 单独决策是否接受 lower-BGE-prefilter + NLI gate 作为 L1/L2 profile。
+3. 配置真实 `QIYAN_OPENCODE_GO_PRICE_*` 并记录成本/延迟 SLI 基线。
+
+## 2026-06-02 更新（七）：Passed-claim reviewer packet 已生成，避免重复 §4c 走查
+
+针对更新（六）的第 1 项，已新增 `backend/scripts/build_reviewer_packet.py`，从 gitignored
+runtime capture `backend/data/runtime/captured_real_claims_live_20260602_0846.json` 抽取 4 个
+`grounding.status="passed"` 的回答，生成正式 reviewer 可填写的 delta-only packet：
+`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`。
+
+该 packet 覆盖 `rag-eval-005`、`rag-eval-007`、`rag-eval-008`、`rag-eval-010`，逐条列出
+claim、唯一 evidence ref、cited chunk text、semantic score、entailment score、latency/token/cost
+字段，以及 `supported` / `unsupported` / `unclear` verdict 空位。脚本会拒绝缺失 question id
+或非 passed question，并对非单 evidence-ref claim 给出 warning；输出会脱敏 key-like 字符串。
+
+**边界**：这不是新的 §4c reviewer walkthrough。2026-06-01 的 §4c 已验证 gate、fallback、
+rollback 和 UI metadata 行为；本 packet 只处理 2026-06-02 新出现的 passed claims 的
+claim-vs-chunk verdict。verdict 尚未填写，因此正式 reviewer sign-off 仍未完成。
+
+**决策不变**：L2/default preview 仍不翻转；默认路径保持离线 `deterministic`。后续治理只应基于
+packet verdict、真实价格 SLI 和单独 ADR 决策推进，不应重复“真实 provider 能否调用”或完整 §4c。
+
+## 2026-06-02 更新（八）：Codex technical verdict 已填
+
+`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md` 已由 Codex 完成技术性
+claim-vs-chunk 支撑核对。范围仅限 2026-06-02 live capture 中 4 个 passed answers 的 6 条
+claims：
+
+| Verdict | Count |
+|---|---:|
+| supported | 6 |
+| unsupported | 0 |
+| unclear | 0 |
+
+技术判断：6 条 claim 均可由各自 cited chunk 直接支持，没有发现 evidence-ref 越界、跨 chunk
+综合或证据外疗效/指南地位扩写。该结果支持 `BGE=0.3 + NLI=0.5` profile 继续作为 L1 受控
+demo/evaluation profile 使用。
+
+**边界**：这不是正式 clinician/research reviewer sign-off。正式 reviewer 仍需确认或修订 packet
+中的 6 条 verdict；真实价格 SLI 也仍未闭合。
+
+**决策不变**：L2/default preview 仍不翻转；默认 provider 仍为离线 `deterministic`。后续如要
+考虑默认预览启用，必须先完成正式 reviewer 确认、真实价格 SLI，并另行做 ADR-quality profile
+决策。
+
+## 2026-06-02 更新（九）：Price SLI baseline 已记录，L2 仍不翻转
+
+已补齐 2026-06-02 live capture 的成本/延迟 SLI 基线：
+`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`。
+
+配置价格：
+
+| Env | Value |
+|---|---:|
+| `QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK` | `0.14` |
+| `QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK` | `0.28` |
+
+该价格对应当前 `deepseek-v4-flash` 公开 token 价格基线（input `$0.14` / 1M，output `$0.28` / 1M）。
+因 capture artifact 只记录 `prompt_tokens` / `completion_tokens`，未区分 cache hit / cache miss，基线按
+cache-miss input 计算，偏保守。
+
+2026-06-02 10 题 capture 成本/延迟：
+
+| Metric | Value |
+|---|---:|
+| Input tokens | 6,040 |
+| Output tokens | 14,984 |
+| Estimated total cost | `$0.005042` |
+| Passed-answer cost | `$0.002301` |
+| Blocked-answer cost | `$0.002741` |
+| Provider latency | min 5.252s / avg 13.148s / max 28.540s |
+
+**解释**：成本基线已闭合到 captured profile 级别；原始 capture 中 `estimated_cost_usd=null` 仍正确，
+因为当时未配置 `QIYAN_OPENCODE_GO_PRICE_*`。生产预算前仍需复核 OpenCode Go / DeepSeek 实际合同
+价格与 billing 口径。
+
+**决策不变**：L2/default preview 仍不翻转；默认 provider 仍为离线 `deterministic`。当前剩余前置
+主要是正式 reviewer 确认 Codex technical verdict，以及是否接受 `BGE=0.3 + NLI=0.5` profile 的
+单独治理决策。
+
+## 2026-06-02 更新（十）：Passed-claim verdict 已由用户确认，L2 仍不翻转
+
+用户已确认 `docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md` 中 6 条
+Codex technical evidence-support verdict，无需修订：
+
+| Verdict | Count |
+|---|---:|
+| supported | 6 |
+| unsupported | 0 |
+| unclear | 0 |
+
+该确认闭合了 2026-06-02 passed-claim verdict delta。结合更新（九），当前 L2 线的已完成项包括：
+
+- §4c gate/fallback/rollback/UI metadata 真人走查已完成（2026-06-01）。
+- claim-quality v2 live validation 已完成（10 题，4 passed / 6 blocked）。
+- passed-claim evidence-support verdict 已确认（6 supported / 0 unsupported / 0 unclear）。
+- price SLI baseline 已记录（10 题估算 `$0.005042`，provider latency avg 13.148s）。
+
+**决策不变**：L2/default preview 仍不翻转；默认 provider 仍为离线 `deterministic`。剩余问题不再是
+“是否能调用真实 provider”或“passed claims 是否有证据支持”，而是治理选择：是否接受
+`BGE=0.3 + NLI=0.5` 这个 lower-BGE-prefilter profile 进入 L2/default-preview 讨论。任何默认切换
+仍必须另起 ADR-quality profile decision，并在生产预算前复核实际合同价格。
+
+## 2026-06-02 更新（十一）：跨语言术语桥扩展 — 条件① 纯术语桥到顶，L2 仍不翻转
+
+按更新（四）条件①「可继续扩展术语映射覆盖剩余 4/17 弱召回题」，做了一轮**纯数据**术语桥扩展
+（记录见 `docs/evaluations/2026-06-02-cross-lingual-term-bridge-extension.md`）。
+
+**诊断先行**发现 4 个弱召回题根因各异：只有 **rag-eval-011** 是真正缺桥（查询词「微生态」触发不了
+任何 microbiome/gut 桥），其余 3 题受 raw-rank 评分结构所限：**035/047** 是中文单字 token 淹没英文
+文献（40100002 仅差 1 名落在 rank 11），**020** 是合规题、期望「草药系统综述」与问题无主题重叠（弱标注）。
+
+**改动**：`backend/data/retrieval/cross_lingual_terms.json` 的 `gut` 条目 zh 加「微生态」一词。`gut`
+canonical 同时是 `_KEYWORD_ALIASES` 键，注入后让带 `gut_skin_axis` 标签的 40100002 吃到 `+7` chunk
+tag-bonus，从 score 2 升到 13 进入 top-10。全 50 题仅 rag-eval-011 含「微生态」，零副作用。未改
+`provider.py` / 排序键，默认检索路径不变。
+
+**结果**：
+
+| 指标 | 前 | 后 |
+|---|---:|---:|
+| avg_cross_lingual_recall | 0.7647 | **0.7941** |
+| avg_monolingual_recall | 1.0 | 1.0（未退化） |
+| rag-eval-011 cross_recall | 0.0 | **0.5**（40100002 进；40100009 缺 gut_skin_axis 标签，纯数据无法拉进，属已知上限） |
+
+新增回归锁 `test_rag_eval_011_cross_lingual_recall_above_zero` 与
+`test_cross_lingual_term_bridge_no_aggregate_regression`；全量 361 测试 + ruff/mypy 全绿。
+
+**条件① 状态更新**：
+
+| 条件 | 当前状态 | 难度 |
+|------|---------|------|
+| ① retrieval 中英跨语匹配 | ✅ **纯术语桥已到顶**（0.7941 cross recall，011 闭合）。剩余 035/047/020 不是缺词，而是 raw-rank 评分结构（中文单字淹没 + `+7` tag-bonus 仅限 8 个 `_KEYWORD_ALIASES` 键）与弱标注 | 余量需**受控打分修复**（改默认排序，中风险）或多语 embedding，属独立决策 |
+| ② BGE 阈值重新校准 | ❌ 未解决（NLI gate 作为替代存在但需 BGE 先放行） | 中 |
+| ③ LLM claim 质量控制 | 🟡 prompt/schema v2 已落地并 live 验证结构改善（更新五/六），但默认风格未根治 | 高 |
+
+**决策不变**：L2/default preview 仍不翻转，默认 provider 仍为离线 `deterministic`。本轮只把条件① 的
+纯数据余量收口，并明确「纯术语桥天花板」；任何进一步跨语提升（受控打分 / 多语 embedding）需独立决策。
+**回滚不变**：`QIYAN_LLM_PROVIDER=deterministic` 或清空即时关闭。

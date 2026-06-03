@@ -1,9 +1,8 @@
-from app.repositories.chunk import InMemoryChunkRepository
-from app.repositories.runtime_storage import resolve_chunk_storage_path
+from app.repositories.runtime_storage import get_chunk_repository
 from app.schemas.literature import LiteratureItem
 from app.services.literature import update_pdf_parse_status
 
-_CHUNK_REPOSITORY = InMemoryChunkRepository(resolve_chunk_storage_path())
+_CHUNK_REPOSITORY = get_chunk_repository()
 
 
 def resolve_fake_parse_status(file_name: str) -> str:

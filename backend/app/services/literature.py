@@ -5,8 +5,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from app.repositories.literature import InMemoryLiteratureRepository
-from app.repositories.runtime_storage import resolve_literature_storage_path
+from app.repositories.runtime_storage import get_literature_repository
 from app.schemas.literature import (
     LiteratureItem,
     LiteratureSearchResponse,
@@ -23,7 +22,7 @@ _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
 )
 _PDF_TEXT_QUALITY_WARNING = "检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。"
 
-_REPOSITORY = InMemoryLiteratureRepository(resolve_literature_storage_path())
+_REPOSITORY = get_literature_repository()
 DEFAULT_SEARCH_PAGE_SIZE = 10
 MAX_SEARCH_PAGE_SIZE = 50
 

@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
 from app.main import app
+from app.repositories.chunk import InMemoryChunkRepository
+from app.repositories.literature import InMemoryLiteratureRepository
 
 
 def reset_sample_data(original_path: Path, temp_path: Path) -> None:
@@ -49,7 +51,7 @@ def test_pdf_upload_endpoint_persists_file_and_attaches_metadata(monkeypatch, tm
 
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
     get_settings.cache_clear()
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -97,7 +99,7 @@ def test_pdf_upload_endpoint_normalizes_storage_suffix_to_pdf_for_uppercase_file
     reset_sample_data(original_path, temp_data_path)
 
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -131,7 +133,7 @@ def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_and_keeps_pending(
     reset_sample_data(original_path, temp_data_path)
 
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -166,7 +168,7 @@ def test_pdf_upload_endpoint_ignores_legacy_auto_parse_field_for_fail_file_and_k
     reset_sample_data(original_path, temp_data_path)
 
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(tmp_path / "uploads"))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -206,7 +208,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     reset_sample_data(original_path, temp_data_path)
     reset_sample_data(original_chunk_path, temp_chunk_path)
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
@@ -218,7 +220,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_parsed_with_message_timest
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -272,7 +274,7 @@ def test_fake_parser_endpoint_uses_extracted_pdf_text_for_parse_result_preview(
     upload_dir.mkdir()
     write_extractable_pdf(stored_pdf_path, "Atopic dermatitis PDF preview evidence text")
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id=pdf_upload_id,
@@ -286,7 +288,7 @@ def test_fake_parser_endpoint_uses_extracted_pdf_text_for_parse_result_preview(
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -326,7 +328,7 @@ def test_fake_parser_endpoint_warns_when_extracted_pdf_text_has_numeric_garbling
     upload_dir.mkdir()
     stored_pdf_path.write_bytes(b"%PDF-1.4\nplaceholder bytes; extractor is monkeypatched\n")
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id=pdf_upload_id,
@@ -345,7 +347,7 @@ def test_fake_parser_endpoint_warns_when_extracted_pdf_text_has_numeric_garbling
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -386,7 +388,7 @@ def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction
     upload_dir.mkdir()
     stored_pdf_path.write_bytes(b"%PDF-1.4\nnot enough structure for pypdf text extraction\n")
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id=pdf_upload_id,
@@ -400,7 +402,7 @@ def test_fake_parser_endpoint_keeps_placeholder_preview_when_pdf_text_extraction
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -437,7 +439,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     reset_sample_data(original_path, temp_data_path)
     reset_sample_data(original_chunk_path, temp_chunk_path)
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-fail-evidence-pdf",
@@ -449,7 +451,7 @@ def test_fake_parser_endpoint_marks_pending_upload_as_failed_with_message_timest
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -484,7 +486,7 @@ def test_manual_parse_status_endpoint_marks_manual_trigger(monkeypatch, tmp_path
     temp_data_path = tmp_path / "sample_ad_literature.json"
     reset_sample_data(original_path, temp_data_path)
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
@@ -525,7 +527,7 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
     reset_sample_data(original_path, temp_data_path)
     reset_sample_data(original_chunk_path, temp_chunk_path)
 
-    repository = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    repository = InMemoryLiteratureRepository(temp_data_path)
     repository.update_pdf_metadata(
         literature_id="cn-ad-gbs-001",
         pdf_upload_id="pdf-cn-ad-gbs-001-ad-evidence-pdf",
@@ -537,7 +539,7 @@ def test_manual_parse_status_endpoint_increments_attempt_count_after_auto_parse(
     monkeypatch.setattr(
         fake_parser_service,
         "_CHUNK_REPOSITORY",
-        fake_parser_service.InMemoryChunkRepository(temp_chunk_path),
+        InMemoryChunkRepository(temp_chunk_path),
     )
 
     client = TestClient(app)
@@ -572,7 +574,7 @@ def test_pdf_upload_endpoint_returns_404_for_unknown_literature_id_and_does_not_
 
     upload_dir = tmp_path / "uploads"
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -602,7 +604,7 @@ def test_pdf_upload_endpoint_stores_with_upload_id_based_name_to_avoid_filename_
 
     upload_dir = tmp_path / "uploads"
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 
@@ -635,7 +637,7 @@ def test_pdf_download_endpoint_returns_uploaded_file_by_upload_id(monkeypatch, t
 
     upload_dir = tmp_path / "uploads"
     monkeypatch.setenv("UPLOAD_STORAGE_DIR", str(upload_dir))
-    literature_service._REPOSITORY = literature_service.InMemoryLiteratureRepository(temp_data_path)
+    literature_service._REPOSITORY = InMemoryLiteratureRepository(temp_data_path)
 
     client = TestClient(app)
 

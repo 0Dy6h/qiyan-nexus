@@ -49,11 +49,17 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
         {
           text: "证据提示肠道菌群与皮肤屏障异常之间存在关联",
           evidence_refs: ["chunk-cn-ad-gbs-001-abstract"],
+          semantic_score: 0.76,
+          entailment_score: 0.99,
         },
       ],
       provider_native_grounding: true,
       tool_name: "record_grounded_claims",
       tool_call_count: 1,
+      semantic_threshold: 0.3,
+      min_semantic_score: 0.76,
+      nli_threshold: 0.5,
+      min_entailment_score: 0.99,
     },
     retrieval: {
       applied_source: "all",
@@ -71,9 +77,14 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
   assert.equal(payload.grounding.provider_native_grounding, true);
   assert.equal(payload.grounding.tool_name, "record_grounded_claims");
   assert.equal(payload.grounding.tool_call_count, 1);
+  assert.equal(payload.grounding.semantic_threshold, 0.3);
+  assert.equal(payload.grounding.min_semantic_score, 0.76);
+  assert.equal(payload.grounding.nli_threshold, 0.5);
+  assert.equal(payload.grounding.min_entailment_score, 0.99);
   assert.equal(payload.grounding.claim_count, 2);
   assert.equal(payload.grounding.cited_claim_count, 2);
   assert.equal(payload.grounding.structured_claims[0].text, "证据提示肠道菌群与皮肤屏障异常之间存在关联");
+  assert.equal(payload.grounding.structured_claims[0].entailment_score, 0.99);
   assert.equal(payload.input_tokens, 128);
   assert.equal(payload.output_tokens, 64);
 });

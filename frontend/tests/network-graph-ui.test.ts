@@ -58,3 +58,47 @@ test("NetworkGraph imports buildNetworkGraphModel", () => {
 
   assert(source.includes('from "../lib/network-graph"'));
 });
+
+test("NetworkGraph node groups expose keyboard a11y affordances", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  // Tab-focusable + announced as button with toggle state
+  assert(source.includes("tabIndex={0}"));
+  assert(source.includes('role="button"'));
+  assert(source.includes("aria-pressed={isFocused}"));
+  // Per-node accessible name
+  assert.match(source, /aria-label=\{`\$\{LAYER_LABEL_MAP\[node\.layer\][^`]*\}: \$\{node\.label\}`\}/);
+  // Keyboard focus mirrors hover so highlight state is visible to keyboard users
+  assert(source.includes("onFocus={() => setHoveredNodeId(node.id)}"));
+  assert(source.includes("onBlur={() => setHoveredNodeId(null)}"));
+});
+
+test("NetworkGraph onKeyDown handles Enter/Space toggle and Escape clear", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  assert(source.includes("onKeyDown="));
+  // Enter/Space toggle behaviour
+  assert.match(source, /event\.key === "Enter" \|\| event\.key === " "/);
+  // Escape clears focus
+  assert(source.includes('event.key === "Escape"'));
+  assert(source.includes("setFocusedNodeId(null)"));
+});
+
+test("NetworkGraph onKeyDown handles ArrowUp/Down within layer and ArrowLeft/Right across layers", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  // Ref map to programmatically move browser focus between nodes
+  assert(source.includes("useRef"));
+  assert.match(source, /Map<string, SVGGElement>/);
+  // Ref callback on the node group attaches/detaches via the map
+  assert.match(source, /ref=\{\(el\) =>/);
+
+  // Arrow key branches present
+  assert(source.includes('event.key === "ArrowUp"'));
+  assert(source.includes('event.key === "ArrowDown"'));
+  assert(source.includes('event.key === "ArrowLeft"'));
+  assert(source.includes('event.key === "ArrowRight"'));
+
+  // Programmatic focus call after navigation
+  assert.match(source, /\.focus\(\)/);
+});

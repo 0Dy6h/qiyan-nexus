@@ -2,7 +2,7 @@
   "alias_map": [
     {
       "canonical": "gut",
-      "zh": ["肠", "肠道", "肠-脑"],
+      "zh": ["肠", "肠道", "肠-脑", "微生态"],
       "en": ["gut", "microbiome", "intestinal", "microbiota"]
     },
     {

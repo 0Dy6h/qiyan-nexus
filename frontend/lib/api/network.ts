@@ -65,6 +65,13 @@ export function buildNetworkResultUrl(taskId: string) {
   return new URL(`/api/network/result/${encodeURIComponent(taskId)}`, getBackendBaseUrl()).toString();
 }
 
+export function buildNetworkReportUrl(taskId: string) {
+  return new URL(
+    `/api/network/result/${encodeURIComponent(taskId)}/report`,
+    getBackendBaseUrl(),
+  ).toString();
+}
+
 export function getNetworkAnalysisTypeLabel(type: NetworkAnalysisType) {
   return type === "herb" ? "单味中药" : "复方";
 }
@@ -94,4 +101,14 @@ export async function fetchNetworkResult(taskId: string): Promise<NetworkResultR
   }
 
   return response.json();
+}
+
+export async function fetchNetworkReportMarkdown(taskId: string): Promise<string> {
+  const response = await fetch(buildNetworkReportUrl(taskId));
+
+  if (!response.ok) {
+    throw new Error("Network report request failed");
+  }
+
+  return response.text();
 }

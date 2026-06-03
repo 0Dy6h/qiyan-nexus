@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.repositories.literature import InMemoryLiteratureRepository
 
 
 def _seed_one_pdf_upload(monkeypatch, tmp_path: Path) -> None:
@@ -18,7 +19,7 @@ def _seed_one_pdf_upload(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         literature_service,
         "_REPOSITORY",
-        literature_service.InMemoryLiteratureRepository(temp_path),
+        InMemoryLiteratureRepository(temp_path),
     )
     client = TestClient(app)
     response = client.post(

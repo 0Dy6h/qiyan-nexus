@@ -26,6 +26,8 @@ const SAMPLE_RESULT: RagAnswerResponse = {
       {
         text: "证据提示肠道菌群与皮肤屏障异常之间存在关联",
         evidence_refs: ["chunk-cn-ad-gbs-001-abstract"],
+        semantic_score: 0.76,
+        entailment_score: 0.99,
       },
     ],
     provider_native_grounding: false,
@@ -83,11 +85,15 @@ test("buildAnswerMarkdown includes question, answer, citations, retrieval, discl
   assert.ok(md.includes("Provider-native grounding：false"));
   assert.ok(md.includes("Grounding Tool：无"));
   assert.ok(md.includes("Tool 调用数：0"));
+  assert.ok(md.includes("NLI 阈值：未启用"));
+  assert.ok(md.includes("最小蕴含支持度：未计算"));
   assert.ok(md.includes("句级引用覆盖：0/0"));
   assert.ok(md.includes("## 结构化声明"));
   assert.ok(md.includes("### Claim 1"));
   assert.ok(md.includes("证据提示肠道菌群与皮肤屏障异常之间存在关联"));
   assert.ok(md.includes("evidence_refs：chunk-cn-ad-gbs-001-abstract"));
+  assert.ok(md.includes("semantic_score：76%"));
+  assert.ok(md.includes("entailment_score：99%"));
   assert.ok(md.includes("Token 输入：未返回"));
   assert.ok(md.includes("Token 输出：未返回"));
   assert.ok(md.includes("## 引用证据"));
@@ -208,6 +214,33 @@ test("buildAnswerMarkdown shows semantic gate as disabled when threshold is null
 
   assert.ok(md.includes("语义阈值：未启用"));
   assert.ok(md.includes("最小语义支持度：未计算"));
+});
+
+test("buildAnswerMarkdown includes NLI grounding gate details", () => {
+  const md = buildAnswerMarkdown({
+    ...SAMPLE_RESULT,
+    provider_name: "opencode_go",
+    answer: "当前模型草稿未通过引用证据校验，系统已拦截展示。",
+    grounding: {
+      ...SAMPLE_RESULT.grounding,
+      status: "blocked",
+      checked: true,
+      blocked_reason: "nli_low_entailment",
+      nli_threshold: 0.5,
+      min_entailment_score: 0.004,
+    },
+  });
+
+  assert.ok(md.includes("Grounding 拦截原因：nli_low_entailment"));
+  assert.ok(md.includes("NLI 阈值：0.50"));
+  assert.ok(md.includes("最小蕴含支持度：0%"));
+});
+
+test("buildAnswerMarkdown shows NLI gate as disabled when threshold is null", () => {
+  const md = buildAnswerMarkdown(SAMPLE_RESULT);
+
+  assert.ok(md.includes("NLI 阈值：未启用"));
+  assert.ok(md.includes("最小蕴含支持度：未计算"));
 });
 
 test("buildAnswerMarkdown emits empty-citation placeholder when citations are empty", () => {
