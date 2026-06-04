@@ -72,5 +72,5 @@ test("entity chip styles avoid mixing border shorthand with border overrides", (
   assert.doesNotMatch(chipSource, /border: "1px solid/);
   assert.match(chipSource, /borderWidth: 1/);
   assert.match(chipSource, /borderStyle: "solid"/);
-  assert.match(chipSource, /borderColor: "#14b8a6"/);
+  assert.match(chipSource, /borderColor: "#84c9bf"/);
 });

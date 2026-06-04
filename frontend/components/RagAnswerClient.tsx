@@ -131,7 +131,7 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
           isUploadedPdf ? "证据片段 来自上传 PDF" : null,
         ]}
       />
-      <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
+      <h3 style={{ color: "var(--qiyan-ink)", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
       <CardBodyText>{citation.snippet}</CardBodyText>
       <EntityChips ids={citation.related_entity_ids ?? []} />
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -221,14 +221,14 @@ export default function RagAnswerClient() {
     <div style={{ display: "grid", gap: 20 }}>
       <section style={getSurfaceSectionStyle()}>
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-          <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>问答条件</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+          <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>问答条件</h2>
+          <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
             先明确问题，再限定来源与引用数量，随后核对回答、检索元数据与引用证据。
           </p>
         </div>
 
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 16 }}>
-          <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
+          <label style={{ display: "grid", gap: 8, color: "var(--qiyan-ink)", fontWeight: 700 }}>
             问题
             <textarea
               name="question"
@@ -238,7 +238,7 @@ export default function RagAnswerClient() {
               rows={4}
               style={{
                 width: "100%",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--qiyan-line)",
                 borderRadius: 8,
                 fontSize: 16,
                 padding: "12px 14px",
@@ -248,7 +248,7 @@ export default function RagAnswerClient() {
           </label>
 
           <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
-            <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
+            <label style={{ display: "grid", gap: 8, color: "var(--qiyan-ink)", fontWeight: 700 }}>
               文献来源
               <select
                 name="source"
@@ -257,7 +257,7 @@ export default function RagAnswerClient() {
                 aria-label="RAG 文献来源"
                 style={{
                   minWidth: 180,
-                  border: "1px solid #cbd5e1",
+                  border: "1px solid var(--qiyan-line)",
                   borderRadius: 8,
                   fontSize: 16,
                   padding: "12px 14px",
@@ -269,7 +269,7 @@ export default function RagAnswerClient() {
               </select>
             </label>
 
-            <label style={{ display: "grid", gap: 8, color: "#1e293b", fontWeight: 700 }}>
+            <label style={{ display: "grid", gap: 8, color: "var(--qiyan-ink)", fontWeight: 700 }}>
               引用数量 top_k
               <input
                 name="top_k"
@@ -286,7 +286,7 @@ export default function RagAnswerClient() {
                 aria-label="引用数量"
                 style={{
                   width: 140,
-                  border: "1px solid #cbd5e1",
+                  border: "1px solid var(--qiyan-line)",
                   borderRadius: 8,
                   fontSize: 16,
                   padding: "12px 14px",
@@ -320,8 +320,8 @@ export default function RagAnswerClient() {
         <div style={{ display: "grid", gap: 20 }}>
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
-              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>回答结果</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>回答结果</h2>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
                 先阅读结论，再回到下方引用卡片核对证据来源与检索边界。
               </p>
             </div>
@@ -337,7 +337,7 @@ export default function RagAnswerClient() {
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
               ]}
             />
-            <h3 style={{ color: "#1e293b", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
+            <h3 style={{ color: "var(--qiyan-ink)", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
             {state.result.grounding.status === "blocked" ? (
               <div style={{ marginBottom: 12 }}>
                 <StatusPanel
@@ -347,7 +347,7 @@ export default function RagAnswerClient() {
               </div>
             ) : null}
             <CardBodyText>{state.result.answer}</CardBodyText>
-            <p style={{ color: "#64748b", marginBottom: 12, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
+            <p style={{ color: "var(--qiyan-muted-2)", marginBottom: 12, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
             <button
               type="button"
               onClick={onExportAnswer}
@@ -355,7 +355,7 @@ export default function RagAnswerClient() {
               style={{
                 border: "1px solid #0d9488",
                 borderRadius: 8,
-                background: "white",
+                background: "var(--qiyan-surface)",
                 color: "#0d9488",
                 fontSize: 15,
                 fontWeight: 700,
@@ -370,8 +370,8 @@ export default function RagAnswerClient() {
 
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 12 }}>
-              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索元数据</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围、引用上限与可核对证据数量。</p>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>检索元数据</h2>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围、引用上限与可核对证据数量。</p>
             </div>
             <CardMetaRow
               items={[
@@ -401,8 +401,8 @@ export default function RagAnswerClient() {
 
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
-              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>引用卡片</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>引用卡片</h2>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
                 应用来源：{getRagSourceLabel(state.result.retrieval.applied_source)}；应用 top_k：
                 {state.result.retrieval.applied_top_k}
               </p>

@@ -50,39 +50,39 @@ export function getPdfStatusCopy(
 export function getStatusCardStyle(tone: StatusTone): Record<string, string | number> {
   if (tone === "error") {
     return {
-      background: "#fff7ed",
-      border: "1px solid #fdba74",
+      background: "var(--qiyan-status-error-bg)",
+      border: "1px solid var(--qiyan-status-error-line)",
       borderRadius: 8,
       padding: "16px 18px",
     };
   }
   if (tone === "warning") {
     return {
-      background: "#fffbeb",
-      border: "1px solid #facc15",
+      background: "var(--qiyan-status-warning-bg)",
+      border: "1px solid var(--qiyan-status-warning-line)",
       borderRadius: 8,
       padding: "16px 18px",
     };
   }
   if (tone === "success") {
     return {
-      background: "#f0fdfa",
-      border: "1px solid #99f6e4",
+      background: "var(--qiyan-status-success-bg)",
+      border: "1px solid var(--qiyan-status-success-line)",
       borderRadius: 8,
       padding: "16px 18px",
     };
   }
   if (tone === "danger") {
     return {
-      background: "#fef2f2",
-      border: "1px solid #fecaca",
+      background: "var(--qiyan-status-danger-bg)",
+      border: "1px solid var(--qiyan-status-danger-line)",
       borderRadius: 8,
       padding: "16px 18px",
     };
   }
   return {
-    background: "#f8fafc",
-    border: "1px solid #dbe7e3",
+    background: "var(--qiyan-status-idle-bg)",
+    border: "1px solid var(--qiyan-status-idle-line)",
     borderRadius: 8,
     padding: "16px 18px",
   };
@@ -118,7 +118,7 @@ export function getStatusMessageStyle(tone: StatusTone): Record<string, string |
     };
   }
   return {
-    color: "#5f6e68",
+    color: "var(--qiyan-muted)",
     margin: 0,
     lineHeight: 1.6,
   };

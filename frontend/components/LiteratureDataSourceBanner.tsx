@@ -16,11 +16,11 @@ type ToneStyle = {
 
 const TONE_STYLES: Record<ReturnType<typeof getLiteratureDataSourceBanner>["tone"], ToneStyle> = {
   info: {
-    background: "#f0fdfa",
-    border: "1px solid #99f6e4",
-    badgeBackground: "#ccfbf1",
-    badgeColor: "#115e59",
-    titleColor: "#115e59",
+    background: "var(--qiyan-surface-2)",
+    border: "1px solid var(--qiyan-line-strong)",
+    badgeBackground: "#d8efea",
+    badgeColor: "#0f766e",
+    titleColor: "#0f766e",
     bodyColor: "#0f766e",
   },
   live: {

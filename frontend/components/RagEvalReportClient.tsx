@@ -24,17 +24,17 @@ function SummaryMetric({ label, value }: { label: string; value: string | number
   return (
     <div
       style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
+        background: "var(--qiyan-surface)",
+        border: "1px solid var(--qiyan-line)",
         borderRadius: 8,
         padding: 16,
         minHeight: 92,
       }}
     >
-      <p style={{ color: "#64748b", margin: 0 }}>{label}</p>
+      <p style={{ color: "var(--qiyan-muted-2)", margin: 0 }}>{label}</p>
       <strong
         style={{
-          color: "#1e293b",
+          color: "var(--qiyan-ink)",
           display: "block",
           fontSize: displayValue.length > 8 ? 20 : 28,
           lineHeight: 1.2,
@@ -125,8 +125,8 @@ export default function RagEvalReportClient() {
               <article
                 key={item.id}
                 style={{
-                  background: "white",
-                  border: `1px solid ${item.passed ? "#ccfbf1" : "#fecdd3"}`,
+                  background: "var(--qiyan-surface)",
+                  border: `1px solid ${item.passed ? "var(--qiyan-status-success-line)" : "var(--qiyan-status-danger-line)"}`,
                   borderRadius: 8,
                   padding: 20,
                 }}
@@ -141,8 +141,8 @@ export default function RagEvalReportClient() {
                     `Grounding ${item.grounding_status}`,
                   ]}
                 />
-                <h2 style={{ color: "#1e293b", fontSize: 20, lineHeight: 1.4 }}>{item.question}</h2>
-                <div style={{ color: "#475569", display: "grid", gap: 6, lineHeight: 1.7 }}>
+                <h2 style={{ color: "var(--qiyan-ink)", fontSize: 20, lineHeight: 1.4 }}>{item.question}</h2>
+                <div style={{ color: "var(--qiyan-muted)", display: "grid", gap: 6, lineHeight: 1.7 }}>
                   <p style={{ margin: 0 }}>
                     命中文献：{joinOrFallback(item.expected_literature_hits, "无")}
                   </p>

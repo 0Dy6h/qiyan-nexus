@@ -9,11 +9,11 @@ interface NetworkGraphProps {
 }
 
 const LAYER_FILL: Record<string, string> = {
-  herb: "#ccfbf1",
-  compound: "#e0e7ff",
-  target: "#fef3c7",
-  pathway: "#dcfce7",
-  disease: "#fce7f3",
+  herb: "#d8efea",
+  compound: "#e4e8f3",
+  target: "#f7e9bf",
+  pathway: "#dfeedd",
+  disease: "#f3dfeb",
 };
 
 const LAYER_LABEL_MAP: Record<string, string> = {
@@ -39,7 +39,7 @@ function getEdgeStyle(score: number): {
   if (score >= 0.7) {
     return { stroke: "#14b8a6", strokeWidth: 1.8, opacity: 0.65 };
   }
-  return { stroke: "#99f6e4", strokeWidth: 1.5, opacity: 0.45 };
+  return { stroke: "#84c9bf", strokeWidth: 1.5, opacity: 0.45 };
 }
 
 export default function NetworkGraph({ chains }: NetworkGraphProps) {
@@ -59,7 +59,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           aria-label="网络药理学成分-靶点-通路-疾病链图"
           style={{ width: "100%", minWidth: 600 }}
         >
-          <rect x={0} y={0} width={1000} height={200} fill="#ffffff" />
+          <rect x={0} y={0} width={1000} height={200} fill="#fbfcfb" />
           {layers.map((layer, i) => (
             <text
               key={layer.key}
@@ -68,12 +68,12 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
               textAnchor="middle"
               fontSize={14}
               fontWeight={700}
-              fill="#1e293b"
+              fill="#0f1f1d"
             >
               {layer.label}
             </text>
           ))}
-          <text x={500} y={110} textAnchor="middle" fontSize={16} fill="#64748b">
+          <text x={500} y={110} textAnchor="middle" fontSize={16} fill="#6b7d78">
             暂无网络数据
           </text>
         </svg>
@@ -148,7 +148,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           y={0}
           width={svgWidth}
           height={svgHeight}
-          fill="#ffffff"
+          fill="#fbfcfb"
           onClick={() => setFocusedNodeId(null)}
         />
 
@@ -161,7 +161,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
             textAnchor="middle"
             fontSize={14}
             fontWeight={700}
-            fill="#1e293b"
+            fill="#0f1f1d"
           >
             {layer.label}
           </text>
@@ -297,7 +297,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
                 cx={node.x}
                 cy={node.y}
                 r={20}
-                fill={LAYER_FILL[node.layer] ?? "#f1f5f9"}
+                fill={LAYER_FILL[node.layer] ?? "#edf3f1"}
                 stroke={effectiveStroke}
                 strokeWidth={1.5}
                 opacity={effectiveNodeOpacity}
@@ -308,7 +308,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize={11}
-                fill="#1e293b"
+                fill="#0f1f1d"
                 fontWeight={600}
                 opacity={effectiveNodeOpacity}
               >
@@ -320,7 +320,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
         })}
 
         {/* Legend */}
-        <text x={20} y={legendY} fontSize={12} fill="#64748b" fontWeight={600}>
+        <text x={20} y={legendY} fontSize={12} fill="#6b7d78" fontWeight={600}>
           {"图例: 连线粗细表示置信度（越粗越高）"}
         </text>
         <line
@@ -332,7 +332,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           strokeWidth={2.5}
           opacity={0.85}
         />
-        <text x={68} y={legendY + 24} fontSize={11} fill="#64748b">
+        <text x={68} y={legendY + 24} fontSize={11} fill="#6b7d78">
           {"≥0.9"}
         </text>
         <line
@@ -344,7 +344,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           strokeWidth={1.8}
           opacity={0.65}
         />
-        <text x={168} y={legendY + 24} fontSize={11} fill="#64748b">
+        <text x={168} y={legendY + 24} fontSize={11} fill="#6b7d78">
           {"≥0.7"}
         </text>
         <line
@@ -352,11 +352,11 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           y1={legendY + 20}
           x2={260}
           y2={legendY + 20}
-          stroke="#99f6e4"
+          stroke="#84c9bf"
           strokeWidth={1.5}
           opacity={0.45}
         />
-        <text x={268} y={legendY + 24} fontSize={11} fill="#64748b">
+        <text x={268} y={legendY + 24} fontSize={11} fill="#6b7d78">
           {"<0.7"}
         </text>
       </svg>

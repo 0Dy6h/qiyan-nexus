@@ -161,8 +161,8 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
       }}
     >
       <div style={{ display: "grid", gap: 8 }}>
-        <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>PDF 上传与解析状态</h2>
-        <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+        <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>PDF 上传与解析状态</h2>
+        <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
           先确认当前 PDF 与解析状态，再决定是继续自动解析、预览原文，还是进入人工校正。
         </p>
       </div>
@@ -203,14 +203,14 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             display: "grid",
             gap: 10,
             padding: 16,
-            border: "1px solid #e2e8f0",
-            borderRadius: 12,
-            background: "#f8fafc",
+            border: "1px solid var(--qiyan-line)",
+            borderRadius: 8,
+            background: "var(--qiyan-surface-3)",
           }}
         >
           <div style={{ display: "grid", gap: 4 }}>
-            <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>解析结果预览</h3>
-            <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+            <h3 style={{ color: "var(--qiyan-ink-2)", fontSize: 16, margin: 0 }}>解析结果预览</h3>
+            <p style={{ color: "var(--qiyan-muted-2)", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
               {currentParseResult.extraction_method === "pypdf-text-preview"
                 ? "已抽取文本层预览，可对照原文做证据核对；扫描件与 OCR 能力将在后续接入。"
                 : "未能抽取文本层，已回退到文件级占位说明；正文抽取与 OCR 能力将在后续接入。"}
@@ -226,8 +226,8 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             <p
               style={{
                 color: "#92400e",
-                background: "#fffbeb",
-                border: "1px solid #fcd34d",
+                background: "var(--qiyan-status-warning-bg)",
+                border: "1px solid var(--qiyan-status-warning-line)",
                 borderRadius: 8,
                 margin: 0,
                 padding: "10px 12px",
@@ -238,7 +238,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
               {`抽取质量提示 ${currentParseResult.quality_warning}`}
             </p>
           ) : null}
-          <p style={{ color: "#334155", margin: 0, fontSize: 14, lineHeight: 1.7 }}>
+          <p style={{ color: "var(--qiyan-ink-2)", margin: 0, fontSize: 14, lineHeight: 1.7 }}>
             {`预览说明 ${currentParseResult.preview_text}`}
           </p>
         </div>
@@ -246,10 +246,10 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
 
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "grid", gap: 6 }}>
-          <label htmlFor="literature-pdf-file" style={{ color: "#334155", fontSize: 15, fontWeight: 700 }}>
+          <label htmlFor="literature-pdf-file" style={{ color: "var(--qiyan-ink-2)", fontSize: 15, fontWeight: 700 }}>
             选择 PDF 文件
           </label>
-          <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+          <p style={{ color: "var(--qiyan-muted-2)", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
             建议上传当前文献对应的 PDF 原文，用于后续证据核对、解析与人工校正。
           </p>
         </div>
@@ -261,7 +261,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             type="file"
             accept="application/pdf,.pdf"
             aria-label="上传 PDF"
-            style={{ color: "#334155", maxWidth: "100%" }}
+            style={{ color: "var(--qiyan-ink-2)", maxWidth: "100%" }}
           />
           <button
             type="submit"
@@ -289,14 +289,14 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             display: "grid",
             gap: 12,
             padding: 16,
-            border: "1px solid #e2e8f0",
-            borderRadius: 12,
-            background: "#f8fafc",
+            border: "1px solid var(--qiyan-line)",
+            borderRadius: 8,
+            background: "var(--qiyan-surface-3)",
           }}
         >
           <div style={{ display: "grid", gap: 4 }}>
-            <h3 style={{ color: "#334155", fontSize: 16, margin: 0 }}>人工校正</h3>
-            <p style={{ color: "#64748b", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+            <h3 style={{ color: "var(--qiyan-ink-2)", fontSize: 16, margin: 0 }}>人工校正</h3>
+            <p style={{ color: "var(--qiyan-muted-2)", margin: 0, fontSize: 14, lineHeight: 1.6 }}>
               当自动解析结果待确认时，可回到原文预览与状态面板，再人工标记当前 PDF 是否解析完成。
             </p>
           </div>
