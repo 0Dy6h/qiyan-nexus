@@ -10,16 +10,19 @@ function getSource(relativePath: string) {
   return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
 }
 
-test("RagAnswerClient imports markdown export helpers and exposes an onExportAnswer handler", () => {
+test("RagAnswerClient imports fetchRagAnswerMarkdown and exposes an async onExportAnswer handler", () => {
   const source = getSource("components/RagAnswerClient.tsx");
 
+  assert.match(source, /fetchRagAnswerMarkdown/);
   assert.match(source, /from "\.\.\/lib\/rag-export"/);
-  assert.match(source, /buildAnswerMarkdown/);
   assert.match(source, /buildAnswerMarkdownFileName/);
-  assert.match(source, /function onExportAnswer\(\)/);
+  assert.match(source, /async function onExportAnswer\(\)/);
+  assert.match(source, /await fetchRagAnswerMarkdown\(state\.result\)/);
   assert.match(source, /URL\.createObjectURL\(/);
   assert.match(source, /URL\.revokeObjectURL\(/);
   assert.match(source, /anchor\.download = fileName/);
+  // buildAnswerMarkdown was removed; backend now owns the markdown string.
+  assert.doesNotMatch(source, /import.*buildAnswerMarkdown[^F]/);
 });
 
 test("RagAnswerClient renders an export button labeled 导出答案为 Markdown next to the answer copy", () => {

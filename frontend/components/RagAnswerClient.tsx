@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   answerRagQuestion,
   CitationCard,
+  fetchRagAnswerMarkdown,
   getRagSourceLabel,
   GroundingMetadata,
   ProviderSli,
@@ -13,7 +14,7 @@ import {
   RagSource,
 } from "../lib/api/rag";
 import { buildPdfDownloadUrl } from "../lib/api/literature";
-import { buildAnswerMarkdown, buildAnswerMarkdownFileName } from "../lib/rag-export";
+import { buildAnswerMarkdownFileName } from "../lib/rag-export";
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
@@ -193,11 +194,17 @@ export default function RagAnswerClient() {
     }
   }
 
-  function onExportAnswer() {
+  async function onExportAnswer() {
     if (!state.result) {
       return;
     }
-    const markdown = buildAnswerMarkdown(state.result);
+    let markdown: string;
+    try {
+      markdown = await fetchRagAnswerMarkdown(state.result);
+    } catch {
+      setState((current) => ({ ...current, error: "导出失败，请稍后重试。" }));
+      return;
+    }
     const fileName = buildAnswerMarkdownFileName(state.result.answered_at);
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);

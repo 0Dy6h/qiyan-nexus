@@ -10,6 +10,7 @@ from app.repositories.runtime_storage import (
 from app.schemas.literature import LiteratureSource
 from app.schemas.rag import (
     CitationCard,
+    GroundingMetadata,
     ProviderSli,
     RagAnswerResponse,
     RetrievalMetadata,
@@ -217,3 +218,156 @@ def answer_question(
         output_tokens=draft.output_tokens,
         sli=sli,
     )
+
+
+_RAG_SOURCE_LABELS: dict[str, str] = {
+    "all": "全部文献",
+    "cn_literature": "中文文献",
+    "pubmed": "PubMed",
+}
+
+
+def _rag_source_label(source: str) -> str:
+    return _RAG_SOURCE_LABELS.get(source, source)
+
+
+def _join_or_fallback(items: list[str], fallback: str) -> str:
+    return "、".join(items) if items else fallback
+
+
+def _format_latency_ms(sli: ProviderSli | None) -> str:
+    if sli is None or sli.provider_latency_ms is None:
+        return "未返回"
+    return f"{sli.provider_latency_ms} ms"
+
+
+def _format_estimated_cost(sli: ProviderSli | None) -> str:
+    if sli is None or sli.estimated_cost_usd is None:
+        return "未估算"
+    return f"${sli.estimated_cost_usd:.6f}"
+
+
+def _format_semantic_threshold(value: float | None) -> str:
+    return "未启用" if value is None else f"{value:.2f}"
+
+
+def _format_semantic_score(value: float | None) -> str:
+    return "未计算" if value is None else f"{round(value * 100)}%"
+
+
+def _format_nli_threshold(value: float | None) -> str:
+    return "未启用" if value is None else f"{value:.2f}"
+
+
+def _format_nli_score(value: float | None) -> str:
+    return "未计算" if value is None else f"{round(value * 100)}%"
+
+
+def _format_token_usage(value: int | None) -> str:
+    return "未返回" if value is None else str(value)
+
+
+def _format_citation_block(citation: CitationCard, index: int) -> str:
+    lines: list[str] = []
+    lines.append(f"### 引用 {index + 1} — {citation.title}")
+    meta = [
+        f"来源：{citation.source}",
+        f"literature_id：{citation.literature_id}",
+        f"置信度：{round(citation.confidence * 100)}%",
+    ]
+    if citation.chunk_id:
+        meta.append(f"chunk_id：{citation.chunk_id}")
+    if citation.source_type:
+        meta.append(f"source_type：{citation.source_type}")
+    if citation.pdf_upload_id:
+        meta.append(f"pdf_upload_id：{citation.pdf_upload_id}")
+    lines.append(" · ".join(meta))
+    lines.append("")
+    lines.append(f"> {citation.snippet}")
+    if citation.quote:
+        lines.append("")
+        lines.append(f"证据片段引文：{citation.quote}")
+    if citation.reason:
+        lines.append("")
+        lines.append(f"命中证据标签：{citation.reason}")
+    return "\n".join(lines)
+
+
+def build_answer_markdown(answer: RagAnswerResponse) -> str:
+    """Build a Markdown export string for a RAG answer payload.
+
+    Output is field-aligned with ``frontend/lib/rag-export.ts:buildAnswerMarkdown``
+    so the server-rendered file is byte-identical to the legacy client-side build.
+    """
+
+    sections: list[str] = []
+    grounding: GroundingMetadata = answer.grounding
+    sections.append("# Qiyan Nexus RAG 答案导出")
+    sections.append("")
+    sections.append(f"- 导出时间（UTC）：{answer.answered_at}")
+    sections.append(f"- 应用来源：{_rag_source_label(answer.retrieval.applied_source)}")
+    sections.append(f"- 应用 top_k：{answer.retrieval.applied_top_k}")
+    sections.append(f"- 可用引用数：{answer.retrieval.available_citation_count}")
+    sections.append(f"- Provider：{answer.provider_name}")
+    sections.append(f"- 检索策略：{answer.retrieval.strategy}")
+    sections.append(f"- Grounding 状态：{grounding.status}")
+    sections.append(f"- Grounding 策略：{grounding.policy}")
+    sections.append(
+        f"- Provider-native grounding：{'true' if grounding.provider_native_grounding else 'false'}"
+    )
+    sections.append(f"- Grounding Tool：{grounding.tool_name or '无'}")
+    sections.append(f"- Tool 调用数：{grounding.tool_call_count}")
+    sections.append(f"- 语义阈值：{_format_semantic_threshold(grounding.semantic_threshold)}")
+    sections.append(f"- 最小语义支持度：{_format_semantic_score(grounding.min_semantic_score)}")
+    sections.append(f"- NLI 阈值：{_format_nli_threshold(grounding.nli_threshold)}")
+    sections.append(f"- 最小蕴含支持度：{_format_nli_score(grounding.min_entailment_score)}")
+    sections.append(f"- Grounding 拦截原因：{grounding.blocked_reason or '无'}")
+    sections.append(f"- 句级引用覆盖：{grounding.cited_claim_count}/{grounding.claim_count}")
+    sections.append(
+        f"- Grounding 命中证据：{_join_or_fallback(grounding.matched_evidence_refs, '无')}"
+    )
+    sections.append(
+        f"- Grounding 异常证据：{_join_or_fallback(grounding.unsupported_evidence_refs, '无')}"
+    )
+    sections.append(f"- 结构化声明数：{len(grounding.structured_claims)}")
+    sections.append(f"- Token 输入：{_format_token_usage(answer.input_tokens)}")
+    sections.append(f"- Token 输出：{_format_token_usage(answer.output_tokens)}")
+    sections.append(f"- Provider 延迟：{_format_latency_ms(answer.sli)}")
+    sections.append(f"- 预估成本：{_format_estimated_cost(answer.sli)}")
+    sections.append("")
+    sections.append("## 问题")
+    sections.append("")
+    sections.append(answer.question)
+    sections.append("")
+    sections.append("## 回答")
+    sections.append("")
+    sections.append(answer.answer)
+    sections.append("")
+    sections.append("## 结构化声明")
+    sections.append("")
+    if not grounding.structured_claims:
+        sections.append("（当前回答没有结构化声明。）")
+    else:
+        for idx, claim in enumerate(grounding.structured_claims):
+            sections.append(f"### Claim {idx + 1}")
+            sections.append("")
+            sections.append(claim.text)
+            sections.append("")
+            sections.append(f"evidence_refs：{_join_or_fallback(claim.evidence_refs, '无')}")
+            sections.append(f"semantic_score：{_format_semantic_score(claim.semantic_score)}")
+            sections.append(f"entailment_score：{_format_nli_score(claim.entailment_score)}")
+            sections.append("")
+    sections.append("")
+    sections.append("## 引用证据")
+    sections.append("")
+    if not answer.citations:
+        sections.append("（当前回答没有可核对的引用证据。）")
+    else:
+        for idx, citation in enumerate(answer.citations):
+            sections.append(_format_citation_block(citation, idx))
+            sections.append("")
+    sections.append("---")
+    sections.append("")
+    sections.append(answer.disclaimer)
+    sections.append("")
+    return "\n".join(sections)
