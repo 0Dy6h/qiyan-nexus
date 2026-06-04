@@ -15,7 +15,7 @@
 
 ## 当前能力边界
 
-- 当前阶段：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。**2026-06-01 L2 推进工程闭环（Slices 1-5）+ §4c 真人走查完成，决策：L2 不翻转，保持 L1。** 4 份本地 reviewer PDF 样本已通过隔离状态的真实上传 + auto-parse API 探测；人工反馈中的 `/network` 链接缺口与 PDF 数字/表格乱码提示已处理。正式医生/科研 reviewer sign-off 仍需单独真人走查记录，不能由自动化结果替代。
+- 当前阶段：**MVP-A 证据工作台 100% 收尾完成（2026-06-04，见 `docs/plans/2026-06-04-mvp-a-closeout.md`）**；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。**2026-06-01 L2 推进工程闭环（Slices 1-5）+ §4c 真人走查完成，决策：L2 不翻转，保持 L1。** 4 份本地 reviewer PDF 样本已通过隔离状态的真实上传 + auto-parse API 探测；人工反馈中的 `/network` 链接缺口与 PDF 数字/表格乱码提示已处理。**A3（RAG 答案 Markdown 导出）2026-06-04 由前端 client-side 切到后端 `POST /api/rag/answer/export` + `app/services/rag.py:build_answer_markdown`，对齐 Slice 9 网络报告设计模式**（详见 commit `c7fe91f`）。**A5（中文 PDF 人工验收）2026-06-04 完成 4 份真实样本端到端走查并写专项 handoff**（详见 `docs/handoffs/2026-06-04-a5-chinese-pdf-verification.md`，3/4 干净中文抽取 + 1/4 quality_warning fallback 路径走通）。正式医生/科研 reviewer sign-off 仍需单独真人走查记录，不能由自动化结果替代。
 - 数据：本地 JSON seed + `backend/data/runtime/` 运行态副本；runtime state 是本地开发/演示状态，不是生产数据库，也不应回写 seed fixture。**2026-06-02 已落地 SQLite runtime backend**：repositories 走 protocol 抽象（`backend/app/repositories/protocols.py`），运行态可通过 `QIYAN_STATE_BACKEND="sqlite"` 切换到 `qiyan_state.sqlite3`（同样 gitignored 在 `backend/data/runtime/` 下），默认仍为 `json`。两个 backend 均通过 `pytest -q` 全量测试。
 - 文献：本地样本文献、PubMed 实时同步入口、上传 PDF 解析片段、chunk 与 50 题 AD RAG eval 数据集。
 - RAG：默认 `deterministic` provider + `keyword` retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与免责声明。
