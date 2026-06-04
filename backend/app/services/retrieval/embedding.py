@@ -112,9 +112,37 @@ class SentenceTransformerEmbeddingBackend:
         return np.asarray(raw, dtype=np.float32)
 
 
+class MultilingualBgeM3EmbeddingBackend:
+    """Lazy ``BAAI/bge-m3`` wrapper for cross-lingual (CN ↔ EN) embeddings.
+
+    Opt-in via ``QIYAN_EMBEDDING_BACKEND=multilingual_bge_m3``; default backend
+    remains ``hashing``. First ``encode`` triggers a ~1.4GB one-time download to
+    ``~/.cache/huggingface/``. Selection rationale lives in
+    ``docs/evaluations/2026-06-04-multilingual-embedding-model-selection.md``.
+    """
+
+    name = "multilingual_bge_m3"
+    dim = 1024
+    model_name = "BAAI/bge-m3"
+
+    def __init__(self) -> None:
+        self._model: Any = None
+
+    def encode(self, texts: list[str]) -> EmbeddingMatrix:
+        if self._model is None:
+            self._model = _load_sentence_transformer(self.model_name)
+        raw = self._model.encode(
+            texts,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        )
+        return np.asarray(raw, dtype=np.float32)
+
+
 _BACKENDS: dict[str, type[EmbeddingBackend]] = {
     HashingEmbeddingBackend.name: HashingEmbeddingBackend,
     SentenceTransformerEmbeddingBackend.name: SentenceTransformerEmbeddingBackend,
+    MultilingualBgeM3EmbeddingBackend.name: MultilingualBgeM3EmbeddingBackend,
 }
 
 

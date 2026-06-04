@@ -15,6 +15,7 @@ from app.services.retrieval.embedding import (
     EMBEDDING_BACKEND_ENV_VAR,
     EmbeddingBackend,
     HashingEmbeddingBackend,
+    MultilingualBgeM3EmbeddingBackend,
     SentenceTransformerEmbeddingBackend,
     select_embedding_backend,
 )
@@ -89,3 +90,43 @@ def test_select_embedding_backend_accepts_explicit_name_overriding_env(monkeypat
     monkeypatch.setenv(EMBEDDING_BACKEND_ENV_VAR, "nonexistent")
     backend = select_embedding_backend("hashing")
     assert isinstance(backend, HashingEmbeddingBackend)
+
+
+def test_multilingual_bge_m3_backend_does_not_load_model_on_construction():
+    """Spike sub-slice ②: constructing the multilingual_bge_m3 backend must not
+    import sentence_transformers or download the ~1.4GB BAAI/bge-m3 weights.
+
+    Mirrors the bge backend lazy-load contract so CI never touches the network.
+    """
+
+    with patch(
+        "app.services.retrieval.embedding._load_sentence_transformer",
+    ) as loader:
+        backend = MultilingualBgeM3EmbeddingBackend()
+        assert backend.name == "multilingual_bge_m3"
+        assert backend.dim == 1024
+        assert backend.model_name == "BAAI/bge-m3"
+        loader.assert_not_called()
+
+
+def test_select_embedding_backend_resolves_multilingual_bge_m3(monkeypatch):
+    """env QIYAN_EMBEDDING_BACKEND=multilingual_bge_m3 must return the new class.
+
+    Construction is still lazy: the model is not loaded until first encode().
+    """
+
+    monkeypatch.setenv(EMBEDDING_BACKEND_ENV_VAR, "multilingual_bge_m3")
+    with patch(
+        "app.services.retrieval.embedding._load_sentence_transformer",
+    ) as loader:
+        backend = select_embedding_backend()
+        assert isinstance(backend, MultilingualBgeM3EmbeddingBackend)
+        loader.assert_not_called()
+
+
+def test_multilingual_bge_m3_backend_satisfies_protocol():
+    with patch(
+        "app.services.retrieval.embedding._load_sentence_transformer",
+    ):
+        backend = MultilingualBgeM3EmbeddingBackend()
+        assert isinstance(backend, EmbeddingBackend)
