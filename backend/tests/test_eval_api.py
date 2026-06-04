@@ -39,6 +39,7 @@ def test_rag_ad_eval_report_endpoint_returns_reproducible_summary():
     assert response.status_code == 200
     payload = response.json()
     assert payload["summary"]["total_questions"] == 50
+    assert payload["summary"]["corpus"] == "seed"
     assert payload["summary"]["disclaimer_coverage_count"] == 50
     assert payload["summary"]["must_not_violation_count"] == 0
     assert payload["summary"]["grounding_blocked_count"] == 0
@@ -75,6 +76,23 @@ def test_rag_ad_eval_report_endpoint_honours_strategy_query_param(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["summary"]["retrieval_strategy"] == "hybrid"
+
+
+def test_rag_ad_eval_report_endpoint_honours_corpus_query_param():
+    client = TestClient(app)
+
+    response = client.get("/api/evals/rag-ad/report", params={"corpus": "runtime"})
+
+    assert response.status_code == 200
+    assert response.json()["summary"]["corpus"] == "runtime"
+
+
+def test_rag_ad_eval_report_endpoint_rejects_unknown_corpus():
+    client = TestClient(app)
+
+    response = client.get("/api/evals/rag-ad/report", params={"corpus": "demo"})
+
+    assert response.status_code == 422
 
 
 def test_rag_ad_eval_report_endpoint_rejects_unknown_strategy():

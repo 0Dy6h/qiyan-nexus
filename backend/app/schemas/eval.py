@@ -1,9 +1,12 @@
 import json
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.schemas.literature import LiteratureSource
+
+EvalCorpus = Literal["seed", "runtime"]
 
 
 class RagEvalQuestion(BaseModel):
@@ -42,6 +45,7 @@ class RagEvalItemResult(BaseModel):
 
 class RagEvalSummary(BaseModel):
     total_questions: int
+    corpus: EvalCorpus = "seed"
     passed_questions: int
     pass_rate: float
     citation_hit_count: int
@@ -118,6 +122,7 @@ class CrossLingualRetrievalSummary(BaseModel):
     """Aggregated cross-lingual retrieval metrics."""
 
     total_questions: int
+    corpus: EvalCorpus = "seed"
     top_k: int
     retrieval_strategy: str
     avg_monolingual_recall: float

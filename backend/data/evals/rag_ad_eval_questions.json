@@ -115,7 +115,7 @@
     "source_preference": "all",
     "difficulty": "hard",
     "expected_literature_ids": ["cn-ad-microbiome-003", "pmid-40100002", "pmid-40100009"],
-    "expected_chunk_ids": ["chunk-cn-ad-microbiome-003-abstract", "chunk-pmid-40100002-microbiome"],
+    "expected_chunk_ids": ["chunk-cn-ad-microbiome-003-abstract", "chunk-pmid-40100002-microbiome", "chunk-pmid-40100009-staph"],
     "must_include": ["肠道菌群", "皮肤微生物"],
     "must_not_include": ["绝对优劣判断", "疗效承诺"],
     "compliance_notes": "应呈现研究视角差异，不做优劣裁决。"

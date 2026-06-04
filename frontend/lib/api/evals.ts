@@ -2,6 +2,7 @@ import { getBackendBaseUrl, type RagSource } from "./rag";
 
 export type RagEvalSummary = {
   total_questions: number;
+  corpus: "seed" | "runtime";
   passed_questions: number;
   pass_rate: number;
   citation_hit_count: number;
@@ -44,6 +45,10 @@ export function formatEvalPassRate(passRate: number) {
 
 export function getEvalItemStatusLabel(passed: boolean) {
   return passed ? "通过" : "需复核";
+}
+
+export function getRagEvalCorpusLabel(corpus: RagEvalSummary["corpus"]) {
+  return corpus === "runtime" ? "Runtime 本地状态" : "Seed 基线语料";
 }
 
 export async function getRagAdEvalReport(): Promise<RagEvalReport> {

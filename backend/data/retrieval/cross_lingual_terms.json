@@ -42,8 +42,8 @@
     },
     {
       "canonical": "microbiome",
-      "zh": ["菌群", "微生物组", "微生物群", "肠道菌群"],
-      "en": ["microbiome", "microbiota", "flora", "dysbiosis", "probiotic", "prebiotic"]
+      "zh": ["菌群", "微生物组", "微生物群", "肠道菌群", "微生态", "皮肤微生态"],
+      "en": ["microbiome", "skin microbiome", "microbiota", "flora", "dysbiosis", "probiotic", "prebiotic"]
     },
     {
       "canonical": "tcm_syndrome",

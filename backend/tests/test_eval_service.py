@@ -42,6 +42,18 @@ def test_rag_eval_questions_cover_literature_and_compliance_fields():
     assert "不能给出诊断结论" in first.compliance_notes
 
 
+def test_rag_eval_011_expected_chunks_include_skin_microbiome_bridge():
+    data_path = (
+        Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
+    )
+
+    items = load_rag_eval_dataset(data_path)
+    q011 = next(item for item in items if item.id == "rag-eval-011")
+
+    assert "pmid-40100009" in q011.expected_literature_ids
+    assert "chunk-pmid-40100009-staph" in q011.expected_chunk_ids
+
+
 def test_get_rag_eval_questions_returns_serializable_payload():
     items = get_rag_eval_questions()
 
@@ -54,6 +66,7 @@ def test_run_rag_ad_eval_report_returns_summary_and_item_results():
     report = run_rag_ad_eval_report()
 
     assert report["summary"]["total_questions"] == 50
+    assert report["summary"]["corpus"] == "seed"
     assert report["summary"]["disclaimer_coverage_count"] == 50
     assert report["summary"]["must_not_violation_count"] == 0
     assert report["summary"]["grounding_blocked_count"] == 0
@@ -112,6 +125,66 @@ def test_run_rag_ad_eval_report_meets_baseline_pass_rate():
     assert report["summary"]["citation_hit_count"] >= 48
     assert report["summary"]["disclaimer_coverage_count"] == 50
     assert report["summary"]["must_not_violation_count"] == 0
+
+
+def test_run_rag_ad_eval_report_default_seed_ignores_runtime_uploaded_chunks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    from app.repositories.chunk import InMemoryChunkRepository
+    from app.repositories.literature import InMemoryLiteratureRepository
+    from app.services import rag as rag_service
+
+    seed_literature_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+    )
+    seed_chunk_path = (
+        Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+    )
+    runtime_literature_path = tmp_path / "literature_state.json"
+    runtime_chunk_path = tmp_path / "chunk_state.json"
+    runtime_literature_path.write_text(
+        seed_literature_path.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    runtime_chunk_path.write_text(
+        seed_chunk_path.read_text(encoding="utf-8").replace(
+            "\n]",
+            """,
+  {
+    "chunk_id": "chunk-uploaded-runtime-noise",
+    "literature_id": "pmid-40100001",
+    "section": "uploaded_pdf",
+    "text": "分子对接 分子模拟 靶点 通路 后续 线索 molecular docking molecular simulation target pathway targeted therapy 分子对接 分子模拟 靶点 通路",
+    "source_quote": "分子对接 分子模拟 靶点 通路",
+    "evidence_tags": ["uploaded_pdf", "network_pharmacology", "pathway", "targeted_therapy"],
+    "related_entity_ids": [],
+    "source_type": "uploaded_pdf",
+    "pdf_upload_id": "pdf-pmid-40100001-runtime-noise"
+  }
+]
+""",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LITERATURE_RUNTIME_STATE_PATH", str(runtime_literature_path))
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(runtime_chunk_path))
+    monkeypatch.setattr(
+        rag_service, "_REPOSITORY", InMemoryLiteratureRepository(runtime_literature_path)
+    )
+    monkeypatch.setattr(
+        rag_service, "_CHUNK_REPOSITORY", InMemoryChunkRepository(runtime_chunk_path)
+    )
+
+    report = run_rag_ad_eval_report()
+
+    assert report["summary"]["corpus"] == "seed"
+    assert report["summary"]["passed_questions"] >= 46
+
+
+def test_run_rag_ad_eval_report_runtime_corpus_is_labeled():
+    report = run_rag_ad_eval_report(corpus="runtime")
+
+    assert report["summary"]["corpus"] == "runtime"
+    assert report["summary"]["total_questions"] == 50
 
 
 def test_run_rag_ad_eval_report_chunk_hit_count_meets_target():
@@ -200,12 +273,16 @@ def test_rag_eval_report_passes_provider_overrides_without_mutating_env(
         *,
         llm_provider_name: str | None,
         retrieval_provider_name: str | None,
+        literature_repository: object | None,
+        chunk_repository: object | None,
     ):
         assert question == "特应性皮炎和肠-脑-皮肤轴之间有什么关系？"
         assert source == "all"
         assert top_k == 3
         assert llm_provider_name == "deterministic"
         assert retrieval_provider_name == "hybrid"
+        assert literature_repository is not None
+        assert chunk_repository is not None
         assert os.environ["QIYAN_LLM_PROVIDER"] == "opencode_go"
         assert os.environ["QIYAN_RETRIEVAL_PROVIDER"] == "vector"
         return actual_answer_question(
@@ -214,6 +291,8 @@ def test_rag_eval_report_passes_provider_overrides_without_mutating_env(
             top_k=top_k,
             llm_provider_name=llm_provider_name,
             retrieval_provider_name=retrieval_provider_name,
+            literature_repository=literature_repository,
+            chunk_repository=chunk_repository,
         )
 
     monkeypatch.setattr(eval_service, "answer_question", fake_answer_question)

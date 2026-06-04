@@ -6,6 +6,7 @@ import {
   formatEvalPassRate,
   getEvalItemStatusLabel,
   getRagAdEvalReport,
+  getRagEvalCorpusLabel,
   type RagEvalReport,
 } from "../lib/api/evals";
 import { getRagSourceLabel } from "../lib/api/rag";
@@ -19,6 +20,7 @@ type RagEvalReportState = {
 };
 
 function SummaryMetric({ label, value }: { label: string; value: string | number }) {
+  const displayValue = String(value);
   return (
     <div
       style={{
@@ -30,7 +32,18 @@ function SummaryMetric({ label, value }: { label: string; value: string | number
       }}
     >
       <p style={{ color: "#64748b", margin: 0 }}>{label}</p>
-      <strong style={{ color: "#1e293b", display: "block", fontSize: 28, marginTop: 8 }}>{value}</strong>
+      <strong
+        style={{
+          color: "#1e293b",
+          display: "block",
+          fontSize: displayValue.length > 8 ? 20 : 28,
+          lineHeight: 1.2,
+          marginTop: 8,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {value}
+      </strong>
     </div>
   );
 }
@@ -95,6 +108,10 @@ export default function RagEvalReportClient() {
             <SummaryMetric
               label="通过问题"
               value={`${state.report.summary.passed_questions}/${state.report.summary.total_questions}`}
+            />
+            <SummaryMetric
+              label="语料范围"
+              value={getRagEvalCorpusLabel(state.report.summary.corpus)}
             />
             <SummaryMetric label="文献命中题数" value={state.report.summary.citation_hit_count} />
             <SummaryMetric label="Chunk 命中题数" value={state.report.summary.chunk_hit_count} />

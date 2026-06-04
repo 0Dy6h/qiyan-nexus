@@ -5,6 +5,7 @@ import {
   buildRagAdEvalReportUrl,
   formatEvalPassRate,
   getEvalItemStatusLabel,
+  getRagEvalCorpusLabel,
 } from "../lib/api/evals";
 
 test("buildRagAdEvalReportUrl returns rag eval report endpoint", () => {
@@ -22,6 +23,11 @@ test("getEvalItemStatusLabel returns compact result labels", () => {
   assert.equal(getEvalItemStatusLabel(false), "需复核");
 });
 
+test("getRagEvalCorpusLabel returns explicit corpus scope labels", () => {
+  assert.equal(getRagEvalCorpusLabel("seed"), "Seed 基线语料");
+  assert.equal(getRagEvalCorpusLabel("runtime"), "Runtime 本地状态");
+});
+
 test("getRagAdEvalReport fetches report payload", async () => {
   const originalFetch = globalThis.fetch;
   const captured: (URL | RequestInfo)[] = [];
@@ -33,6 +39,7 @@ test("getRagAdEvalReport fetches report payload", async () => {
         return {
           summary: {
             total_questions: 50,
+            corpus: "seed",
             passed_questions: 14,
             pass_rate: 0.7,
             citation_hit_count: 18,
@@ -71,6 +78,7 @@ test("getRagAdEvalReport fetches report payload", async () => {
 
     assert.deepEqual(captured, ["http://127.0.0.1:8000/api/evals/rag-ad/report"]);
     assert.equal(report.summary.total_questions, 50);
+    assert.equal(report.summary.corpus, "seed");
     assert.equal(report.summary.pass_rate, 0.7);
     assert.equal(report.summary.grounding_blocked_count, 0);
     assert.equal(report.items[0].grounding_status, "skipped");
