@@ -63,7 +63,7 @@ export default function LiteratureDataSourceBanner({ view }: Props) {
         gap: 12,
         padding: 16,
         border: style.border,
-        borderRadius: 12,
+        borderRadius: 8,
         background: style.background,
       }}
     >

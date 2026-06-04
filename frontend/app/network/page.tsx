@@ -3,74 +3,60 @@ import { Suspense } from "react";
 import NetworkAnalysisClient from "../../components/NetworkAnalysisClient";
 import StatusPanel from "../../components/StatusPanel";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
-import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
 export default function NetworkPage() {
   const navigationLinks = getComplianceNavigationLinks();
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gap: 20 }}>
-        <nav aria-label="工作台导航" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+    <main className="workbench-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
+      <section className="workbench-frame">
+        <nav aria-label="工作台导航" className="workbench-nav">
           {navigationLinks.map((link) => {
             const isCurrent = link.href === "/network";
 
             return (
-              <a
-                key={link.href}
-                href={link.href}
-                aria-current={isCurrent ? "page" : undefined}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  borderRadius: 999,
-                  background: isCurrent ? "#ecfeff" : "transparent",
-                  border: `1px solid ${isCurrent ? "#99f6e4" : "#cbd5e1"}`,
-                  color: isCurrent ? "#115e59" : "#475569",
-                  fontSize: 14,
-                  fontWeight: isCurrent ? 700 : 600,
-                  padding: "10px 14px",
-                  textDecoration: "none",
-                  minHeight: 44,
-                }}
-              >
+              <a key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
                 {link.label}
               </a>
             );
           })}
         </nav>
 
-        <article style={getSurfaceSectionStyle()}>
-          <div style={{ display: "grid", gap: 8 }}>
-            <p style={{ color: "#0d9488", fontWeight: 700, margin: 0 }}>Evidence workbench</p>
-            <h1 style={{ color: "#1e293b", fontSize: 36, lineHeight: 1.3, margin: 0 }}>
-              网络药理学（mock）
-            </h1>
-            <p style={{ color: "#64748b", fontSize: 17, lineHeight: 1.7, margin: 0 }}>
-              当前页面调用后端 <code>/api/network/analyze</code> 与 <code>/api/network/result</code>，用于验证「成分-靶点-通路-疾病」链路与异步任务壳的第一条前后端链路。
+        <article className="workbench-hero">
+          <div className="workbench-hero-main">
+            <p className="workbench-kicker">Evidence workbench</p>
+            <h1 className="workbench-title">网络药理学（mock）</h1>
+            <p className="workbench-summary">
+              当前阶段只验证「成分-靶点-通路-疾病」任务壳与结果展示，把未来网络药理学能力预留为可审阅的机制图谱入口。
             </p>
           </div>
+          <aside className="workbench-hero-aside" aria-label="网络药理学能力边界">
+            <div className="workbench-stat">
+              <span>Endpoints</span>
+              <strong>/api/network/analyze</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Mock chain</span>
+              <strong>成分 → 靶点 → 通路</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Phase</span>
+              <strong>MVP-B concept reserve</strong>
+            </div>
+          </aside>
         </article>
 
-        <Suspense fallback={<StatusPanel message="加载网药分析面板..." />}>
-          <NetworkAnalysisClient />
-        </Suspense>
+        <div className="workbench-content-band">
+          <Suspense fallback={<StatusPanel message="加载网药分析面板..." />}>
+            <NetworkAnalysisClient />
+          </Suspense>
+        </div>
 
-        <section
-          aria-label="使用提醒"
-          style={{
-            ...getSurfaceSectionStyle(),
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            padding: 20,
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <p style={{ color: "#334155", fontSize: 14, fontWeight: 700, margin: 0 }}>使用提醒</p>
-            <p style={{ color: "#64748b", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-              本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
-            </p>
-          </div>
+        <section aria-label="使用提醒" className="workbench-reminder">
+          <p className="workbench-reminder-title">使用提醒</p>
+          <p className="workbench-reminder-copy">
+            本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
+          </p>
         </section>
       </section>
     </main>

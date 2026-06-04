@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "antd/dist/reset.css";
+import "./workbench.css";
 
 export const metadata: Metadata = {
   title: "Qiyan Nexus",

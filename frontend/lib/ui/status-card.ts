@@ -52,22 +52,38 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     return {
       background: "#fff7ed",
       border: "1px solid #fdba74",
-      borderRadius: 12,
+      borderRadius: 8,
       padding: "16px 18px",
     };
   }
   if (tone === "warning") {
     return {
       background: "#fffbeb",
-      border: "1px solid #fbbf24",
-      borderRadius: 12,
+      border: "1px solid #facc15",
+      borderRadius: 8,
+      padding: "16px 18px",
+    };
+  }
+  if (tone === "success") {
+    return {
+      background: "#f0fdfa",
+      border: "1px solid #99f6e4",
+      borderRadius: 8,
+      padding: "16px 18px",
+    };
+  }
+  if (tone === "danger") {
+    return {
+      background: "#fef2f2",
+      border: "1px solid #fecaca",
+      borderRadius: 8,
       padding: "16px 18px",
     };
   }
   return {
     background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
+    border: "1px solid #dbe7e3",
+    borderRadius: 8,
     padding: "16px 18px",
   };
 }
@@ -87,8 +103,22 @@ export function getStatusMessageStyle(tone: StatusTone): Record<string, string |
       lineHeight: 1.6,
     };
   }
+  if (tone === "success") {
+    return {
+      color: "#0f766e",
+      margin: 0,
+      lineHeight: 1.6,
+    };
+  }
+  if (tone === "danger") {
+    return {
+      color: "#991b1b",
+      margin: 0,
+      lineHeight: 1.6,
+    };
+  }
   return {
-    color: "#64748b",
+    color: "#5f6e68",
     margin: 0,
     lineHeight: 1.6,
   };

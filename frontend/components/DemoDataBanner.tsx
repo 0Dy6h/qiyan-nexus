@@ -11,7 +11,7 @@ export default function DemoDataBanner({ compact = false }: Props) {
         gap: 12,
         padding: compact ? 10 : 16,
         border: "1px solid #fdba74",
-        borderRadius: 12,
+        borderRadius: 8,
         background: "#fff7ed",
       }}
     >

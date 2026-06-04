@@ -1,8 +1,9 @@
 export function getSurfaceCardStyle() {
   return {
     background: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
+    border: "1px solid #dbe7e3",
+    borderRadius: 8,
+    boxShadow: "0 14px 36px rgba(15, 23, 42, 0.05)",
     padding: 24,
   };
 }
@@ -10,8 +11,9 @@ export function getSurfaceCardStyle() {
 export function getSurfaceSectionStyle() {
   return {
     background: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: 16,
+    border: "1px solid #dbe7e3",
+    borderRadius: 8,
+    boxShadow: "0 18px 54px rgba(15, 23, 42, 0.05)",
     padding: 24,
   };
 }

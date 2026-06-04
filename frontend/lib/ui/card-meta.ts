@@ -6,7 +6,8 @@ export function getMetaRowStyle() {
   return {
     color: "#64748b",
     margin: 0,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 700,
     lineHeight: 1.6,
   };
 }
