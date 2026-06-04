@@ -1,0 +1,640 @@
+[
+  {
+    "label": "vector_bge_m3",
+    "retrieval_strategy": "vector",
+    "embedding_backend": "multilingual_bge_m3",
+    "total_questions": 16,
+    "top_k": 10,
+    "avg_monolingual_recall": 1.0,
+    "avg_cross_lingual_recall": 0.625,
+    "avg_language_diversity": 0.1977,
+    "avg_precision_at_k": 0.175,
+    "avg_mrr": 0.875,
+    "elapsed_s": 179.53,
+    "items": [
+      {
+        "id": "rag-eval-001",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-microbiome-003",
+          "cn-ad-pruritus-005",
+          "cn-ad-guideline-004",
+          "cn-ad-child-009",
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-network-007",
+          "pmid-40100002"
+        ]
+      },
+      {
+        "id": "rag-eval-004",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004",
+          "cn-ad-formula-002",
+          "cn-ad-microbiome-003",
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-child-009",
+          "cn-ad-barrier-006",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-006",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-guideline-004",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-network-007",
+          "cn-ad-external-008",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-007",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "pmid-40100005",
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-gbs-001",
+          "cn-ad-microbiome-003",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-formula-002",
+          "cn-ad-guideline-004",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-008",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-external-008",
+          "cn-ad-guideline-004",
+          "cn-ad-barrier-006",
+          "cn-ad-child-009",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-009",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-child-009",
+          "cn-ad-guideline-004",
+          "pmid-40100010",
+          "cn-ad-review-010",
+          "cn-ad-gbs-001",
+          "cn-ad-microbiome-003",
+          "cn-ad-barrier-006",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-network-007"
+        ]
+      },
+      {
+        "id": "rag-eval-011",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 0.3333,
+        "retrieved_ids": [
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-microbiome-003",
+          "cn-ad-child-009",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-guideline-004",
+          "cn-ad-network-007",
+          "cn-ad-formula-002",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-016",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-external-008",
+          "pmid-40100008",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "pmid-40100004",
+          "pmid-40100001",
+          "cn-ad-gbs-001"
+        ]
+      },
+      {
+        "id": "rag-eval-019",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 0.3333,
+        "retrieved_ids": [
+          "cn-ad-review-010",
+          "pmid-40100001",
+          "cn-ad-network-007",
+          "cn-ad-gbs-001",
+          "cn-ad-child-009",
+          "cn-ad-external-008",
+          "cn-ad-microbiome-003",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-guideline-004"
+        ]
+      },
+      {
+        "id": "rag-eval-022",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-external-008",
+          "cn-ad-microbiome-003",
+          "cn-ad-review-010",
+          "cn-ad-network-007",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004",
+          "cn-ad-child-009"
+        ]
+      },
+      {
+        "id": "rag-eval-030",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-pruritus-005",
+          "pmid-40100003",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004",
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-microbiome-003",
+          "cn-ad-child-009"
+        ]
+      },
+      {
+        "id": "rag-eval-031",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "pmid-40100008",
+          "cn-ad-review-010",
+          "cn-ad-barrier-006",
+          "cn-ad-pruritus-005",
+          "pmid-40100005",
+          "cn-ad-gbs-001",
+          "cn-ad-formula-002",
+          "cn-ad-external-008",
+          "pmid-40100002"
+        ]
+      },
+      {
+        "id": "rag-eval-033",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-pruritus-005",
+          "pmid-40100008",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004",
+          "cn-ad-microbiome-003",
+          "cn-ad-review-010",
+          "pmid-40100005"
+        ]
+      },
+      {
+        "id": "rag-eval-035",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-child-009",
+          "cn-ad-barrier-006",
+          "cn-ad-guideline-004",
+          "cn-ad-pruritus-005",
+          "cn-ad-network-007",
+          "pmid-40100002"
+        ]
+      },
+      {
+        "id": "rag-eval-047",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 0.3333,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "pmid-40100002",
+          "cn-ad-review-010",
+          "pmid-40100001",
+          "cn-ad-barrier-006",
+          "pmid-40100009",
+          "pmid-40100005",
+          "cn-ad-guideline-004",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-049",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-pruritus-005",
+          "pmid-40100008",
+          "pmid-40100001",
+          "cn-ad-external-008",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004"
+        ]
+      }
+    ]
+  },
+  {
+    "label": "hybrid_bge_m3",
+    "retrieval_strategy": "hybrid",
+    "embedding_backend": "multilingual_bge_m3",
+    "total_questions": 16,
+    "top_k": 10,
+    "avg_monolingual_recall": 1.0,
+    "avg_cross_lingual_recall": 0.9062,
+    "avg_language_diversity": 0.2289,
+    "avg_precision_at_k": 0.2125,
+    "avg_mrr": 0.9271,
+    "elapsed_s": 12.08,
+    "items": [
+      {
+        "id": "rag-eval-001",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "pmid-40100002",
+          "cn-ad-guideline-004",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-child-009",
+          "cn-ad-external-008",
+          "cn-ad-formula-002"
+        ]
+      },
+      {
+        "id": "rag-eval-004",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-pruritus-005",
+          "cn-ad-formula-002",
+          "cn-ad-microbiome-003",
+          "pmid-40100003",
+          "pmid-40100001",
+          "cn-ad-gbs-001",
+          "cn-ad-barrier-006",
+          "cn-ad-guideline-004",
+          "cn-ad-network-007",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-006",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-review-010",
+          "cn-ad-gbs-001",
+          "cn-ad-pruritus-005",
+          "pmid-40100007",
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-external-008",
+          "cn-ad-guideline-004",
+          "pmid-40100002"
+        ]
+      },
+      {
+        "id": "rag-eval-007",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-microbiome-003",
+          "cn-ad-barrier-006",
+          "pmid-40100005",
+          "cn-ad-pruritus-005",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-gbs-001",
+          "pmid-40100001",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-008",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-formula-002",
+          "cn-ad-review-010",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-barrier-006",
+          "pmid-40100008",
+          "cn-ad-external-008",
+          "pmid-40100001",
+          "cn-ad-guideline-004"
+        ]
+      },
+      {
+        "id": "rag-eval-009",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-child-009",
+          "pmid-40100010",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-guideline-004",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-formula-002",
+          "cn-ad-microbiome-003",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-011",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.5,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-barrier-006",
+          "cn-ad-child-009",
+          "cn-ad-pruritus-005",
+          "cn-ad-formula-002",
+          "cn-ad-external-008",
+          "pmid-40100002",
+          "cn-ad-network-007"
+        ]
+      },
+      {
+        "id": "rag-eval-016",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "pmid-40100008",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-external-008",
+          "cn-ad-barrier-006",
+          "pmid-40100004",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-019",
+        "question_language": "zh",
+        "cross_lingual_recall": 0.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "pmid-40100001",
+          "cn-ad-gbs-001",
+          "cn-ad-external-008",
+          "cn-ad-formula-002",
+          "cn-ad-review-010",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-microbiome-003",
+          "cn-ad-child-009"
+        ]
+      },
+      {
+        "id": "rag-eval-022",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-formula-002",
+          "cn-ad-barrier-006",
+          "cn-ad-microbiome-003",
+          "cn-ad-review-010",
+          "cn-ad-network-007",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-external-008",
+          "cn-ad-guideline-004",
+          "pmid-40100001"
+        ]
+      },
+      {
+        "id": "rag-eval-030",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-pruritus-005",
+          "pmid-40100003",
+          "cn-ad-formula-002",
+          "cn-ad-gbs-001",
+          "cn-ad-microbiome-003",
+          "cn-ad-barrier-006",
+          "cn-ad-guideline-004",
+          "cn-ad-network-007",
+          "cn-ad-external-008",
+          "cn-ad-review-010"
+        ]
+      },
+      {
+        "id": "rag-eval-031",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "pmid-40100008",
+          "cn-ad-review-010",
+          "cn-ad-barrier-006",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-gbs-001",
+          "cn-ad-external-008",
+          "pmid-40100005",
+          "pmid-40100004"
+        ]
+      },
+      {
+        "id": "rag-eval-033",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 0.5,
+        "retrieved_ids": [
+          "cn-ad-formula-002",
+          "cn-ad-network-007",
+          "cn-ad-barrier-006",
+          "cn-ad-pruritus-005",
+          "pmid-40100008",
+          "cn-ad-review-010",
+          "cn-ad-gbs-001",
+          "cn-ad-microbiome-003",
+          "cn-ad-guideline-004",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-035",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-microbiome-003",
+          "cn-ad-gbs-001",
+          "cn-ad-review-010",
+          "cn-ad-formula-002",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "pmid-40100002",
+          "cn-ad-child-009",
+          "cn-ad-guideline-004",
+          "cn-ad-external-008"
+        ]
+      },
+      {
+        "id": "rag-eval-047",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 0.3333,
+        "retrieved_ids": [
+          "cn-ad-gbs-001",
+          "cn-ad-microbiome-003",
+          "cn-ad-review-010",
+          "cn-ad-barrier-006",
+          "pmid-40100002",
+          "pmid-40100009",
+          "pmid-40100001",
+          "cn-ad-external-008",
+          "pmid-40100007",
+          "cn-ad-guideline-004"
+        ]
+      },
+      {
+        "id": "rag-eval-049",
+        "question_language": "zh",
+        "cross_lingual_recall": 1.0,
+        "monolingual_recall": 1.0,
+        "mrr": 1.0,
+        "retrieved_ids": [
+          "cn-ad-network-007",
+          "cn-ad-formula-002",
+          "cn-ad-review-010",
+          "pmid-40100008",
+          "cn-ad-pruritus-005",
+          "cn-ad-barrier-006",
+          "cn-ad-external-008",
+          "pmid-40100001",
+          "cn-ad-gbs-001",
+          "cn-ad-guideline-004"
+        ]
+      }
+    ]
+  }
+]
