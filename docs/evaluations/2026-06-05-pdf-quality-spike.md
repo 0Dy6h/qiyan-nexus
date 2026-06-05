@@ -238,18 +238,18 @@ pdf_quality = [
 - 3/3 干净样本 **零 regression**。
 - quality_warning 触发率：改进前 1/4 → 改进后 1/4（**无改善**，未达 >30% 降低目标）。
 
-### Phase 4: 可选 - pdfplumber 对比（预计 2 小时）
+### Phase 4: 可选 - pdfplumber 对比（已完成 — 2026-06-05）
 
-- [ ] 安装 pdfplumber
-- [ ] 实现对比测试脚本
-- [ ] 记录两种方案的优劣
-- [ ] 推荐决策
+- [x] 用 `uv run --with pypdf==6.12.2 --with pdfplumber ...` 临时依赖方式评估，不写入默认 `pyproject.toml`
+- [x] 实现独立对比脚本：`spikes/001-pdf-extractor-comparison/compare_extractors.py`
+- [x] 记录 pypdf / pdfplumber 两种方案的质量指标
+- [x] 推荐决策：不引入 pdfplumber 默认依赖，继续保留 pypdf + warning 路径
 
 ### Phase 5: 结论（预计 30 分钟）
 
-- [ ] 编写 spike 结论文档
-- [ ] 推荐是否采纳改进
-- [ ] 记录遗留问题
+- [x] 编写 spike 结论文档
+- [x] 推荐是否采纳改进
+- [x] 记录遗留问题
 
 ---
 
@@ -316,9 +316,44 @@ pdf_quality = [
 
 见上方 Phase 3 / Phase 5 结论。formula-002 NUL 比例 **未达 <5%**，但 3 份干净样本无 regression。
 
-### Phase 4 跳过
+### Phase 4 pdfplumber 对比结果（2026-06-05 补跑）
 
-根据时间盒原则，跳过 pdfplumber 对比。方案 A（pypdf 增强启发式）已实现，优先验证其效果。
+补充执行了独立 spike：`spikes/001-pdf-extractor-comparison/`。脚本只读取 gitignored 的 A5 本地 PDF 样本，只输出指标、短 preview 与 hash，不提交原文正文。
+
+运行命令：
+
+```powershell
+uv run --with pypdf==6.12.2 --with pdfplumber python .\spikes\001-pdf-extractor-comparison\compare_extractors.py
+```
+
+环境版本：
+
+| Package | Version |
+|---|---|
+| pypdf | 6.12.2 |
+| pdfplumber | 0.11.9 |
+| pdfminer.six | 20251230 |
+
+核心指标（完整输出见 `spikes/001-pdf-extractor-comparison/results/pdf_extractor_comparison.md`）：
+
+| 样本 | 抽取器 | 字符数 | NUL 数 | NUL 比例 | CJK 比例 | 当前 warning |
+|---|---|---:|---:|---:|---:|---|
+| cn-ad-formula-002 | pypdf_full | 6249 | 805 | 12.88% | 42.87% | yes |
+| cn-ad-formula-002 | pypdf_current_middle_lines | 4084 | 596 | 14.59% | 40.52% | yes |
+| cn-ad-formula-002 | pdfplumber_default | 4431 | 805 | 18.17% | 60.46% | yes |
+| cn-ad-formula-002 | pdfplumber_layout | 9858 | 805 | 8.17% | 27.18% | yes |
+| cn-ad-pruritus-005 | pdfplumber_default | 7359 | 0 | 0.00% | 41.79% | no |
+| cn-ad-barrier-006 | pdfplumber_default | 10242 | 0 | 0.00% | 30.83% | no |
+| cn-ad-external-008 | pdfplumber_default | 5312 | 0 | 0.00% | 59.05% | no |
+
+判定：
+
+- `pdfplumber` 可以抽取 4/4 样本，但没有解决 `cn-ad-formula-002` 的嵌入字体 NUL 问题。
+- `pdfplumber_default` 在 problem sample 上 NUL 比例反而升至 18.17%；`pdfplumber_layout` 降至 8.17%，但只是因为输出文本膨胀，原始 NUL 数仍为 805。
+- 3 份干净样本在 `pdfplumber` 下没有新增 warning，这是正向信号，但不足以抵消新增依赖与迁移风险。
+- `pdfplumber_layout` 会显著膨胀文本并稀释 CJK 密度；例如 `cn-ad-barrier-006` 的 CJK 比例降到 12.48%，被本 spike 的 `low_cjk_ratio` 启发式标记。
+
+结论：**不采纳 pdfplumber 替换 pypdf**。它对当前最痛的嵌入字体乱码没有实质收益；默认路径继续保留 `pypdf` + `quality_warning`，后续若要根治该类 PDF，应该单独做 OCR 或商业/license-reviewed 抽取器 spike。
 
 ### Phase 5 结论（2026-06-05）
 
@@ -340,17 +375,18 @@ pdf_quality = [
 | NUL 阈值 2% → 5% | ✅ **保留** | 降低 borderline 误报；对 formula-002 仍正确触发 warning |
 | 页眉页脚过滤（15% skip） | ✅ **保留** | preview 起始更可读（跳过期刊元信息行），但 **不能** 作为降低 NUL 比例的手段 |
 | CJK 密度 / 低文本密度检测 | ✅ **保留** | 辅助函数已就绪，供后续 CJK 阈值 quality gate 使用 |
-| pdfplumber 替换 pypdf | ❌ **不采纳** | 本 spike 时间盒内未评估；嵌入字体问题非库选型可解 |
+| pdfplumber 替换 pypdf | ❌ **不采纳** | 已补跑 4 份 A5 样本；problem sample 仍触发 warning，`pdfplumber_default` NUL 比例更高，`layout` 只靠文本膨胀稀释比例 |
 | 降低 formula-002 的 quality_warning | ❌ **不做** | NUL 仍 >5%，警告文案仍必要 |
 
-**总结**：方案 A 的启发式改进 **未显著降低 quality_warning 触发率**（<20% 改善），但 **无 regression** 且代码复杂度可控（核心改动 <100 行）。页眉过滤 + 5% 阈值作为低风险增强 **合并入主分支**；嵌入字体 `\x00` 问题需独立 spike（OCR 或接受 warning 文案）才能根本解决。
+**总结**：方案 A 的启发式改进 **未显著降低 quality_warning 触发率**（<20% 改善），但 **无 regression** 且代码复杂度可控（核心改动 <100 行）。方案 B 的 `pdfplumber` 对照也未能降低 problem sample 的 warning。页眉过滤 + 5% 阈值作为低风险增强 **合并入主分支**；嵌入字体 `\x00` 问题需独立 spike（OCR、商业/license-reviewed 抽取器，或继续接受 warning 文案）才能根本解决。
 
 #### 遗留问题
 
 1. **嵌入字体字符映射缺失**（formula-002 根因）：NUL 出现在正文日期/病例数等数字字段，非仅页眉；pypdf 无法修复 CMap。
-2. **页眉过滤粒度**：当前按行数 15% 跳过，对单页/少行 PDF 效果有限；未使用 pdfplumber 布局坐标。
+2. **页眉过滤粒度**：当前按行数 15% 跳过，对单页/少行 PDF 效果有限；pdfplumber 坐标/布局模式已补跑，但未显示足够默认收益。
 3. **CJK 密度阈值未接入 warning gate**：`_calculate_cjk_ratio()` 已实现但未用于 `detect_pdf_text_quality_warning()`。
 4. **pruritus-005 preview 起始**：过滤后 preview 从英文参考文献段开始（CJK 23%），属 preview 窗口选择问题，非乱码。
+5. **preview-window 选择仍可改进**：比起替换解码器，更小的后续 slice 可以尝试优先保留摘要、标题、正文样式行，避免 preview 起始落在参考文献或材料方法碎片。
 
 #### 关键文件位置
 
@@ -359,6 +395,8 @@ pdf_quality = [
 | 核心实现 | `backend/app/services/literature.py` |
 | 单元测试 | `backend/tests/test_pdf_quality_helpers.py` |
 | A5 验证脚本 | `backend/scripts/validate_pdf_quality_improvements.py` |
+| 抽取器对比 spike | `spikes/001-pdf-extractor-comparison/` |
+| 抽取器对比结果 | `spikes/001-pdf-extractor-comparison/results/pdf_extractor_comparison.md` |
 | Spike 文档 | `docs/evaluations/2026-06-05-pdf-quality-spike.md` |
 | 交接文档 | `docs/handoffs/2026-06-05-spike-continuation-handoff.md` |
 | A5 基线验收 | `docs/handoffs/2026-06-04-a5-chinese-pdf-verification.md` |
