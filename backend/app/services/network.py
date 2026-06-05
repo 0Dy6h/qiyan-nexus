@@ -152,7 +152,7 @@ def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> Net
 
 def _load_go_terms() -> list[Any]:
     """Load GO terms from sample data."""
-    path = Path(__file__).parent.parent / "data" / "network" / "sample_go_terms.json"
+    path = Path(__file__).resolve().parents[2] / "data" / "network" / "sample_go_terms.json"
     if not path.exists():
         return []
     with path.open("r", encoding="utf-8") as f:
@@ -162,7 +162,7 @@ def _load_go_terms() -> list[Any]:
 
 def _load_kegg_pathways() -> list[Any]:
     """Load KEGG pathways from sample data."""
-    path = Path(__file__).parent.parent / "data" / "network" / "sample_kegg_pathways.json"
+    path = Path(__file__).resolve().parents[2] / "data" / "network" / "sample_kegg_pathways.json"
     if not path.exists():
         return []
     with path.open("r", encoding="utf-8") as f:

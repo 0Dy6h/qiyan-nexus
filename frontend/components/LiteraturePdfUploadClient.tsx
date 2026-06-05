@@ -260,7 +260,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             name="file"
             type="file"
             accept="application/pdf,.pdf"
-            aria-label="上传 PDF"
+            aria-label="选择 PDF 文件"
             style={{ color: "var(--qiyan-ink-2)", maxWidth: "100%" }}
           />
           <button
