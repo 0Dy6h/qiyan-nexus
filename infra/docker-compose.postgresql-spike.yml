@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: qiyan-postgres-spike
+    environment:
+      POSTGRES_DB: qiyan_nexus
+      POSTGRES_USER: qiyan_dev
+      POSTGRES_PASSWORD: qiyan_dev_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qiyan_dev -d qiyan_nexus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

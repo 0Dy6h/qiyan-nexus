@@ -147,8 +147,9 @@ def resolve_sqlite_db_path() -> Path:
 def get_literature_repository() -> "LiteratureRepository":
     """Factory: return a LiteratureRepository based on QIYAN_STATE_BACKEND.
 
-    - ``"json"`` (default) → InMemoryLiteratureRepository
-    - ``"sqlite"``          → SqliteLiteratureRepository
+    - ``"json"`` (default)   → InMemoryLiteratureRepository
+    - ``"sqlite"``           → SqliteLiteratureRepository
+    - ``"postgresql"``       → PostgresLiteratureRepository
 
     Results are cached at module level; call
     :func:`clear_literature_repository_cache` to reset (e.g. in tests).
@@ -162,7 +163,11 @@ def get_literature_repository() -> "LiteratureRepository":
 
     _close_if_sqlite(_lit_repo_cache)
 
-    if backend == "sqlite":
+    if backend == "postgresql":
+        from app.repositories.postgres_literature import PostgresLiteratureRepository
+
+        _lit_repo_cache = PostgresLiteratureRepository()
+    elif backend == "sqlite":
         from app.repositories.sqlite_literature import SqliteLiteratureRepository
 
         db_path = resolve_sqlite_db_path()
@@ -188,8 +193,9 @@ def clear_literature_repository_cache() -> None:
 def get_chunk_repository() -> "ChunkRepository":
     """Factory: return a ChunkRepository based on QIYAN_STATE_BACKEND.
 
-    - ``"json"`` (default) → InMemoryChunkRepository
-    - ``"sqlite"``          → SqliteChunkRepository
+    - ``"json"`` (default)   → InMemoryChunkRepository
+    - ``"sqlite"``           → SqliteChunkRepository
+    - ``"postgresql"``       → PostgresChunkRepository
 
     Results are cached at module level; call
     :func:`clear_chunk_repository_cache` to reset (e.g. in tests).
@@ -203,7 +209,11 @@ def get_chunk_repository() -> "ChunkRepository":
 
     _close_if_sqlite(_chunk_repo_cache)
 
-    if backend == "sqlite":
+    if backend == "postgresql":
+        from app.repositories.postgres_chunk import PostgresChunkRepository
+
+        _chunk_repo_cache = PostgresChunkRepository()
+    elif backend == "sqlite":
         from app.repositories.sqlite_chunk import SqliteChunkRepository
 
         db_path = resolve_sqlite_db_path()
