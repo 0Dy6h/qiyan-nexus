@@ -1,7 +1,8 @@
 param(
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
-    [switch]$IncludeE2E
+    [switch]$IncludeE2E,
+    [switch]$E2ETokenProfile
 )
 
 Set-StrictMode -Version Latest
@@ -9,6 +10,10 @@ $ErrorActionPreference = "Stop"
 
 if ($BackendOnly -and $FrontendOnly) {
     throw "BackendOnly and FrontendOnly cannot be used together."
+}
+
+if ($E2ETokenProfile -and -not $IncludeE2E) {
+    throw "E2ETokenProfile requires IncludeE2E."
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -105,11 +110,26 @@ if ($runFrontend) {
         -Arguments @("build")
 
     if ($IncludeE2E) {
-        Invoke-NativeStep `
-            -Name "frontend: pnpm e2e" `
-            -WorkingDirectory $frontendDir `
-            -Command $pnpm.Source `
-            -Arguments @("e2e")
+        $previousE2EToken = $env:QIYAN_E2E_ACCESS_TOKEN
+        try {
+            if ($E2ETokenProfile) {
+                $env:QIYAN_E2E_ACCESS_TOKEN = "qiyan-e2e-token"
+            }
+
+            Invoke-NativeStep `
+                -Name "frontend: pnpm e2e" `
+                -WorkingDirectory $frontendDir `
+                -Command $pnpm.Source `
+                -Arguments @("e2e")
+        }
+        finally {
+            if ($null -eq $previousE2EToken) {
+                Remove-Item Env:\QIYAN_E2E_ACCESS_TOKEN -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:QIYAN_E2E_ACCESS_TOKEN = $previousE2EToken
+            }
+        }
     }
     else {
         Write-Host ""

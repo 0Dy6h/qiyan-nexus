@@ -26,11 +26,26 @@ cd frontend
 pnpm e2e
 ```
 
-`playwright.config.ts` `webServer` starts:
-- backend: `node ./e2e/start-backend.mjs`, which prefers `../backend/.uv-test-venv` and falls back to `.venv` / `python`; it runs uvicorn on `127.0.0.1:8000` with isolated temp runtime paths and `QIYAN_ACCESS_TOKENS=''` (open mode)
-- frontend: `pnpm dev` on port 3000
+Token profile smoke:
 
-If a dev server is already running on 3000 / 8000, `reuseExistingServer: !process.env.CI` skips relaunching it locally; CI always starts fresh.
+```powershell
+cd frontend
+$env:QIYAN_E2E_ACCESS_TOKEN="qiyan-e2e-token"
+pnpm e2e
+Remove-Item Env:\QIYAN_E2E_ACCESS_TOKEN
+```
+
+Repo-level equivalent:
+
+```powershell
+.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile
+```
+
+`playwright.config.ts` `webServer` starts:
+- backend: `node ./e2e/start-backend.mjs`, which prefers `../backend/.uv-test-venv` and falls back to `.venv` / `python`; it runs uvicorn on `127.0.0.1:8000` with isolated temp runtime paths. Open mode sets `QIYAN_ACCESS_TOKENS=''`; token mode maps `QIYAN_E2E_ACCESS_TOKEN` to `QIYAN_ACCESS_TOKENS`.
+- frontend: `pnpm dev` on port 3000. Token mode also maps `QIYAN_E2E_ACCESS_TOKEN` to `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN`.
+
+If a dev server is already running on 3000 / 8000, open-mode local runs can reuse it. Token-mode runs disable server reuse so Playwright does not accidentally test against an already-running open-mode server.
 
 ## Scope
 

@@ -30,6 +30,12 @@
 .\scripts\verify-local.ps1 -IncludeE2E
 ```
 
+如需确认内部预览 shared-token profile 的浏览器 E2E：
+
+```powershell
+.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile
+```
+
 单独跑一侧：
 
 ```powershell
@@ -73,6 +79,22 @@ curl http://127.0.0.1:8000/health
 - 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
 - 前端可通过 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN` 为所有 backend fetch 自动附加同名 header；该变量只用于内部预览最小共享 token 门禁，不是正式认证/权限系统。例如：`$env:NEXT_PUBLIC_QIYAN_ACCESS_TOKEN="dev-token-1"; pnpm dev`。
 - CORS 配置不变；multipart PDF 上传只附加 `X-Access-Token`，不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
+
+内部预览一键启动 / smoke（默认离线 deterministic + keyword + isolated runtime）：
+
+```powershell
+# open dev profile
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open
+.\scripts\smoke-internal-preview.ps1
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
+
+# shared-token profile（仅内部预览最小门禁，不是正式认证）
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
+.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -Stop
+```
+
+`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`。
 
 文献检索 API 数据来源：
 
