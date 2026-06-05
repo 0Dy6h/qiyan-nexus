@@ -1,6 +1,6 @@
-# Playwright E2E (A4)
+# Playwright E2E
 
-Baseline E2E for Qiyan Nexus. One main-path spec covering `/literature → 详情 → /rag → 问答 → citation`, plus the load-bearing disclaimer.
+Browser E2E coverage for Qiyan Nexus internal preview. Current specs cover the literature/RAG main path, PDF upload + eval + network mock preview flow, network graph keyboard accessibility, and literature data-source switching.
 
 ## First-time setup (per machine)
 
@@ -27,7 +27,7 @@ pnpm e2e
 ```
 
 `playwright.config.ts` `webServer` starts:
-- backend: `cd ../backend && .venv/bin/fastapi dev app/main.py --port 8000` with `LITERATURE_RUNTIME_STATE_PATH=/tmp/qiyan-e2e-runtime.json`, `UPLOAD_STORAGE_DIR=/tmp/qiyan-e2e-uploads`, `QIYAN_ACCESS_TOKENS=''` (open mode, isolated runtime state)
+- backend: `node ./e2e/start-backend.mjs`, which prefers `../backend/.uv-test-venv` and falls back to `.venv` / `python`; it runs uvicorn on `127.0.0.1:8000` with isolated temp runtime paths and `QIYAN_ACCESS_TOKENS=''` (open mode)
 - frontend: `pnpm dev` on port 3000
 
 If a dev server is already running on 3000 / 8000, `reuseExistingServer: !process.env.CI` skips relaunching it locally; CI always starts fresh.
