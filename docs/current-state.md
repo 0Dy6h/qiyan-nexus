@@ -34,7 +34,7 @@
 
 - `backend/` — FastAPI 后端应用。
 - `frontend/` — Next.js 前端应用。
-- `infra/` — 本地基础设施说明，目前不提供未验证的 compose 配置。
+- `infra/` — 本地基础设施说明与显式 opt-in spike 配置；当前包含 PostgreSQL + pgvector compose，不进入默认开发路径。
 - `docs/adr/` — 架构决策与长期边界。
 - `docs/plans/` — 可执行切片计划。
 - `docs/handoffs/` — 跨会话续接记录，越新的越接近当前事实。
@@ -77,9 +77,9 @@ pnpm e2e
    - ✅ **claim-quality v2 live validation**（2026-06-02）：BGE 预筛降至 0.3 后，NLI gate 放行 4/10 个回答；所有 14 条 claim 均单证据引用，未见 raw draft 泄漏。delta-only reviewer packet 已由 Codex technical review 填写 6/6 supported，并已由用户确认；决策仍不翻转 L2。
 4. 已完成 4 份本地中文 PDF 样本的最小验收探测；后续 PDF 工作应聚焦更好的抽取质量启发式、OCR 或表格重建 spike，不能扩进默认内部预览路径。
 5. **✅ 跨语言检索改进（已完成并对账）**：keyword + cross-lingual bridge 是默认有效路径；2026-06-04 seed corpus 隔离与 q011 数据审计后，bilingual cohort N=16 当前 mono=1.0000、cross=1.0000。BGE-M3 保留为 env opt-in，不进入默认路径。
-6. 其它可选主线：network report export 后续增强（PDF/Word）；**runtime JSON → SQLite 已落地（2026-06-02，commit 4144357）**；**PostgreSQL/pgvector spike 已完成工程接入与 JSON/SQLite benchmark harness（2026-06-05），但本机无 Docker/PostgreSQL 服务，PostgreSQL 实机性能数据待有容器环境后补跑；默认不变，SQLite 仍是当前可选本地持久化推荐**（见 `docs/evaluations/2026-06-05-postgresql-pgvector-spike.md`）；**网络图可视化、hover/focus 高亮、键盘与箭头导航、e2e 回归均已落地**；Anthropic 仅在有订阅/key 后再排期。
+6. 其它可选主线：network report export 后续增强（PDF/Word）；**runtime JSON → SQLite 已落地（2026-06-02，commit 4144357）**；**PostgreSQL/pgvector spike 已完成工程接入、Docker Compose 配置与 JSON/SQLite/PostgreSQL 实测 benchmark（2026-06-05）；实测不支持切换默认，默认仍为 JSON，SQLite 仍是当前可选本地持久化推荐，PostgreSQL 保持 explicit opt-in spike/backend**（见 `docs/evaluations/2026-06-05-postgresql-pgvector-spike.md`）；**网络图可视化、hover/focus 高亮、键盘与箭头导航、e2e 回归均已落地**；Anthropic 仅在有订阅/key 后再排期。
 7. 下一步候选：
    - ① **L2 governance**：BGE=0.3 + NLI=0.5 profile 的治理判断，以及生产预算前复核真实合同价格；这是决策议题，不是默认工程翻转。
-   - ② **PostgreSQL/pgvector spike follow-up**：工程 opt-in backend + benchmark harness 已落地；仅剩在有 Docker/PostgreSQL 服务的机器上补跑 PostgreSQL 实测数据。
+   - ② **PostgreSQL/pgvector 后续**：spike 已闭环且结论为不翻默认；仅在出现多人并发、真实 pgvector ANN 检索或生产数据库治理需求时，再重开生产化 ADR。
    - ③ **PDF 抽取质量 spike**：聚焦 OCR、表格重建或质量启发式，不扩进默认内部预览路径。
    - ④ **内部 reviewer sign-off**：工程与 e2e 基线只能证明流程可走通，正式医生/科研 reviewer 走查仍需单独记录。
