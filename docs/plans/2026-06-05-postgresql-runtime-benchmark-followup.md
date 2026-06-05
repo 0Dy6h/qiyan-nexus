@@ -18,6 +18,7 @@
 - `docs/handoffs/2026-06-05-postgresql-spike-continuation.md`
 - `backend/scripts/benchmark_storage_backends.py`
 - `infra/docker-compose.postgresql-spike.yml`
+- `infra/postgresql-spike.env.example`
 - `backend/app/repositories/postgres_schema.sql`
 
 当前结论：
@@ -45,6 +46,7 @@
 **Files:**
 
 - Read: `infra/docker-compose.postgresql-spike.yml`
+- Read: `infra/postgresql-spike.env.example`
 - Read: `backend/app/repositories/postgres_schema.sql`
 
 **Step 1: Check Docker availability**
@@ -69,7 +71,18 @@ docker inspect qiyan-postgres-spike --format "{{json .State.Health}}"
 
 Expected: health status becomes `healthy`.
 
-**Step 3: Verify pgvector extension path**
+**Step 3: Optional local env override smoke**
+
+If port or credential overrides are needed, create a local env file that stays untracked:
+
+```powershell
+Copy-Item infra\postgresql-spike.env.example infra\postgresql-spike.env.local
+docker compose --env-file infra/postgresql-spike.env.local -f infra/docker-compose.postgresql-spike.yml up -d
+```
+
+Expected: container uses the overridden `QIYAN_POSTGRES_*` values.
+
+**Step 4: Verify pgvector extension path**
 
 Run:
 
@@ -79,12 +92,22 @@ docker exec qiyan-postgres-spike psql -U qiyan_dev -d qiyan_nexus -c "CREATE EXT
 
 Expected: query returns `vector`.
 
-**Step 4: Commit only if compose changes were required**
+**Step 5: Verify schema auto-init path**
+
+Run:
+
+```powershell
+docker exec qiyan-postgres-spike psql -U qiyan_dev -d qiyan_nexus -c "\dt"
+```
+
+Expected: tables from `backend/app/repositories/postgres_schema.sql` are present on a fresh volume.
+
+**Step 6: Commit only if compose changes were required**
 
 If `infra/docker-compose.postgresql-spike.yml` needed edits:
 
 ```powershell
-git add infra/docker-compose.postgresql-spike.yml
+git add infra/docker-compose.postgresql-spike.yml infra/README.md infra/postgresql-spike.env.example
 git commit -m "fix(spike): make PostgreSQL benchmark compose runnable"
 ```
 
@@ -312,4 +335,3 @@ Do not silently broaden scope into:
 - real embedding/vector retrieval
 - default backend switch
 - cloud PostgreSQL provisioning
-
