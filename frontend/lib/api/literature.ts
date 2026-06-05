@@ -1,3 +1,5 @@
+import { apiFetch, buildApiHeaders } from "./client";
+
 export type LiteratureItem = {
   id: string;
   title: string;
@@ -244,7 +246,7 @@ export async function searchLiterature(
   sort: LiteratureSearchSort = "relevance",
   hasPdfUpload?: boolean,
 ): Promise<LiteratureSearchResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     buildLiteratureSearchUrl(query, source, page, pageSize, sort, hasPdfUpload),
   );
 
@@ -256,7 +258,7 @@ export async function searchLiterature(
 }
 
 export async function getLiteratureDetail(itemId: string): Promise<LiteratureItem> {
-  const response = await fetch(buildLiteratureDetailUrl(itemId));
+  const response = await apiFetch(buildLiteratureDetailUrl(itemId));
 
   if (!response.ok) {
     throw new Error("Literature detail request failed");
@@ -273,7 +275,7 @@ export async function uploadLiteraturePdf(
   formData.set("literature_id", literatureId);
   formData.set("file", file);
 
-  const response = await fetch(buildPdfUploadUrl(), {
+  const response = await apiFetch(buildPdfUploadUrl(), {
     method: "POST",
     body: formData,
   });
@@ -286,11 +288,11 @@ export async function uploadLiteraturePdf(
 }
 
 export async function runFakePdfAutoParse(literatureId: string, fileName: string): Promise<LiteratureItem> {
-  const response = await fetch(new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(), {
+  const response = await apiFetch(new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(), {
     method: "POST",
-    headers: {
+    headers: buildApiHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(buildFakePdfAutoParseRequest(literatureId, fileName)),
   });
 
@@ -305,11 +307,11 @@ export async function updatePdfParseStatus(
   literatureId: string,
   status: Exclude<PdfParseStatus, "pending">,
 ): Promise<LiteratureItem> {
-  const response = await fetch(new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(), {
+  const response = await apiFetch(new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(), {
     method: "POST",
-    headers: {
+    headers: buildApiHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(buildPdfParseStatusRequest(literatureId, status)),
   });
 
@@ -340,11 +342,11 @@ export async function syncLiteratureFromPubmed(
   query: string,
   maxResults: number,
 ): Promise<LiteratureSyncResponse> {
-  const response = await fetch(buildLiteratureSyncUrl(), {
+  const response = await apiFetch(buildLiteratureSyncUrl(), {
     method: "POST",
-    headers: {
+    headers: buildApiHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(buildLiteratureSyncRequest(query, maxResults)),
   });
 

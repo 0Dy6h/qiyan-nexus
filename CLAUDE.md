@@ -2,6 +2,60 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CodeGraph enforcement (MANDATORY)
+
+**This project has CodeGraph MCP server configured. Use it FIRST for all structural queries.**
+
+### Strict rules
+
+1. **Never `Grep` for symbol names, function definitions, class declarations, or imports.** Use `codegraph_search` instead — it's faster and returns AST-verified results with signatures.
+2. **Never `Read` multiple files to trace call chains.** Use `codegraph_context` (focused context) or `codegraph_explore` (multi-symbol source view) — one call returns what grep + 5× Read would.
+3. **Trust codegraph results.** They come from tree-sitter AST parse. Do NOT re-verify with `Grep` or `Read` — that wastes tokens and is less accurate.
+4. **For "how does X work" questions**: call `codegraph_context` first, then `codegraph_explore` for the returned symbols. Do NOT spawn a sub-agent or grep loop.
+
+### When codegraph is NOT appropriate
+
+- Literal text search (log messages, Chinese copy, comments)
+- After you already have a file open and need a few adjacent lines
+- String constants or regex pattern matching
+
+### Decision tree
+
+```
+"Where is function X?" → codegraph_search
+"What calls X?" → codegraph_callers
+"What does X call?" → codegraph_callees
+"What breaks if I change X?" → codegraph_impact
+"Show me X's implementation" → codegraph_node or codegraph_explore
+"How does RAG pipeline work?" → codegraph_context + codegraph_explore
+"Find '非诊断结论' string" → Grep (literal text)
+"Read app/main.py lines 50-60" → Read (specific range)
+```
+
+### Project-specific symbols to query
+
+Backend (Python):
+- `RAGService`, `LiteratureRepository`, `ChunkRepository` — RAG pipeline
+- `parse_pdf_content`, `update_pdf_metadata` — PDF upload flow
+- `keyword_retrieval`, `vector_retrieval` — retrieval strategies
+- `EvalService`, `run_batch_evaluation` — eval harness
+
+Frontend (TypeScript):
+- `RagPage`, `LiteratureDetailPage`, `NetworkPage` — main pages
+- `fetchLiteratureDetail`, `fetchRagAnswer` — API clients
+- `DISCLAIMER_TEXT`, `PAGE_PADDING` — locked constants
+
+### Index status check
+
+If any codegraph call returns "not initialized", immediately run:
+```bash
+codegraph init -i
+```
+
+Then retry. Do NOT fall back to `Grep` + `Read`.
+
+---
+
 ## Project identity
 
 Qiyan Nexus — 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。仅医生/研究人员端，**不面向 C 端患者**，**不替代诊断**。所有 AI 输出必须附带免责声明 `非诊断结论、需结合临床。`

@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
+当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成优先正文/摘要窗口的预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
 
@@ -15,6 +15,27 @@
 - `docs/archive/pre-dev-planning/` — 早期 AI 工具链规划、Word 文档与 HTML 原型，仅作历史参考
 
 ## 后端
+
+统一本地门禁（Windows PowerShell，推荐先跑这个）：
+
+```powershell
+.\scripts\verify-local.ps1
+```
+
+默认顺序执行后端 `ruff format --check`、`ruff check`、`mypy app`、`pytest -q`，以及前端 `pnpm test`、`pnpm typecheck`、`pnpm build`。`pnpm typecheck` 与 `pnpm build` 会写 `.next` route type 产物，必须顺序跑，不要并行跑。
+
+如需在 reviewer 走查或分支收口前追加 Playwright E2E：
+
+```powershell
+.\scripts\verify-local.ps1 -IncludeE2E
+```
+
+单独跑一侧：
+
+```powershell
+.\scripts\verify-local.ps1 -BackendOnly
+.\scripts\verify-local.ps1 -FrontendOnly
+```
 
 首次安装（Windows PowerShell）：
 
@@ -50,7 +71,8 @@ curl http://127.0.0.1:8000/health
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
 - 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
-- CORS 配置不变；前端如需带 token 调用，需要后续在 fetch wrapper 里加 header（A2 不动前端）。
+- 前端可通过 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN` 为所有 backend fetch 自动附加同名 header；该变量只用于内部预览最小共享 token 门禁，不是正式认证/权限系统。例如：`$env:NEXT_PUBLIC_QIYAN_ACCESS_TOKEN="dev-token-1"; pnpm dev`。
+- CORS 配置不变；multipart PDF 上传只附加 `X-Access-Token`，不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
 
 文献检索 API 数据来源：
 
@@ -62,7 +84,7 @@ curl http://127.0.0.1:8000/health
 - 当前 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`、`pdf_parse_result`
 - 当前支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
 - 当前支持本地 PDF 下载/预览：`GET /api/uploads/pdf/{pdf_upload_id}`，按稳定 upload id 读取 `UPLOAD_STORAGE_DIR` 下的 PDF 文件
-- 当前支持文本型 PDF 预览：parse result 可返回 `extraction_method="pypdf-text-preview"` 与 `preview_text`；无法抽取文本时返回 `file-metadata-placeholder`
+- 当前支持文本型 PDF 预览：parse result 可返回 `extraction_method="pypdf-text-preview"` 与 `preview_text`；预览会优先选择摘要/正文信号窗口，避开明显页眉页脚、参考文献开头和低文本密度行；无法抽取文本时返回 `file-metadata-placeholder`
 
 文献检索 API：
 
@@ -297,6 +319,13 @@ pnpm dev
 ```bash
 cd frontend
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
+```
+
+如后端启用了内部预览 token gate，同时给前端设置同一个 token：
+
+```bash
+cd frontend
+NEXT_PUBLIC_QIYAN_ACCESS_TOKEN=dev-token-1 pnpm dev
 ```
 
 前端测试：

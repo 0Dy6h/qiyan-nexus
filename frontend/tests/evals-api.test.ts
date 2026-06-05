@@ -29,10 +29,11 @@ test("getRagEvalCorpusLabel returns explicit corpus scope labels", () => {
 });
 
 test("getRagAdEvalReport fetches report payload", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
-  const captured: (URL | RequestInfo)[] = [];
-  globalThis.fetch = (async (url: URL | RequestInfo) => {
-    captured.push(url);
+  const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    captured.push({ url, init });
     return {
       ok: true,
       async json() {
@@ -76,7 +77,9 @@ test("getRagAdEvalReport fetches report payload", async () => {
     const { getRagAdEvalReport } = await import(`../lib/api/evals?ts=${Date.now()}`);
     const report = await getRagAdEvalReport();
 
-    assert.deepEqual(captured, ["http://127.0.0.1:8000/api/evals/rag-ad/report"]);
+    assert.equal(captured[0].url, "http://127.0.0.1:8000/api/evals/rag-ad/report");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.equal(report.summary.total_questions, 50);
     assert.equal(report.summary.corpus, "seed");
     assert.equal(report.summary.pass_rate, 0.7);
@@ -84,5 +87,6 @@ test("getRagAdEvalReport fetches report payload", async () => {
     assert.equal(report.items[0].grounding_status, "skipped");
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });

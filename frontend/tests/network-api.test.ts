@@ -25,6 +25,7 @@ test("getNetworkAnalysisTypeLabel maps formula and herb to display labels", () =
 });
 
 test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task id", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
   const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
   globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
@@ -44,6 +45,9 @@ test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/network/analyze");
     assert.equal(captured[0].init?.method, "POST");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["Content-Type"], "application/json");
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.deepEqual(JSON.parse(String(captured[0].init?.body ?? "{}")), {
       query: "消风散",
       analysis_type: "formula",
@@ -52,6 +56,7 @@ test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task 
     assert.equal(accepted.status, "queued");
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 
@@ -137,10 +142,11 @@ test("buildNetworkReportUrl encodes task id and points at report endpoint", () =
 });
 
 test("fetchNetworkReportMarkdown returns markdown text on 200", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
-  const captured: { url: URL | RequestInfo }[] = [];
-  globalThis.fetch = (async (url: URL | RequestInfo) => {
-    captured.push({ url });
+  const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    captured.push({ url, init });
     return {
       ok: true,
       async text() {
@@ -155,9 +161,12 @@ test("fetchNetworkReportMarkdown returns markdown text on 200", async () => {
 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/network/result/network-abc123/report");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.ok(markdown.startsWith("# Qiyan Nexus"));
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 

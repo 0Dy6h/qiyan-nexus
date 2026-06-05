@@ -21,6 +21,26 @@ _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
     "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
 )
 _PDF_TEXT_QUALITY_WARNING = "检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。"
+_PDF_BODY_SIGNALS = (
+    "摘要",
+    "目的",
+    "方法",
+    "结果",
+    "结论",
+    "特应性皮炎",
+    "异位性皮炎",
+    "atopic dermatitis",
+    "methods",
+    "results",
+    "conclusion",
+    "skin barrier",
+)
+_PDF_HEADER_FOOTER_PATTERNS = (
+    re.compile(r"^\s*\d+\s*$"),
+    re.compile(r"^\s*第\s*\d+\s*(卷|期|页)\s*$"),
+    re.compile(r"^\s*(参考文献|references)\s*$", re.IGNORECASE),
+    re.compile(r"^\s*\[\d+\]"),
+)
 
 _REPOSITORY = get_literature_repository()
 DEFAULT_SEARCH_PAGE_SIZE = 10
@@ -266,6 +286,65 @@ def _filter_header_footer_pages(
     return "\n".join(full_pages_text)
 
 
+def _is_likely_pdf_preview_noise(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if any(pattern.search(stripped) for pattern in _PDF_HEADER_FOOTER_PATTERNS):
+        return True
+    if _detect_low_text_density(stripped):
+        return True
+    nul_count = stripped.count("\x00")
+    return nul_count >= 5 and nul_count / max(len(stripped), 1) >= 0.15
+
+
+def _score_pdf_preview_line(line: str) -> int:
+    normalized = line.lower()
+    score = 0
+    for signal in _PDF_BODY_SIGNALS:
+        if signal in normalized:
+            score += 4
+    cjk_ratio = _calculate_cjk_ratio(line)
+    if cjk_ratio >= 0.2:
+        score += 1
+    if len(line.strip()) >= 24:
+        score += 1
+    return score
+
+
+def _select_pdf_preview_window(text: str, max_chars: int = 300) -> str:
+    """Select the most readable body-like preview window from extracted text."""
+
+    candidates = [
+        line.strip()
+        for line in re.split(r"[\r\n]+", text)
+        if not _is_likely_pdf_preview_noise(line)
+    ]
+    if not candidates:
+        return text[:max_chars].strip()
+
+    best_index = 0
+    best_score = -1
+    for index, line in enumerate(candidates):
+        score = _score_pdf_preview_line(line)
+        if score > best_score:
+            best_index = index
+            best_score = score
+
+    window_lines: list[str] = []
+    total_length = 0
+    for line in candidates[best_index:]:
+        if total_length and total_length + 1 + len(line) > max_chars:
+            break
+        window_lines.append(line)
+        total_length += len(line) + (1 if total_length else 0)
+
+    preview = "\n".join(window_lines).strip()
+    if not preview:
+        preview = "\n".join(candidates).strip()
+    return preview[:max_chars].strip()
+
+
 def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | None:
     """Extract preview text from PDF with quality improvements.
 
@@ -292,7 +371,7 @@ def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | 
     if not text:
         return None
 
-    return text[:max_chars].strip()
+    return _select_pdf_preview_window(text, max_chars=max_chars)
 
 
 def detect_pdf_text_quality_warning(preview_text: str | None) -> str | None:

@@ -1,3 +1,4 @@
+import { apiFetch, buildApiHeaders } from "./client";
 import { getBackendBaseUrl } from "./rag";
 
 export type NetworkAnalysisType = "formula" | "herb";
@@ -80,9 +81,9 @@ export async function submitNetworkAnalysis(
   query: string,
   analysisType: NetworkAnalysisType,
 ): Promise<NetworkAnalyzeAccepted> {
-  const response = await fetch(buildNetworkAnalyzeUrl(), {
+  const response = await apiFetch(buildNetworkAnalyzeUrl(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildApiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ query: query.trim(), analysis_type: analysisType }),
   });
 
@@ -94,7 +95,7 @@ export async function submitNetworkAnalysis(
 }
 
 export async function fetchNetworkResult(taskId: string): Promise<NetworkResultResponse> {
-  const response = await fetch(buildNetworkResultUrl(taskId));
+  const response = await apiFetch(buildNetworkResultUrl(taskId));
 
   if (!response.ok) {
     throw new Error("Network result request failed");
@@ -104,7 +105,7 @@ export async function fetchNetworkResult(taskId: string): Promise<NetworkResultR
 }
 
 export async function fetchNetworkReportMarkdown(taskId: string): Promise<string> {
-  const response = await fetch(buildNetworkReportUrl(taskId));
+  const response = await apiFetch(buildNetworkReportUrl(taskId));
 
   if (!response.ok) {
     throw new Error("Network report request failed");

@@ -7,6 +7,30 @@ environment profile: default offline preview (`deterministic` provider + `keywor
 
 ---
 
+## Technical Preflight
+
+Preflight status: completed by engineering; formal clinician/research reviewer sign-off still pending.
+
+| Field | Value |
+|---|---|
+| Branch | `feat/multilingual-bge-m3-backend` |
+| Baseline commit | `c3c177d` |
+| Backend URL | `http://127.0.0.1:8000` |
+| Frontend URL | `http://localhost:3000` |
+| Runtime profile | default offline preview |
+| LLM provider | `deterministic` |
+| Retrieval provider | `keyword` |
+| Access control | open dev mode, `QIYAN_ACCESS_TOKENS=""` |
+| External data egress | none; no real LLM / embedding / PostgreSQL enabled |
+| Runtime isolation | `.tmp/formal-review/runtime/*` and `.tmp/formal-review/uploads/` |
+
+Preflight verification:
+
+- Backend standard gate passed: `ruff format --check`, `ruff check`, `mypy app`, `pytest -q`.
+- Frontend standard gate passed: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm e2e`.
+- Internal rehearsal already passed on the same default offline profile; see `docs/handoffs/2026-06-05-internal-reviewer-rehearsal.md`.
+- This packet must still be filled by a real clinician and a real research reviewer. Automated tests and internal rehearsal are not a substitute for domain sign-off.
+
 ## 使用说明
 
 本文件用于正式医生/科研 reviewer 走查记录。请按 `docs/checklists/internal-preview-reviewer-walkthrough.md` 完成流程，并把每个问题按 P0/P1/P2/P3 分级。
@@ -142,4 +166,3 @@ environment profile: default offline preview (`deterministic` provider + `keywor
 - [ ] Feedback requires scope change; write a new implementation plan before coding.
 
 Decision notes:
-

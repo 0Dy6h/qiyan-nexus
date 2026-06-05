@@ -62,5 +62,11 @@ opencode.json
 opencode.jsonc
 .opencode/
 
+# Codex local hooks/config (per-machine agent tooling)
+.codex/
+
+# Claude Code hook runtime state (per-session Read tracking)
+.claude/hooks/.enforce-codegraph-state.json
+
 # Trae temporary documents (session-specific planning)
 .trae/

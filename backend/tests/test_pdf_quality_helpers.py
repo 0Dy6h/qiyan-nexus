@@ -4,6 +4,7 @@ from app.services.literature import (
     _calculate_cjk_ratio,
     _detect_low_text_density,
     _filter_header_footer_pages,
+    _select_pdf_preview_window,
     detect_pdf_text_quality_warning,
 )
 
@@ -176,3 +177,65 @@ class TestFilterHeaderFooterPages:
         # Verify default values
         assert sig.parameters["skip_top_ratio"].default == 0.15
         assert sig.parameters["skip_bottom_ratio"].default == 0.15
+
+
+class TestSelectPdfPreviewWindow:
+    """Test PDF preview-window selection from extracted text."""
+
+    def test_prefers_abstract_window_over_reference_prefix(self):
+        text = "\n".join(
+            [
+                "参考文献",
+                "[1] Journal metadata 2024 31 10",
+                "中国中医药信息杂志 第 31 卷 第 10 期",
+                "摘要 目的 观察健脾养血祛风法治疗特应性皮炎的临床疗效。",
+                "方法 纳入特应性皮炎患者并评估皮肤屏障功能。",
+            ]
+        )
+
+        preview = _select_pdf_preview_window(text, max_chars=80)
+
+        assert preview.startswith("摘要 目的")
+        assert "参考文献" not in preview
+
+    def test_prefers_atopic_dermatitis_body_signal_for_english_text(self):
+        text = "\n".join(
+            [
+                "12",
+                "International Journal of Dermatology",
+                "Atopic dermatitis is associated with skin barrier dysfunction and immune activation.",
+                "Methods Participants were evaluated with clinical severity scores.",
+            ]
+        )
+
+        preview = _select_pdf_preview_window(text, max_chars=90)
+
+        assert preview.startswith("Atopic dermatitis")
+        assert "International Journal" not in preview
+
+    def test_falls_back_to_first_readable_window_when_no_body_signal_exists(self):
+        text = "\n".join(
+            [
+                "Qiyan Nexus uploaded PDF",
+                "This document contains readable neutral text without special keywords.",
+                "Second readable paragraph continues the same topic.",
+            ]
+        )
+
+        preview = _select_pdf_preview_window(text, max_chars=120)
+
+        assert preview.startswith("Qiyan Nexus uploaded PDF")
+        assert preview
+
+    def test_drops_nul_heavy_lines_but_keeps_warning_relevant_nuls_in_selected_window(self):
+        text = "\n".join(
+            [
+                "中国中医药信息杂志 \x00\x00\x00\x00\x00\x00\x00\x00",
+                "摘要 特应性皮炎治疗观察 \x00\x00\x00 结果提示皮肤屏障评分改善。",
+            ]
+        )
+
+        preview = _select_pdf_preview_window(text, max_chars=120)
+
+        assert preview.startswith("摘要 特应性皮炎")
+        assert detect_pdf_text_quality_warning(preview) is not None

@@ -11,9 +11,12 @@ test("buildNetworkEntitiesUrl returns entities endpoint with default backend bas
 });
 
 test("fetchNetworkEntities flattens the grouped backend payload into an id-keyed lookup", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   resetNetworkEntitiesCache();
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () => {
+  const captured: { init?: RequestInit }[] = [];
+  globalThis.fetch = (async (_url: URL | RequestInfo, init?: RequestInit) => {
+    captured.push({ init });
     return {
       ok: true,
       async json() {
@@ -39,6 +42,9 @@ test("fetchNetworkEntities flattens the grouped backend payload into an id-keyed
     resetNetworkEntitiesCache();
     const lookup = await fetchNetworkEntities();
 
+    assert.equal(captured.length, 1);
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.equal(lookup["herb-jingjie"].name, "荆芥");
     assert.equal(lookup["herb-jingjie"].kind, "herb");
     assert.equal(lookup["formula-xiaofengsan"].kind, "formula");
@@ -49,6 +55,7 @@ test("fetchNetworkEntities flattens the grouped backend payload into an id-keyed
     assert.equal(lookup["pathway-jak-stat"].kind, "pathway");
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
     resetNetworkEntitiesCache();
   }
 });

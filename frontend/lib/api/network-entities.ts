@@ -1,3 +1,4 @@
+import { apiFetch } from "./client";
 import { getBackendBaseUrl } from "./rag";
 
 export type EntityKind = "herb" | "formula" | "compound" | "target" | "pathway";
@@ -57,7 +58,7 @@ export async function fetchNetworkEntities(): Promise<NetworkEntitiesLookup> {
     return cachedLookupPromise;
   }
   cachedLookupPromise = (async () => {
-    const response = await fetch(buildNetworkEntitiesUrl());
+    const response = await apiFetch(buildNetworkEntitiesUrl());
     if (!response.ok) {
       throw new Error("Network entities request failed");
     }

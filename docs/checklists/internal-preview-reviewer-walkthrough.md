@@ -17,6 +17,7 @@
 - 如果启用了访问控制（A2），需要在 HTTP 请求头中添加 `X-Access-Token`
 - 开发环境默认**不启用**访问控制，可直接访问
 - 如需 token，请联系技术团队获取
+- 技术团队启用 token profile 时，后端设置 `QIYAN_ACCESS_TOKENS`，前端设置相同值到 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN`；这只是内部预览最小共享 token 门禁，不是正式认证/权限系统
 
 ### 1.3 浏览器要求
 - 推荐使用 Chrome、Edge 或 Firefox 最新版本
@@ -28,6 +29,7 @@
 - [ ] 可以访问前端首页（显示"青黛绿"主色调界面）
 - [ ] 浏览器控制台无明显错误（F12 查看）
 - [ ] 本轮使用默认离线 profile：deterministic provider、keyword retrieval、不开启真实 LLM、不启用访问 token
+- [ ] 如本轮改用 token profile，确认前端启动环境包含 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN`，否则浏览器请求会按预期收到 401
 - [ ] 如需上传 PDF，主样本使用 `local-review-pdfs/健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf`
 - [ ] 如需演示抽取质量警告路径，可追加 `local-review-pdfs/中医辨证治疗异位性皮炎临床观察_周海啸.pdf`
 
@@ -141,6 +143,7 @@
 - [ ] **预期结果**：
   - 状态变为 `parsed`，或在不可抽取时变为 `failed`
   - 如果解析成功，显示 `extraction_method`（如 `pypdf-text-preview`）
+  - 文本预览优先展示摘要/正文窗口；如果 PDF 字体映射导致数字或表格乱码，仍显示抽取质量提示，需对照原文核对关键数值
   - 如果解析失败，显示 `failed` 及失败原因
   - 可在人工校正区域标记"已解析"或"解析失败"
 

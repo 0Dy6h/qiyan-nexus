@@ -33,6 +33,18 @@
 后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。
 
 ```powershell
+# 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
+.\scripts\verify-local.ps1
+
+# reviewer 走查或分支收口前追加 Playwright E2E
+.\scripts\verify-local.ps1 -IncludeE2E
+
+# 单侧门禁
+.\scripts\verify-local.ps1 -BackendOnly
+.\scripts\verify-local.ps1 -FrontendOnly
+```
+
+```powershell
 # 后端验证门禁（提交前 4 项全绿）— 顺序：format -> lint -> type -> test
 cd backend
 & .\.uv-test-venv\Scripts\python.exe -m ruff format --check app tests
