@@ -60,3 +60,6 @@ yarn-error.log*
 opencode.json
 opencode.jsonc
 .opencode/
+
+# Trae temporary documents (session-specific planning)
+.trae/

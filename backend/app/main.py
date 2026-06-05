@@ -7,12 +7,16 @@ from app.api.network import router as network_router
 from app.api.rag import router as rag_router
 from app.api.upload import router as upload_router
 from app.core.access_control import install_access_token_middleware
+from app.core.logging_middleware import RequestLoggingMiddleware
 
 app = FastAPI(title="Qiyan Nexus API")
 # Order matters: Starlette installs middleware via `insert(0, ...)` and builds
 # the stack with `reversed(middleware)`, so the LAST one added is OUTERMOST.
 # We want CORS outermost so that 401 responses from the access-control middleware
 # still carry Access-Control-Allow-Origin headers for browser callers.
+# RequestLoggingMiddleware goes before access control so it captures all requests
+# (including 401s) and can log request_id for debugging.
+app.add_middleware(RequestLoggingMiddleware)
 install_access_token_middleware(app)
 app.add_middleware(
     CORSMiddleware,

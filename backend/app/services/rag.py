@@ -74,6 +74,7 @@ def answer_question(
     retrieval_provider_name: str | None = None,
     literature_repository: LiteratureRepository | None = None,
     chunk_repository: ChunkRepository | None = None,
+    request_id: str | None = None,
 ) -> RagAnswerResponse:
     normalized_question = question.strip()
     preferred_source_type = (
@@ -196,7 +197,7 @@ def answer_question(
     # Secret-free structured SLI line for ops observability.
     _LOGGER.info(
         "rag_sli provider=%s grounding=%s latency_ms=%s input_tokens=%s "
-        "output_tokens=%s cost_usd=%s strategy=%s",
+        "output_tokens=%s cost_usd=%s strategy=%s request_id=%s",
         draft.provider_name,
         grounding.status,
         provider_latency_ms,
@@ -204,6 +205,7 @@ def answer_question(
         draft.output_tokens,
         estimated_cost_usd,
         retrieval_provider.name,
+        request_id,
     )
     return RagAnswerResponse(
         question=normalized_question,
