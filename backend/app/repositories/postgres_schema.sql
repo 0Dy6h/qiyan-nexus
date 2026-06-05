@@ -93,6 +93,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger: auto-update updated_at on literature updates
+DROP TRIGGER IF EXISTS trigger_literature_updated_at ON literature;
 CREATE TRIGGER trigger_literature_updated_at
     BEFORE UPDATE ON literature
     FOR EACH ROW

@@ -221,7 +221,9 @@ def _detect_low_text_density(text: str) -> bool:
     return (alphanumeric / len(text)) < 0.2
 
 
-def _filter_header_footer_pages(reader: PdfReader, skip_top_ratio: float = 0.15, skip_bottom_ratio: float = 0.15) -> str:
+def _filter_header_footer_pages(
+    reader: PdfReader, skip_top_ratio: float = 0.15, skip_bottom_ratio: float = 0.15
+) -> str:
     """Extract text from PDF pages, skipping likely header/footer regions.
 
     Args:

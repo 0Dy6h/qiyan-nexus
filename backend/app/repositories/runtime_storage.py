@@ -27,11 +27,11 @@ _nt_repo_cache_backend: str | None = None
 
 
 def _close_if_sqlite(repo: object | None) -> None:
-    """Close a repository's SQLite connection if it has one.
+    """Close a repository connection/pool if it has one.
 
     JSON/in-memory repositories have no ``close`` method, so this is a no-op
-    for them. SQLite repositories expose ``close()`` to release the connection
-    and file lock (important on Windows when tmp dirs are cleaned up).
+    for them. SQLite and PostgreSQL repositories expose ``close()`` to release
+    local file locks or connection pools.
     """
     close = getattr(repo, "close", None)
     if callable(close):
@@ -239,8 +239,9 @@ def clear_chunk_repository_cache() -> None:
 def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
     """Factory: return a NetworkTaskRepository based on QIYAN_STATE_BACKEND.
 
-    - ``"json"`` (default) → NetworkTaskRepository (InMemory)
-    - ``"sqlite"``          → SqliteNetworkTaskRepository
+    - ``"json"`` (default)   → NetworkTaskRepository (InMemory)
+    - ``"sqlite"``           → SqliteNetworkTaskRepository
+    - ``"postgresql"``       → PostgresNetworkTaskRepository
 
     Results are cached at module level; call
     :func:`clear_network_task_repository_cache` to reset (e.g. in tests).
@@ -254,7 +255,11 @@ def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
 
     _close_if_sqlite(_nt_repo_cache)
 
-    if backend == "sqlite":
+    if backend == "postgresql":
+        from app.repositories.postgres_network_tasks import PostgresNetworkTaskRepository
+
+        _nt_repo_cache = PostgresNetworkTaskRepository()
+    elif backend == "sqlite":
         from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
 
         db_path = resolve_sqlite_db_path()

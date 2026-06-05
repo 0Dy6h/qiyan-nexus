@@ -1,8 +1,5 @@
 """Unit tests for PDF quality helper functions."""
 
-import pytest
-from pypdf import PdfReader
-
 from app.services.literature import (
     _calculate_cjk_ratio,
     _detect_low_text_density,

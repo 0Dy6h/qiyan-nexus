@@ -24,6 +24,9 @@ dev = [
     "sentence-transformers>=3.0.0",
     "transformers>=4.40.0",
 ]
+postgresql = [
+    "psycopg[binary,pool]>=3.1.0",
+]
 
 [tool.setuptools]
 packages = ["app"]
@@ -53,3 +56,7 @@ files = ["app"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["psycopg", "psycopg.*", "psycopg_pool"]
+ignore_missing_imports = true
