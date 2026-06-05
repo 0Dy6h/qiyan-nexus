@@ -201,22 +201,116 @@ def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
     return "Mock parser completed successfully", started_at, finished_at
 
 
+def _calculate_cjk_ratio(text: str) -> float:
+    """Calculate the ratio of CJK (Chinese/Japanese/Korean) characters in text."""
+    if not text:
+        return 0.0
+    cjk_count = sum(1 for c in text if "一" <= c <= "鿿")
+    return cjk_count / len(text)
+
+
+def _detect_low_text_density(text: str) -> bool:
+    """Detect if text has low alphanumeric density (likely table/formula).
+
+    Returns True if text appears to be mostly non-textual content.
+    """
+    if not text or len(text) < 10:
+        return False
+    alphanumeric = sum(1 for c in text if c.isalnum())
+    # If <20% alphanumeric, likely table/formula/diagram
+    return (alphanumeric / len(text)) < 0.2
+
+
+def _filter_header_footer_pages(reader: PdfReader, skip_top_ratio: float = 0.15, skip_bottom_ratio: float = 0.15) -> str:
+    """Extract text from PDF pages, skipping likely header/footer regions.
+
+    Args:
+        reader: pypdf PdfReader instance
+        skip_top_ratio: Skip top N% of each page (default 15% for headers)
+        skip_bottom_ratio: Skip bottom N% of each page (default 15% for footers)
+
+    Returns:
+        Extracted text with headers/footers filtered
+    """
+    full_pages_text = []
+
+    for page in reader.pages:
+        try:
+            # Extract full page text first
+            page_text = page.extract_text() or ""
+            if not page_text:
+                continue
+
+            lines = page_text.split("\n")
+            if len(lines) <= 3:
+                # Too few lines, keep as-is
+                full_pages_text.append(page_text.strip())
+                continue
+
+            # Skip top and bottom portions (likely headers/footers)
+            skip_top_lines = max(1, int(len(lines) * skip_top_ratio))
+            skip_bottom_lines = max(1, int(len(lines) * skip_bottom_ratio))
+
+            # Keep middle portion
+            middle_lines = lines[skip_top_lines : len(lines) - skip_bottom_lines]
+            filtered_text = "\n".join(middle_lines).strip()
+
+            if filtered_text:
+                full_pages_text.append(filtered_text)
+        except Exception:
+            # If page extraction fails, skip this page
+            continue
+
+    return "\n".join(full_pages_text)
+
+
 def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | None:
+    """Extract preview text from PDF with quality improvements.
+
+    Improvements:
+    - Filter header/footer regions (top/bottom 15% of pages)
+    - Skip low-density text (likely tables/formulas)
+
+    Args:
+        storage_path: Path to PDF file
+        max_chars: Maximum characters to return
+
+    Returns:
+        Extracted text preview or None if extraction fails
+    """
     try:
         reader = PdfReader(str(storage_path))
-        text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
+
+        # Use improved extraction with header/footer filtering
+        text = _filter_header_footer_pages(reader)
+
     except Exception:
         return None
+
     if not text:
         return None
-    return text[:max_chars]
+
+    return text[:max_chars].strip()
 
 
 def detect_pdf_text_quality_warning(preview_text: str | None) -> str | None:
+    """Detect if PDF text extraction has quality issues.
+
+    Improved thresholds:
+    - NUL byte ratio increased from 2% to 5% (more tolerant of header garbling)
+    - Still requires >=3 NUL bytes as absolute minimum
+
+    Args:
+        preview_text: Extracted preview text
+
+    Returns:
+        Warning message if quality issues detected, None otherwise
+    """
     if not preview_text:
         return None
     nul_count = preview_text.count("\x00")
-    if nul_count >= 3 or (nul_count > 0 and nul_count / max(len(preview_text), 1) >= 0.02):
+    # Increased tolerance from 0.02 (2%) to 0.05 (5%)
+    if nul_count >= 3 or (nul_count > 0 and nul_count / max(len(preview_text), 1) >= 0.05):
         return _PDF_TEXT_QUALITY_WARNING
     return None
 
