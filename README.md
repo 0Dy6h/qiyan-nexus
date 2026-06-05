@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
+当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
 
@@ -77,14 +77,16 @@ curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎"
 - `page`：页码，默认 `1`。
 - `page_size`：每页数量，默认 `10`，最大 `50`。
 - `sort`：`relevance` / `year_desc` / `year_asc`，默认 `relevance`。
+- `has_pdf_upload`：可选布尔值；`true` 仅返回已挂载上传 PDF metadata 的条目，`false` 排除已挂载 PDF 的条目，省略则不按 PDF 状态过滤。
 
 示例：
 
 ```bash
 curl "http://127.0.0.1:8000/api/literature/search?q=瘙痒&source=cn_literature&page=1&page_size=5&sort=relevance"
+curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎&has_pdf_upload=true"
 ```
 
-返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页和排序展示。
+返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页、排序和数据来源视图展示。
 
 文献详情 API：
 
@@ -318,7 +320,7 @@ pnpm build
 
 当前前端能力：
 
-- `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示。
+- `/literature`：支持 query 输入、4 类数据来源视图（全部来源 / PubMed 实时 / CNKI sample / 上传 PDF）、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示与随来源切换的合规 banner。
 - `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
 - `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的语料范围、通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。

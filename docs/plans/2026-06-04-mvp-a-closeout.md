@@ -42,7 +42,7 @@
 | B3 网络药理学任务壳（前后端） | **已落地** | `/api/network/analyze` + `/api/network/result/{task_id}` + `/network` 页面全栈 |
 | B4 herb/compound/target/pathway sample 数据集 | **已落地** | `backend/data/network/sample_*.json` + `app/schemas/network_entities.py` |
 | B5 RAG citation ↔ network entity 双向跳转 | **已落地** | citation 含 `related_entity_ids` + `/network` 节点指回 |
-| B6 数据来源切换面板（合规） | 待补 | 当前 `/literature` 已隐式支持 source 切换，但合规 banner 文案随选择切换的部分未单独 slice |
+| B6 数据来源切换面板（合规） | **已落地并补 e2e** | `/literature` 已支持“全部来源 / PubMed 实时 / CNKI sample / 上传 PDF”四来源视图，`LiteratureDataSourceBanner` 随选择切换合规口径；上传 PDF 视图走 `has_pdf_upload=true`；`frontend/e2e/literature-data-source.spec.ts` 锁定浏览器 → API 参数合同 |
 
 **结论**：阶段 B 原 slice 大部分已在 cross-lingual / network 推进期间附带落地。
 
@@ -51,7 +51,7 @@
 1. **L2 governance**：BGE=0.3 + NLI=0.5 profile 是否可接受仍是治理决策；默认路径继续 deterministic。
 2. **PostgreSQL/pgvector spike**：runtime SQLite 已落地，生产数据库路径可独立评估。
 3. **PDF 抽取质量 spike**：OCR、表格重建或质量启发式可作为独立 spike，不扩进默认内部预览路径。
-4. **前端 UI 一致性小切片**：如继续当前 parked 页面壳/视觉改动，先做只读 diff review，再拆成可审查的小 PR。
+4. **内部 reviewer sign-off**：当前工程/e2e 基线可支撑内部预览，但正式医生/科研 reviewer 走查仍需单独记录，不能由自动化替代。
 
 **已完成补记**：多语 embedding spike 三个 sub-slice 已于 2026-06-04 闭合，结论为 BGE-M3 不翻默认，仅保留 `QIYAN_EMBEDDING_BACKEND=multilingual_bge_m3` env opt-in；随后 eval corpus isolation + q011 数据审计已把 seed keyword bilingual cohort 对账到 cross=1.0000。详见 `docs/evaluations/2026-06-04-multilingual-bge-m3-eval.md` 与 `docs/evaluations/2026-06-04-eval-corpus-isolation-and-rag-eval-011-audit.md`。
 
@@ -60,6 +60,7 @@
 - `docs/plans/2026-05-21-roadmap.md` — 原路线图（仍是路线唯一入口）
 - `docs/handoffs/2026-06-03-session-wrap.md` — 阶段 A 最后一次 cross-lingual / e2e 工作 wrap
 - `docs/handoffs/2026-06-04-a5-chinese-pdf-verification.md` — A5 closure
+- `docs/handoffs/2026-06-04-internal-preview-baseline.md` — B6 数据来源 e2e + 内部预览基线收口
 - `docs/adr/0010-module-roadmap.md` — MVP-A/B/C 模块边界
 - `docs/adr/0012-real-llm-enablement.md` — L2 治理决策
 
