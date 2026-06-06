@@ -14,6 +14,7 @@ test("getStatusTone returns idle and error tones", () => {
 
 test("getStatusCardStyle returns shared idle card visuals", () => {
   assert.deepEqual(getStatusCardStyle("idle"), {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-idle-bg)",
     border: "1px solid var(--qiyan-status-idle-line)",
     borderRadius: 16,
@@ -23,6 +24,7 @@ test("getStatusCardStyle returns shared idle card visuals", () => {
 
 test("getStatusCardStyle returns shared error card visuals", () => {
   assert.deepEqual(getStatusCardStyle("error"), {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-error-bg)",
     border: "1px solid var(--qiyan-status-error-line)",
     borderRadius: 16,
@@ -32,6 +34,7 @@ test("getStatusCardStyle returns shared error card visuals", () => {
 
 test("getStatusCardStyle returns distinct warning card visuals", () => {
   assert.deepEqual(getStatusCardStyle("warning"), {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-warning-bg)",
     border: "1px solid var(--qiyan-status-warning-line)",
     borderRadius: 16,
@@ -41,12 +44,14 @@ test("getStatusCardStyle returns distinct warning card visuals", () => {
 
 test("getStatusCardStyle returns distinct success and danger card visuals", () => {
   assert.deepEqual(getStatusCardStyle("success"), {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-success-bg)",
     border: "1px solid var(--qiyan-status-success-line)",
     borderRadius: 16,
     padding: "16px 18px",
   });
   assert.deepEqual(getStatusCardStyle("danger"), {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-danger-bg)",
     border: "1px solid var(--qiyan-status-danger-line)",
     borderRadius: 16,

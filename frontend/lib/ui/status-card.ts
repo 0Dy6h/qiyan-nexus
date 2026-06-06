@@ -50,6 +50,7 @@ export function getPdfStatusCopy(
 export function getStatusCardStyle(tone: StatusTone): Record<string, string | number> {
   if (tone === "error") {
     return {
+      backdropFilter: "blur(14px) saturate(135%)",
       background: "var(--qiyan-status-error-bg)",
       border: "1px solid var(--qiyan-status-error-line)",
       borderRadius: 16,
@@ -58,6 +59,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
   }
   if (tone === "warning") {
     return {
+      backdropFilter: "blur(14px) saturate(135%)",
       background: "var(--qiyan-status-warning-bg)",
       border: "1px solid var(--qiyan-status-warning-line)",
       borderRadius: 16,
@@ -66,6 +68,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
   }
   if (tone === "success") {
     return {
+      backdropFilter: "blur(14px) saturate(135%)",
       background: "var(--qiyan-status-success-bg)",
       border: "1px solid var(--qiyan-status-success-line)",
       borderRadius: 16,
@@ -74,6 +77,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
   }
   if (tone === "danger") {
     return {
+      backdropFilter: "blur(14px) saturate(135%)",
       background: "var(--qiyan-status-danger-bg)",
       border: "1px solid var(--qiyan-status-danger-line)",
       borderRadius: 16,
@@ -81,6 +85,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     };
   }
   return {
+    backdropFilter: "blur(14px) saturate(135%)",
     background: "var(--qiyan-status-idle-bg)",
     border: "1px solid var(--qiyan-status-idle-line)",
     borderRadius: 16,

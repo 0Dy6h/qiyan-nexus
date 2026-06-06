@@ -21,31 +21,36 @@ test("root layout uses a persistent app-style left rail navigation and reserves 
   assert.match(shellSource, /aria-label="工作台侧栏"/);
   assert.match(shellSource, /className="home-account-entry"/);
   assert.match(shellSource, /登录 \/ 注册/);
+  assert.match(shellSource, /className="meteor-shower"/);
+  assert.match(shellSource, /aria-hidden="true"/);
   assert.match(shellSource, /next\/link/);
 });
 
-test("non-home workbench pages use logged-in starfield background while home stays isolated", () => {
+test("workbench shell uses a clean meteor background without legacy decorative clutter", () => {
   const source = getPageSource("app/workbench.css");
 
-  assert.match(source, /\.home-page\s*{/);
-  assert.match(source, /\.home-page::before\s*{/);
-  assert.match(source, /\.home-page::after\s*{\s*display:\s*none;/s);
+  assert.match(source, /--qiyan-glass-bg/);
   assert.match(source, /\.workbench-page:not\(\.home-page\)::before\s*{/);
   assert.match(source, /\.workbench-page:not\(\.home-page\)::after\s*{/);
+  assert.match(source, /\.meteor-shower\s*{/);
+  assert.match(source, /\.meteor::before\s*{/);
   assert.match(source, /qiyanStarDrift/);
-  assert.match(source, /qiyanMeteorDrift/);
-  assert.match(source, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.workbench-page:not\(\.home-page\)::after[\s\S]*animation:\s*none/);
+  assert.match(source, /meteorFall/);
+  assert.doesNotMatch(source, /qiyanMeteorDrift/);
+  assert.doesNotMatch(source, /linear-gradient\(rgba\(56, 189, 248/);
+  assert.match(source, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.meteor[\s\S]*animation:\s*none/);
 });
 
-test("non-home workbench pages keep homepage rail and teal surface continuity", () => {
+test("non-home workbench pages keep homepage rail and glass surface continuity", () => {
   const source = getPageSource("app/workbench.css");
 
   assert.match(source, /\.workbench-frame\s*{[\s\S]*width:\s*min\(1480px, 100%\);[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\)/);
   assert.match(source, /\.home-main-stack,\s*\.workbench-main-stack\s*{/);
   assert.match(source, /\.workbench-page \.home-app-rail \.workbench-nav\s*{/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav\s*{[\s\S]*background:\s*rgba\(5, 12, 20, 0\.9\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav\s*{[\s\S]*background:\s*var\(--qiyan-glass-bg\)/);
   assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--qiyan-teal\)/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.78\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.16\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*backdrop-filter:\s*var\(--qiyan-glass-filter\)/);
 });
 
 test("workbench routes render only right-side content inside the persistent shell", () => {

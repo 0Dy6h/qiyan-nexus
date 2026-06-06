@@ -42,6 +42,17 @@ export default function WorkbenchShell({ children }: Readonly<{ children: ReactN
 
   return (
     <main className={`workbench-page${isHome ? " home-page" : ""}`} style={{ minHeight: "100vh", padding: "clamp(12px, 2vw, 24px)" }}>
+      <div className="meteor-shower" aria-hidden="true">
+        <div className="meteor"></div>
+        <div className="meteor teal"></div>
+        <div className="meteor"></div>
+        <div className="meteor purple"></div>
+        <div className="meteor"></div>
+        <div className="meteor teal"></div>
+        <div className="meteor"></div>
+        <div className="meteor"></div>
+      </div>
+
       <section className="workbench-frame home-app-frame">
         <aside className="home-app-rail" aria-label="工作台侧栏">
           <Link className="home-brand" href="/" aria-label="Qiyan Nexus 首页" aria-current={isHome ? "page" : undefined}>

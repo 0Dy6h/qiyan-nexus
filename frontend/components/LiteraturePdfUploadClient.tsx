@@ -203,6 +203,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             display: "grid",
             gap: 10,
             padding: 16,
+            backdropFilter: "blur(12px) saturate(130%)",
             border: "1px solid var(--qiyan-line)",
             borderRadius: 8,
             background: "var(--qiyan-surface-3)",
@@ -226,6 +227,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             <p
               style={{
                 color: "#fde68a",
+                backdropFilter: "blur(12px) saturate(130%)",
                 background: "var(--qiyan-status-warning-bg)",
                 border: "1px solid var(--qiyan-status-warning-line)",
                 borderRadius: 16,
@@ -289,6 +291,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
             display: "grid",
             gap: 12,
             padding: 16,
+            backdropFilter: "blur(12px) saturate(130%)",
             border: "1px solid var(--qiyan-line)",
             borderRadius: 8,
             background: "var(--qiyan-surface-3)",

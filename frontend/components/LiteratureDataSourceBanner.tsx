@@ -16,7 +16,7 @@ type ToneStyle = {
 
 const TONE_STYLES: Record<ReturnType<typeof getLiteratureDataSourceBanner>["tone"], ToneStyle> = {
   info: {
-    background: "rgba(7, 33, 29, 0.72)",
+    background: "rgba(7, 33, 29, 0.36)",
     border: "1px solid rgba(45, 212, 191, 0.42)",
     badgeBackground: "rgba(20, 184, 166, 0.18)",
     badgeColor: "#99f6e4",
@@ -24,7 +24,7 @@ const TONE_STYLES: Record<ReturnType<typeof getLiteratureDataSourceBanner>["tone
     bodyColor: "#ccfbf1",
   },
   live: {
-    background: "rgba(12, 25, 54, 0.78)",
+    background: "rgba(12, 25, 54, 0.38)",
     border: "1px solid rgba(96, 165, 250, 0.42)",
     badgeBackground: "rgba(37, 99, 235, 0.2)",
     badgeColor: "#bfdbfe",
@@ -32,7 +32,7 @@ const TONE_STYLES: Record<ReturnType<typeof getLiteratureDataSourceBanner>["tone
     bodyColor: "#dbeafe",
   },
   sample: {
-    background: "rgba(36, 24, 5, 0.72)",
+    background: "rgba(36, 24, 5, 0.36)",
     border: "1px solid rgba(245, 158, 11, 0.44)",
     badgeBackground: "rgba(245, 158, 11, 0.18)",
     badgeColor: "#fde68a",
@@ -40,7 +40,7 @@ const TONE_STYLES: Record<ReturnType<typeof getLiteratureDataSourceBanner>["tone
     bodyColor: "#f9d99a",
   },
   upload: {
-    background: "rgba(34, 20, 63, 0.72)",
+    background: "rgba(34, 20, 63, 0.36)",
     border: "1px solid rgba(167, 139, 250, 0.44)",
     badgeBackground: "rgba(139, 92, 246, 0.2)",
     badgeColor: "#ddd6fe",
@@ -62,6 +62,7 @@ export default function LiteratureDataSourceBanner({ view }: Props) {
         alignItems: "flex-start",
         gap: 12,
         padding: 16,
+        backdropFilter: "blur(14px) saturate(135%)",
         border: style.border,
         borderRadius: 16,
         background: style.background,

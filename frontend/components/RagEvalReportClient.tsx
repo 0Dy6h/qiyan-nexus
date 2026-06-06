@@ -24,6 +24,7 @@ function SummaryMetric({ label, value }: { label: string; value: string | number
   return (
     <div
       style={{
+        backdropFilter: "blur(12px) saturate(130%)",
         background: "var(--qiyan-surface)",
         border: "1px solid var(--qiyan-line)",
         borderRadius: 8,
@@ -125,6 +126,7 @@ export default function RagEvalReportClient() {
               <article
                 key={item.id}
                 style={{
+                  backdropFilter: "blur(12px) saturate(130%)",
                   background: "var(--qiyan-surface)",
                   border: `1px solid ${item.passed ? "var(--qiyan-status-success-line)" : "var(--qiyan-status-danger-line)"}`,
                   borderRadius: 8,
