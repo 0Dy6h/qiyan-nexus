@@ -45,7 +45,11 @@ test("internal preview smoke script covers core API flows and token header", () 
   assert.match(source, /\[string\]\$ProfileName\s*=\s*""/);
   assert.match(source, /\[string\]\$OutputJson\s*=\s*""/);
   assert.match(source, /\[string\]\$OutputMarkdown\s*=\s*""/);
-  assert.match(source, /local-review-pdfs\\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松\.pdf/);
+  assert.match(source, /\[string\]\$PdfPath\s*=\s*""/);
+  assert.match(source, /function Resolve-SmokePdfPath/);
+  assert.match(source, /local-review-pdfs/);
+  assert.match(source, /Get-ChildItem[\s\S]*-Filter "\*\.pdf"/);
+  assert.match(source, /function New-UnicodeString/);
   assert.match(source, /X-Access-Token/);
   assert.match(source, /\/health/);
   assert.match(source, /\/api\/literature\/search/);
@@ -57,7 +61,8 @@ test("internal preview smoke script covers core API flows and token header", () 
   assert.match(source, /\/api\/network\/analyze/);
   assert.match(source, /\/api\/network\/result/);
   assert.match(source, /\/report/);
-  assert.match(source, /非诊断结论、需结合临床。/);
+  assert.match(source, /0x975E/);
+  assert.doesNotMatch(source, /非诊断结论、需结合临床。/);
   assert.match(source, /X-Request-ID/);
   assert.match(source, /curl\.exe/);
   assert.match(source, /ConvertTo-Json/);

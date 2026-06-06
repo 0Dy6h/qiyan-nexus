@@ -1,7 +1,7 @@
 param(
     [string]$BackendUrl = "http://127.0.0.1:8000",
     [string]$AccessToken = "",
-    [string]$PdfPath = "local-review-pdfs\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf",
+    [string]$PdfPath = "",
     [string]$ProfileName = "",
     [string]$OutputJson = "",
     [string]$OutputMarkdown = ""
@@ -10,14 +10,48 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function New-UnicodeString {
+    param([int[]]$CodePoints)
+    return -join ($CodePoints | ForEach-Object { [char]$_ })
+}
+
+function Resolve-SmokePdfPath {
+    param(
+        [string]$RepoRoot,
+        [string]$RelativePath
+    )
+
+    if ($RelativePath.Trim()) {
+        $resolved = Resolve-Path (Join-Path $RepoRoot $RelativePath) -ErrorAction SilentlyContinue
+        if ($null -ne $resolved) {
+            return $resolved.Path
+        }
+        return $null
+    }
+
+    $pdfDirectory = Join-Path $RepoRoot "local-review-pdfs"
+    if (-not (Test-Path -LiteralPath $pdfDirectory)) {
+        return $null
+    }
+
+    $sample = Get-ChildItem -LiteralPath $pdfDirectory -Filter "*.pdf" -File |
+        Sort-Object Length -Descending |
+        Select-Object -First 1
+    if ($null -eq $sample) {
+        return $null
+    }
+    return $sample.FullName
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$pdfFullPath = Resolve-Path (Join-Path $repoRoot $PdfPath) -ErrorAction SilentlyContinue
-$disclaimer = "非诊断结论、需结合临床。"
+$pdfFullPath = Resolve-SmokePdfPath -RepoRoot $repoRoot -RelativePath $PdfPath
+$pdfFileName = if ($pdfFullPath) { Split-Path -Leaf $pdfFullPath } else { "" }
+$disclaimer = New-UnicodeString @(0x975E, 0x8BCA, 0x65AD, 0x7ED3, 0x8BBA, 0x3001, 0x9700, 0x7ED3, 0x5408, 0x4E34, 0x5E8A, 0x3002)
 $results = New-Object System.Collections.Generic.List[object]
 $startedAt = Get-Date
 
 if ($null -eq $pdfFullPath) {
-    throw "PDF sample not found at $PdfPath. Provide -PdfPath explicitly."
+    throw "PDF sample not found. Provide -PdfPath explicitly or add a PDF under local-review-pdfs."
 }
 
 function Join-Url {
@@ -68,19 +102,52 @@ function Invoke-Json {
         Method = $Method
         Uri = $Url
         Headers = $headers
-        ResponseHeadersVariable = "responseHeaders"
-        StatusCodeVariable = "statusCode"
+        UseBasicParsing = $true
     }
     if ($null -ne $Body) {
         $params["ContentType"] = "application/json"
-        $params["Body"] = ($Body | ConvertTo-Json -Depth 30)
+        $jsonBody = $Body | ConvertTo-Json -Depth 30
+        $params["Body"] = [System.Text.Encoding]::UTF8.GetBytes($jsonBody)
     }
-    $payload = Invoke-RestMethod @params
+    $response = Invoke-WebRequest @params
+    $content = Get-ResponseText -Response $response
+    $contentTypeValue = $null
+    try {
+        $contentTypeValue = $response.Headers["Content-Type"]
+    }
+    catch {
+        $contentTypeValue = $null
+    }
+
+    $contentType = (@($contentTypeValue) -join ",")
+    $trimmedContent = $content.TrimStart()
+    $payload = $content
+    if ($contentType -match "json" -or $trimmedContent.StartsWith("{") -or $trimmedContent.StartsWith("[")) {
+        $payload = $content | ConvertFrom-Json
+    }
+
     return [pscustomobject]@{
-        Status = [int]$statusCode
-        Headers = $responseHeaders
+        Status = [int]$response.StatusCode
+        Headers = $response.Headers
         Payload = $payload
     }
+}
+
+function Get-ResponseText {
+    param($Response)
+
+    $rawStreamProperty = $Response.PSObject.Properties["RawContentStream"]
+    if ($null -ne $rawStreamProperty -and $null -ne $rawStreamProperty.Value) {
+        $stream = $rawStreamProperty.Value
+        if ($stream.CanSeek) {
+            $stream.Position = 0
+        }
+        $memory = New-Object System.IO.MemoryStream
+        $stream.CopyTo($memory)
+        return [System.Text.Encoding]::UTF8.GetString($memory.ToArray())
+    }
+
+    return [string]$Response.Content
 }
 
 function Get-RequestId {
@@ -88,13 +155,25 @@ function Get-RequestId {
     if ($null -eq $Headers) {
         return ""
     }
-    if ($Headers.ContainsKey("X-Request-ID")) {
-        return ($Headers["X-Request-ID"] -join ",")
+    $value = $null
+    try {
+        $value = $Headers["X-Request-ID"]
     }
-    if ($Headers.ContainsKey("x-request-id")) {
-        return ($Headers["x-request-id"] -join ",")
+    catch {
+        $value = $null
     }
-    return ""
+    if ($null -eq $value) {
+        try {
+            $value = $Headers["x-request-id"]
+        }
+        catch {
+            $value = $null
+        }
+    }
+    if ($null -eq $value) {
+        return ""
+    }
+    return (@($value) -join ",")
 }
 
 function Ensure-ParentDirectory {
@@ -139,7 +218,7 @@ function Write-SmokeArtifacts {
     $evidence = [pscustomobject]@{
         profile = $profile
         backend_url = $BackendUrl
-        pdf_file_name = (Split-Path -Leaf $PdfPath)
+        pdf_file_name = $pdfFileName
         started_at = $startedAt.ToString("o")
         finished_at = $finishedAt.ToString("o")
         duration_seconds = [math]::Round(($finishedAt - $startedAt).TotalSeconds, 3)
@@ -159,31 +238,31 @@ function Write-SmokeArtifacts {
     if ($OutputMarkdown.Trim()) {
         Ensure-ParentDirectory -Path $OutputMarkdown
         $lines = New-Object System.Collections.Generic.List[string]
-        $lines.Add("# Internal preview smoke evidence") | Out-Null
-        $lines.Add("") | Out-Null
-        $lines.Add("| Field | Value |") | Out-Null
-        $lines.Add("|---|---|") | Out-Null
-        $lines.Add("| Profile | ``$profile`` |") | Out-Null
-        $lines.Add("| Backend URL | ``$BackendUrl`` |") | Out-Null
-        $lines.Add("| Passed | ``$Passed`` |") | Out-Null
-        $lines.Add("| Token profile enabled | ``$([bool]$AccessToken.Trim())`` |") | Out-Null
-        $lines.Add("| Started | ``$($startedAt.ToString("s"))`` |") | Out-Null
-        $lines.Add("| Finished | ``$($finishedAt.ToString("s"))`` |") | Out-Null
-        $lines.Add("| PDF sample | ``$(Split-Path -Leaf $PdfPath)`` |") | Out-Null
-        $lines.Add("| Disclaimer assertion | ``$disclaimer`` |") | Out-Null
+        [void]$lines.Add("# Internal preview smoke evidence")
+        [void]$lines.Add("")
+        [void]$lines.Add("| Field | Value |")
+        [void]$lines.Add("|---|---|")
+        [void]$lines.Add("| Profile | ``$profile`` |")
+        [void]$lines.Add("| Backend URL | ``$BackendUrl`` |")
+        [void]$lines.Add("| Passed | ``$Passed`` |")
+        [void]$lines.Add("| Token profile enabled | ``$([bool]$AccessToken.Trim())`` |")
+        [void]$lines.Add("| Started | ``$($startedAt.ToString("s"))`` |")
+        [void]$lines.Add("| Finished | ``$($finishedAt.ToString("s"))`` |")
+        [void]$lines.Add("| PDF sample | ``$pdfFileName`` |")
+        [void]$lines.Add("| Disclaimer assertion | ``$disclaimer`` |")
         if ($FailureMessage.Trim()) {
-            $lines.Add("| Failure | $FailureMessage |") | Out-Null
+            [void]$lines.Add("| Failure | $FailureMessage |")
         }
-        $lines.Add("") | Out-Null
-        $lines.Add("## Flow Results") | Out-Null
-        $lines.Add("") | Out-Null
-        $lines.Add("| Flow | Status | Request ID | Notes |") | Out-Null
-        $lines.Add("|---|---:|---|---|") | Out-Null
+        [void]$lines.Add("")
+        [void]$lines.Add("## Flow Results")
+        [void]$lines.Add("")
+        [void]$lines.Add("| Flow | Status | Request ID | Notes |")
+        [void]$lines.Add("|---|---:|---|---|")
         foreach ($flow in $flowResults) {
-            $lines.Add("| $($flow.Flow) | $($flow.Status) | ``$($flow.RequestId)`` | $($flow.Notes) |") | Out-Null
+            [void]$lines.Add("| $($flow.Flow) | $($flow.Status) | ``$($flow.RequestId)`` | $($flow.Notes) |")
         }
-        $lines.Add("") | Out-Null
-        $lines.Add("This smoke evidence is a technical preview artifact and is not formal clinician/research reviewer sign-off.") | Out-Null
+        [void]$lines.Add("")
+        [void]$lines.Add("This smoke evidence is a technical preview artifact and is not formal clinician/research reviewer sign-off.")
         $lines | Set-Content -Path $OutputMarkdown -Encoding utf8
     }
 }
@@ -193,10 +272,10 @@ Assert-True ($health.Status -eq 200) "Health check failed."
 Add-Result -Flow "health" -Status $health.Status -RequestId (Get-RequestId $health.Headers) -Notes "status=$($health.Payload.status)"
 
 $literatureSources = @(
-    @{ Label = "literature_all"; Query = "q=特应性皮炎&source=all" },
+    @{ Label = "literature_all"; Query = "q=%E7%89%B9%E5%BA%94%E6%80%A7%E7%9A%AE%E7%82%8E&source=all" },
     @{ Label = "literature_pubmed"; Query = "q=atopic%20dermatitis&source=pubmed" },
-    @{ Label = "literature_cnki"; Query = "q=特应性皮炎&source=cn_literature" },
-    @{ Label = "literature_uploaded_filter"; Query = "q=特应性皮炎&has_pdf_upload=true" }
+    @{ Label = "literature_cnki"; Query = "q=%E7%89%B9%E5%BA%94%E6%80%A7%E7%9A%AE%E7%82%8E&source=cn_literature" },
+    @{ Label = "literature_uploaded_filter"; Query = "q=%E7%89%B9%E5%BA%94%E6%80%A7%E7%9A%AE%E7%82%8E&has_pdf_upload=true" }
 )
 
 foreach ($source in $literatureSources) {
@@ -216,7 +295,7 @@ $uploadBodyFile = [System.IO.Path]::GetTempFileName()
 try {
     & curl.exe -sS -D $uploadHeaderFile -o $uploadBodyFile -X POST $uploadUrl @curlHeaders `
         -F "literature_id=cn-ad-barrier-006" `
-        -F "file=@$($pdfFullPath.Path);type=application/pdf"
+        -F "file=@$pdfFullPath;type=application/pdf"
     if ($LASTEXITCODE -ne 0) {
         throw "curl.exe PDF upload failed with exit code $LASTEXITCODE."
     }
@@ -242,7 +321,7 @@ Assert-True ($null -ne $parse.Payload.pdf_parse_result) "PDF auto-parse did not 
 Add-Result -Flow "pdf_auto_parse" -Status $parse.Status -RequestId (Get-RequestId $parse.Headers) -Notes "method=$($parse.Payload.pdf_parse_result.extraction_method)"
 
 $rag = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/rag/answer") -Body @{
-    question = "特应性皮炎和皮肤屏障有什么关系？"
+    question = New-UnicodeString @(0x7279, 0x5E94, 0x6027, 0x76AE, 0x708E, 0x548C, 0x76AE, 0x80A4, 0x5C4F, 0x969C, 0x6709, 0x4EC0, 0x4E48, 0x5173, 0x7CFB, 0xFF1F)
     source = "all"
     top_k = 2
 }
@@ -257,7 +336,7 @@ Assert-True (($ragExport.Payload | Out-String).Contains($disclaimer)) "RAG Markd
 Add-Result -Flow "rag_export" -Status $ragExport.Status -RequestId (Get-RequestId $ragExport.Headers) -Notes "markdown=ok"
 
 $network = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/network/analyze") -Body @{
-    query = "消风散"
+    query = New-UnicodeString @(0x6D88, 0x98CE, 0x6563)
     analysis_type = "formula"
 }
 Assert-True ($network.Status -eq 202) "Network analyze failed."
