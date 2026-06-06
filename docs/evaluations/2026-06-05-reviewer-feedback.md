@@ -15,20 +15,32 @@ Preflight status: completed by engineering; formal clinician/research reviewer s
 |---|---|
 | Branch | `feat/multilingual-bge-m3-backend` |
 | Baseline commit | `c3c177d` |
+| Current technical refresh base commit | `a723472` |
+| Verified worktree | engineering pre-review closeout changes for record origin labels and Windows smoke compatibility |
 | Backend URL | `http://127.0.0.1:8000` |
-| Frontend URL | `http://localhost:3000` |
+| Frontend URL | `http://127.0.0.1:3000` |
 | Runtime profile | default offline preview |
 | LLM provider | `deterministic` |
 | Retrieval provider | `keyword` |
-| Access control | open dev mode, `QIYAN_ACCESS_TOKENS=""` |
+| State backend | `json` |
+| Access control | open dev mode verified; shared-token profile also verified as internal preview gate |
 | External data egress | none; no real LLM / embedding / PostgreSQL enabled |
-| Runtime isolation | `.tmp/formal-review/runtime/*` and `.tmp/formal-review/uploads/` |
+| Runtime isolation | `.tmp/internal-preview-evidence/20260606-152844/runtime-open` and `.tmp/internal-preview-evidence/20260606-152844/runtime-token` |
+| Evidence package | `.tmp/internal-preview-evidence/20260606-152844/evidence-summary.md` |
 
 Preflight verification:
 
-- Backend standard gate passed: `ruff format --check`, `ruff check`, `mypy app`, `pytest -q`.
-- Frontend standard gate passed: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm e2e`.
+- 2026-06-06 technical refresh passed:
+  - `.\scripts\verify-local.ps1` passed: backend `ruff format --check`, `ruff check`, `mypy app`, `pytest -q` (`505 passed, 1 skipped`); frontend `pnpm test` (`168 passed`), `pnpm typecheck`, `pnpm build`.
+  - `.\scripts\verify-local.ps1 -IncludeE2E` passed: same backend/frontend gates plus Playwright open-mode E2E (`4 passed`).
+  - `.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile` passed: same backend/frontend gates plus shared-token Playwright E2E (`4 passed`).
+  - `.\scripts\collect-internal-preview-evidence.ps1` passed after Windows PowerShell compatibility hardening and created `.tmp/internal-preview-evidence/20260606-152844/`.
+- Evidence smoke summary:
+  - open profile: passed, 12 flows, 12 request IDs.
+  - shared-token profile: passed, 12 flows, 12 request IDs; access token value intentionally omitted.
+  - Covered flows: health, literature all/PubMed/CNKI/uploaded-PDF filter, PDF upload + auto-parse, RAG answer/export, network analyze/result/report.
 - Internal rehearsal already passed on the same default offline profile; see `docs/handoffs/2026-06-05-internal-reviewer-rehearsal.md`.
+- Internal preview ops and evidence collector handoffs are current as of 2026-06-06; see `docs/handoffs/2026-06-06-afk-internal-trial-ops.md` and `docs/handoffs/2026-06-06-internal-preview-evidence-pack.md`.
 - This packet must still be filled by a real clinician and a real research reviewer. Automated tests and internal rehearsal are not a substitute for domain sign-off.
 
 ## 使用说明
@@ -55,6 +67,22 @@ Preflight verification:
 | P1 | 核心 reviewer 流程明显受损，正式试用前必须修 | 本轮修复，复测相关流程 |
 | P2 | 影响体验或可信度，但不阻塞试用判断 | 进入下一 sprint |
 | P3 | 优化建议或新功能愿望 | 进入 backlog |
+
+## Engineering-discovered pre-review issue
+
+#### Issue E-1
+
+- `reviewer_role`: engineering pre-review
+- `flow`: 文献检索与数据来源切换
+- `severity`: P1
+- `description`: `/literature` 默认结果包含 seed 演示文献，其中部分中文/英文标题、作者、PMID/DOI 与 `example.org` citation URL 不是外部数据库可检索的真实记录；原 UI 虽有 sample banner，但卡片层没有逐条标明记录来源，`PubMed 实时` 文案也容易让 reviewer 误以为 PubMed seed 样本都是实时真实记录。
+- `steps_to_reproduce`: 访问 `/literature`，搜索 `特应性皮炎` 或切换 PubMed 视图，尝试用外部网站检索页面展示的 seed 标题。
+- `expected`: 页面和 API 必须诚实区分演示 seed、PubMed 实时同步记录与本地上传 PDF 状态；演示 seed 不应被误读为可外部检索的真实文献。
+- `actual`: 修复前卡片主要展示 `来源` / `期刊`，缺少逐条 `记录来源` 标识。
+- `request_id`: n/a（工程侧静态数据/文案问题）
+- `screenshot_note`: 修复后文献卡片与详情页 meta 行显示 `记录来源 演示样本` 或 `记录来源 PubMed 实时同步`；PubMed 视图 banner 改为 `PubMed 记录（含演示 seed）` 并明示 seed 不可当作外部可检索真实文献。
+- `disposition`: fixed-before-formal-review
+- `blocks_trial`: no after fix
 
 ## Reviewer A — Clinician
 
@@ -156,6 +184,7 @@ Preflight verification:
 
 | ID | Reviewer | Flow | Priority | Blocks Trial | Disposition |
 |---|---|---|---|---|---|
+| E-1 | engineering pre-review | 文献检索与数据来源切换 | P1 | no after fix | fixed-before-formal-review |
 | A-1 | clinician |  |  |  |  |
 | B-1 | research |  |  |  |  |
 

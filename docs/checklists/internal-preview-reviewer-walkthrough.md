@@ -56,12 +56,14 @@
 - [ ] 执行搜索
 - [ ] **预期结果**：返回所有来源的文献（seed literature + PubMed + 上传 PDF）
 
-**b) PubMed 实时**
-- [ ] 选择"PubMed 实时"
+**b) PubMed 记录**
+- [ ] 选择"PubMed 记录"
 - [ ] 执行搜索
 - [ ] **预期结果**：
   - 仅显示来源为 `pubmed` 的文献
-  - 页面顶部显示合规 banner："数据来源：PubMed 实时同步数据"
+  - 页面顶部显示合规 banner：`PubMed 记录（含演示 seed）`
+  - 每条记录显示 `记录来源`，能区分 `演示样本` 与 `PubMed 实时同步`
+  - banner 明示演示 seed 不可当作外部可检索真实文献
 
 **c) CNKI 样本**
 - [ ] 选择"CNKI sample"

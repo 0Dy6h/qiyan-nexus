@@ -42,7 +42,7 @@
 | B3 网络药理学任务壳（前后端） | **已落地** | `/api/network/analyze` + `/api/network/result/{task_id}` + `/network` 页面全栈 |
 | B4 herb/compound/target/pathway sample 数据集 | **已落地** | `backend/data/network/sample_*.json` + `app/schemas/network_entities.py` |
 | B5 RAG citation ↔ network entity 双向跳转 | **已落地** | citation 含 `related_entity_ids` + `/network` 节点指回 |
-| B6 数据来源切换面板（合规） | **已落地并补 e2e** | `/literature` 已支持“全部来源 / PubMed 实时 / CNKI sample / 上传 PDF”四来源视图，`LiteratureDataSourceBanner` 随选择切换合规口径；上传 PDF 视图走 `has_pdf_upload=true`；`frontend/e2e/literature-data-source.spec.ts` 锁定浏览器 → API 参数合同 |
+| B6 数据来源切换面板（合规） | **已落地并补 e2e** | `/literature` 已支持“全部来源 / PubMed 记录 / CNKI sample / 上传 PDF”四来源视图，`LiteratureDataSourceBanner` 随选择切换合规口径；PubMed 记录视图明示包含演示 seed，卡片/详情显示 `记录来源`；上传 PDF 视图走 `has_pdf_upload=true`；`frontend/e2e/literature-data-source.spec.ts` 锁定浏览器 → API 参数合同 |
 
 **结论**：阶段 B 原 slice 大部分已在 cross-lingual / network 推进期间附带落地。
 

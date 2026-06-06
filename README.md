@@ -106,6 +106,7 @@ curl http://127.0.0.1:8000/health
 - runtime 文献状态：`backend/data/runtime/literature_state.json`（gitignored，可从 seed bootstrap）
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
+- 当前每个 `LiteratureItem` 返回 `record_origin`：`seed_sample` 表示演示 seed 样本，不可当作外部数据库真实文献引用；`pubmed_live` 表示来自 PubMed E-utilities 实时同步的 runtime 记录。
 - 当前 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`、`pdf_parse_result`
 - 当前支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
 - 当前支持本地 PDF 下载/预览：`GET /api/uploads/pdf/{pdf_upload_id}`，按稳定 upload id 读取 `UPLOAD_STORAGE_DIR` 下的 PDF 文件
@@ -133,7 +134,7 @@ curl "http://127.0.0.1:8000/api/literature/search?q=瘙痒&source=cn_literature&
 curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎&has_pdf_upload=true"
 ```
 
-返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页、排序和数据来源视图展示。
+返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页、排序和数据来源视图展示。`items[*].record_origin` 用于区分 `seed_sample` 演示样本与 `pubmed_live` 实时同步记录。
 
 文献详情 API：
 
@@ -374,7 +375,7 @@ pnpm build
 
 当前前端能力：
 
-- `/literature`：支持 query 输入、4 类数据来源视图（全部来源 / PubMed 实时 / CNKI sample / 上传 PDF）、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示与随来源切换的合规 banner。
+- `/literature`：支持 query 输入、4 类数据来源视图（全部来源 / PubMed 记录 / CNKI sample / 上传 PDF）、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示与随来源切换的合规 banner；每条结果会标明记录来源，演示 seed 不可当作外部数据库真实文献引用。
 - `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
 - `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的语料范围、通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
