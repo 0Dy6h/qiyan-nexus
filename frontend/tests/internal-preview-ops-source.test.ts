@@ -42,6 +42,9 @@ test("internal preview smoke script covers core API flows and token header", () 
 
   assert.match(source, /\[string\]\$BackendUrl\s*=\s*"http:\/\/127\.0\.0\.1:8000"/);
   assert.match(source, /\[string\]\$AccessToken\s*=\s*""/);
+  assert.match(source, /\[string\]\$ProfileName\s*=\s*""/);
+  assert.match(source, /\[string\]\$OutputJson\s*=\s*""/);
+  assert.match(source, /\[string\]\$OutputMarkdown\s*=\s*""/);
   assert.match(source, /local-review-pdfs\\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松\.pdf/);
   assert.match(source, /X-Access-Token/);
   assert.match(source, /\/health/);
@@ -57,6 +60,9 @@ test("internal preview smoke script covers core API flows and token header", () 
   assert.match(source, /非诊断结论、需结合临床。/);
   assert.match(source, /X-Request-ID/);
   assert.match(source, /curl\.exe/);
+  assert.match(source, /ConvertTo-Json/);
+  assert.match(source, /Internal preview smoke evidence/);
+  assert.match(source, /Write-SmokeArtifacts/);
 });
 
 test("E2E token profile disables server reuse and passes token to both app servers", () => {
@@ -74,4 +80,27 @@ test("E2E token profile disables server reuse and passes token to both app serve
   assert.match(verifySource, /\[switch\]\$E2ETokenProfile/);
   assert.match(verifySource, /qiyan-e2e-token/);
   assert.match(verifySource, /QIYAN_E2E_ACCESS_TOKEN/);
+});
+
+test("internal preview evidence collector archives open and token smoke results", () => {
+  assert.equal(repoFileExists("scripts/collect-internal-preview-evidence.ps1"), true);
+  const source = getRepoSource("scripts/collect-internal-preview-evidence.ps1");
+
+  assert.match(source, /\[string\]\$OutputRoot\s*=\s*"\.tmp\/internal-preview-evidence"/);
+  assert.match(source, /\[string\]\$AccessToken\s*=\s*"trial-token"/);
+  assert.match(source, /\[switch\]\$SkipTokenProfile/);
+  assert.match(source, /\[switch\]\$KeepServicesOnFailure/);
+  assert.match(source, /run-internal-preview\.ps1/);
+  assert.match(source, /smoke-internal-preview\.ps1/);
+  assert.match(source, /runtime-open/);
+  assert.match(source, /runtime-token/);
+  assert.match(source, /open-smoke\.json/);
+  assert.match(source, /token-smoke\.json/);
+  assert.match(source, /metadata\.json/);
+  assert.match(source, /evidence-summary\.md/);
+  assert.match(source, /X-Request-ID/);
+  assert.match(source, /formal clinician\/research reviewer sign-off/);
+  assert.match(source, /finally/);
+  assert.match(source, /Stop-PreviewProfile/);
+  assert.match(source, /Access token value is intentionally omitted/);
 });

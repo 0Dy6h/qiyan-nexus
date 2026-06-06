@@ -92,9 +92,12 @@ curl http://127.0.0.1:8000/health
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
 .\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -Stop
+
+# 生成本地内部预览证据包（open + shared-token smoke，输出到 .tmp\internal-preview-evidence\<timestamp>\）
+.\scripts\collect-internal-preview-evidence.ps1
 ```
 
-`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`。
+`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 shared-token 两种 profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
 
 文献检索 API 数据来源：
 

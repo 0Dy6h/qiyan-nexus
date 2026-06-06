@@ -1,7 +1,10 @@
 param(
     [string]$BackendUrl = "http://127.0.0.1:8000",
     [string]$AccessToken = "",
-    [string]$PdfPath = "local-review-pdfs\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf"
+    [string]$PdfPath = "local-review-pdfs\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf",
+    [string]$ProfileName = "",
+    [string]$OutputJson = "",
+    [string]$OutputMarkdown = ""
 )
 
 Set-StrictMode -Version Latest
@@ -11,6 +14,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $pdfFullPath = Resolve-Path (Join-Path $repoRoot $PdfPath) -ErrorAction SilentlyContinue
 $disclaimer = "非诊断结论、需结合临床。"
 $results = New-Object System.Collections.Generic.List[object]
+$startedAt = Get-Date
 
 if ($null -eq $pdfFullPath) {
     throw "PDF sample not found at $PdfPath. Provide -PdfPath explicitly."
@@ -91,6 +95,97 @@ function Get-RequestId {
         return ($Headers["x-request-id"] -join ",")
     }
     return ""
+}
+
+function Ensure-ParentDirectory {
+    param([string]$Path)
+    if (-not $Path.Trim()) {
+        return
+    }
+
+    $parent = Split-Path -Parent $Path
+    if ($parent.Trim()) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
+}
+
+function Write-SmokeArtifacts {
+    param(
+        [bool]$Passed,
+        [string]$FailureMessage = ""
+    )
+
+    $finishedAt = Get-Date
+    $profile = if ($ProfileName.Trim()) {
+        $ProfileName.Trim()
+    }
+    elseif ($AccessToken.Trim()) {
+        "token"
+    }
+    else {
+        "open"
+    }
+    $flowResults = $results.ToArray()
+    $requestIds = @(
+        $flowResults |
+            Where-Object { $_.RequestId.Trim() } |
+            ForEach-Object {
+                [pscustomobject]@{
+                    flow = $_.Flow
+                    request_id = $_.RequestId
+                }
+            }
+    )
+    $evidence = [pscustomobject]@{
+        profile = $profile
+        backend_url = $BackendUrl
+        pdf_file_name = (Split-Path -Leaf $PdfPath)
+        started_at = $startedAt.ToString("o")
+        finished_at = $finishedAt.ToString("o")
+        duration_seconds = [math]::Round(($finishedAt - $startedAt).TotalSeconds, 3)
+        passed = $Passed
+        token_profile_enabled = [bool]$AccessToken.Trim()
+        disclaimer = $disclaimer
+        flows = $flowResults
+        request_ids = $requestIds
+        failure = $FailureMessage
+    }
+
+    if ($OutputJson.Trim()) {
+        Ensure-ParentDirectory -Path $OutputJson
+        $evidence | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputJson -Encoding utf8
+    }
+
+    if ($OutputMarkdown.Trim()) {
+        Ensure-ParentDirectory -Path $OutputMarkdown
+        $lines = New-Object System.Collections.Generic.List[string]
+        $lines.Add("# Internal preview smoke evidence") | Out-Null
+        $lines.Add("") | Out-Null
+        $lines.Add("| Field | Value |") | Out-Null
+        $lines.Add("|---|---|") | Out-Null
+        $lines.Add("| Profile | ``$profile`` |") | Out-Null
+        $lines.Add("| Backend URL | ``$BackendUrl`` |") | Out-Null
+        $lines.Add("| Passed | ``$Passed`` |") | Out-Null
+        $lines.Add("| Token profile enabled | ``$([bool]$AccessToken.Trim())`` |") | Out-Null
+        $lines.Add("| Started | ``$($startedAt.ToString("s"))`` |") | Out-Null
+        $lines.Add("| Finished | ``$($finishedAt.ToString("s"))`` |") | Out-Null
+        $lines.Add("| PDF sample | ``$(Split-Path -Leaf $PdfPath)`` |") | Out-Null
+        $lines.Add("| Disclaimer assertion | ``$disclaimer`` |") | Out-Null
+        if ($FailureMessage.Trim()) {
+            $lines.Add("| Failure | $FailureMessage |") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+        $lines.Add("## Flow Results") | Out-Null
+        $lines.Add("") | Out-Null
+        $lines.Add("| Flow | Status | Request ID | Notes |") | Out-Null
+        $lines.Add("|---|---:|---|---|") | Out-Null
+        foreach ($flow in $flowResults) {
+            $lines.Add("| $($flow.Flow) | $($flow.Status) | ``$($flow.RequestId)`` | $($flow.Notes) |") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+        $lines.Add("This smoke evidence is a technical preview artifact and is not formal clinician/research reviewer sign-off.") | Out-Null
+        $lines | Set-Content -Path $OutputMarkdown -Encoding utf8
+    }
 }
 
 $health = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/health")
@@ -184,4 +279,5 @@ Assert-True (($networkReport.Payload | Out-String).Contains($disclaimer)) "Netwo
 Add-Result -Flow "network_report" -Status $networkReport.Status -RequestId (Get-RequestId $networkReport.Headers) -Notes "markdown=ok"
 
 $results | Format-Table -AutoSize
+Write-SmokeArtifacts -Passed $true
 Write-Host "Internal preview smoke passed." -ForegroundColor Green
