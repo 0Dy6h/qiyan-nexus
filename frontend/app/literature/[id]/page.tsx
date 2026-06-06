@@ -4,7 +4,11 @@ import { CardBodyText, CardMetaRow } from "../../../components/CardMeta";
 import DemoDataBanner from "../../../components/DemoDataBanner";
 import EntityChips from "../../../components/EntityChips";
 import LiteraturePdfUploadClient from "../../../components/LiteraturePdfUploadClient";
-import { getLiteratureDetail, getLiteratureSourceLabel } from "../../../lib/api/literature";
+import {
+  getLiteratureDetail,
+  getLiteratureRecordOriginLabel,
+  getLiteratureSourceLabel,
+} from "../../../lib/api/literature";
 import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
 
 type LiteratureDetailPageProps = {
@@ -49,8 +53,8 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
                 <strong>{item.language === "zh" ? "中文" : "英文"}</strong>
               </div>
               <div className="workbench-stat">
-                <span>Source</span>
-                <strong>{getLiteratureSourceLabel(item.source_type)}</strong>
+                <span>Record</span>
+                <strong>{getLiteratureRecordOriginLabel(item.record_origin)}</strong>
               </div>
               <div className="workbench-stat">
                 <span>Year</span>
@@ -66,6 +70,7 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
               <CardMetaRow
                 items={[
                   `语言 ${item.language === "zh" ? "中文" : "英文"}`,
+                  `记录来源 ${getLiteratureRecordOriginLabel(item.record_origin)}`,
                   `来源 ${getLiteratureSourceLabel(item.source_type)}`,
                   `期刊 ${item.source}`,
                   `年份 ${String(item.year)}`,

@@ -6,6 +6,7 @@ import {
   getLiteratureDataSourceBanner,
   getLiteratureDataSourceFilter,
   getLiteratureDataSourceLabel,
+  getLiteratureRecordOriginLabel,
   getLiteratureSourceLabel,
 } from "../lib/api/literature";
 
@@ -60,9 +61,14 @@ test("buildLiteratureSearchUrl omits has_pdf_upload when undefined", () => {
 
 test("getLiteratureDataSourceLabel surfaces compliance-friendly copy for the 4 views", () => {
   assert.equal(getLiteratureDataSourceLabel("all"), "全部来源");
-  assert.equal(getLiteratureDataSourceLabel("pubmed_live"), "PubMed 实时");
+  assert.equal(getLiteratureDataSourceLabel("pubmed_live"), "PubMed 记录");
   assert.equal(getLiteratureDataSourceLabel("cnki_sample"), "CNKI sample");
   assert.equal(getLiteratureDataSourceLabel("uploaded_pdf"), "上传 PDF");
+});
+
+test("getLiteratureRecordOriginLabel distinguishes seed and live PubMed metadata", () => {
+  assert.equal(getLiteratureRecordOriginLabel("seed_sample"), "演示样本");
+  assert.equal(getLiteratureRecordOriginLabel("pubmed_live"), "PubMed 实时同步");
 });
 
 test("getLiteratureDataSourceFilter maps each view to backend search params", () => {
@@ -83,6 +89,8 @@ test("getLiteratureDataSourceBanner returns view-aware compliance copy", () => {
 
   const pubmed = getLiteratureDataSourceBanner("pubmed_live");
   assert.ok(/PubMed|NCBI/.test(pubmed.summary));
+  assert.ok(/演示样本|seed/.test(pubmed.summary));
+  assert.ok(/不可当作外部可检索真实文献/.test(pubmed.summary));
 
   const cnki = getLiteratureDataSourceBanner("cnki_sample");
   // CNKI sample 必须明示是 seed / 演示样本，不是真实知网授权

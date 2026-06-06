@@ -6,6 +6,7 @@ export type LiteratureItem = {
   language: "zh" | "en";
   source_type: "cn_literature" | "pubmed";
   source: string;
+  record_origin: "seed_sample" | "pubmed_live";
   year: number;
   snippet: string;
   pdf_upload_id?: string | null;
@@ -96,7 +97,7 @@ export function getLiteratureSourceLabel(source: LiteratureSource) {
 
 export function getLiteratureDataSourceLabel(view: LiteratureDataSourceView) {
   if (view === "pubmed_live") {
-    return "PubMed 实时";
+    return "PubMed 记录";
   }
   if (view === "cnki_sample") {
     return "CNKI sample";
@@ -124,9 +125,9 @@ export function getLiteratureDataSourceBanner(view: LiteratureDataSourceView): L
   if (view === "pubmed_live") {
     return {
       tone: "live",
-      title: "PubMed 实时同步",
+      title: "PubMed 记录（含演示 seed）",
       summary:
-        "结果来自 NCBI E-utilities 实时同步，遵守 NCBI / PubMed 使用条款；摘要仅为预览，原文请通过来源链接核对。",
+        "此视图会展示 PubMed source_type 记录；标记为“PubMed 实时同步”的条目来自 NCBI E-utilities，标记为“演示样本”的 seed 条目不可当作外部可检索真实文献。",
     };
   }
   if (view === "cnki_sample") {
@@ -148,8 +149,16 @@ export function getLiteratureDataSourceBanner(view: LiteratureDataSourceView): L
   return {
     tone: "info",
     title: "全部来源",
-    summary: "已汇总 CNKI sample、PubMed 实时同步与上传 PDF 三类来源；切换上方选项可查看分类口径与合规边界。",
+    summary:
+      "已汇总中文/英文演示 seed、PubMed 实时同步与上传 PDF 三类记录；每张卡片会标明记录来源，演示样本不可当作外部数据库真实文献引用。",
   };
+}
+
+export function getLiteratureRecordOriginLabel(origin: LiteratureItem["record_origin"]) {
+  if (origin === "pubmed_live") {
+    return "PubMed 实时同步";
+  }
+  return "演示样本";
 }
 
 export function getParseTriggerLabel(trigger: LiteratureItem["last_parse_trigger"]) {

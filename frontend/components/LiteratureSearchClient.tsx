@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   getLiteratureDataSourceFilter,
   getPdfParseStatusLabel,
+  getLiteratureRecordOriginLabel,
   getLiteratureSourceLabel,
   LiteratureDataSourceView,
   LiteratureItem,
@@ -200,7 +201,7 @@ export default function LiteratureSearchClient() {
                 style={{ ...fieldControlStyle, minWidth: 180 }}
               >
                 <option value="all">全部来源</option>
-                <option value="pubmed_live">PubMed 实时</option>
+                <option value="pubmed_live">PubMed 记录</option>
                 <option value="cnki_sample">CNKI sample</option>
                 <option value="uploaded_pdf">上传 PDF</option>
               </select>
@@ -307,6 +308,7 @@ export default function LiteratureSearchClient() {
                 <CardMetaRow
                   items={[
                     `语言 ${item.language === "zh" ? "中文" : "英文"}`,
+                    `记录来源 ${getLiteratureRecordOriginLabel(item.record_origin)}`,
                     `来源 ${getLiteratureSourceLabel(item.source_type)}`,
                     `期刊 ${item.source}`,
                     `年份 ${String(item.year)}`,

@@ -457,6 +457,7 @@ def _pubmed_record_to_item_dict(record: PubmedRecord) -> dict[str, object]:
         "language": "en",
         "source_type": "pubmed",
         "source": "PubMed live sync",
+        "record_origin": "pubmed_live",
         "year": record.year if record.year is not None else 0,
         "snippet": snippet,
         "abstract": abstract or None,

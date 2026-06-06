@@ -28,9 +28,10 @@ test("LiteratureSearchClient drives the 4-option data-source view selector", () 
   // form holds a view (not raw source) so the UI and backend filter contract are decoupled
   assert.match(clientSource, /LiteratureDataSourceView/);
   assert.match(clientSource, /<option value="all">全部来源<\/option>/);
-  assert.match(clientSource, /<option value="pubmed_live">PubMed 实时<\/option>/);
+  assert.match(clientSource, /<option value="pubmed_live">PubMed 记录<\/option>/);
   assert.match(clientSource, /<option value="cnki_sample">CNKI sample<\/option>/);
   assert.match(clientSource, /<option value="uploaded_pdf">上传 PDF<\/option>/);
+  assert.match(clientSource, /记录来源 \$\{getLiteratureRecordOriginLabel\(item\.record_origin\)\}/);
 
   // legacy 3-option source dropdown values are gone — fail loud if someone re-adds them
   assert.doesNotMatch(clientSource, /<option value="cn_literature">/);

@@ -6,6 +6,7 @@ import {
   LITERATURE_SYNC_MAX_RESULTS_CAP,
   LiteratureItem,
   LiteratureSyncResponse,
+  getLiteratureRecordOriginLabel,
   syncLiteratureFromPubmed,
 } from "../lib/api/literature";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
@@ -37,7 +38,14 @@ const fieldControlStyle = {
 function SyncResultItem({ item }: { item: LiteratureItem }) {
   return (
     <article style={getSurfaceCardStyle()}>
-      <CardMetaRow items={[`PMID ${item.id.replace(/^pmid-/, "")}`, `年份 ${item.year}`, `来源 ${item.source}`]} />
+      <CardMetaRow
+        items={[
+          `PMID ${item.id.replace(/^pmid-/, "")}`,
+          `记录来源 ${getLiteratureRecordOriginLabel(item.record_origin)}`,
+          `年份 ${item.year}`,
+          `来源 ${item.source}`,
+        ]}
+      />
       <h3 style={{ color: "var(--qiyan-ink)", fontSize: 18, marginTop: 8, marginBottom: 8 }}>{item.title}</h3>
       <CardBodyText>{item.snippet}</CardBodyText>
       <a

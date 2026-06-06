@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
+from app.repositories.literature import normalize_literature_item_payload
 from app.repositories.postgres_common import create_postgres_pool, ensure_postgres_schema
 from app.schemas.literature import LiteratureItem, PdfParseResult
 
@@ -104,7 +105,7 @@ def _row_to_item(row: dict[str, Any]) -> LiteratureItem:
             row["pdf_parse_result"] = json.loads(row["pdf_parse_result"])
         row["pdf_parse_result"] = PdfParseResult(**row["pdf_parse_result"])
 
-    return LiteratureItem(**row)
+    return LiteratureItem(**normalize_literature_item_payload(row))
 
 
 def bootstrap_literature_seed_if_empty(pool: ConnectionPool[Any], seed_path: Path | None) -> None:
