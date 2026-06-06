@@ -1,23 +1,17 @@
 import type { ReactNode } from "react";
 import {
   ArrowRightOutlined,
-  AuditOutlined,
   BranchesOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
+  PaperClipOutlined,
+  PictureOutlined,
   QuestionCircleOutlined,
   SafetyCertificateOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 
 const DISCLAIMER = "非诊断结论、需结合临床。";
-
-const navItems = [
-  { href: "/literature", label: "文献" },
-  { href: "/rag", label: "问答" },
-  { href: "/network", label: "网药" },
-  { href: "/evals/rag-ad", label: "评估" },
-  { href: "/compliance", label: "合规" },
-];
 
 const taskCards: Array<{
   href: string;
@@ -68,17 +62,23 @@ const controlRows = [
   { label: "Heavy deps", value: "暂不接真实 LLM / embedding", note: "MVP-A" },
 ];
 
-function PrimaryLink({
-  href,
-  children,
-  variant = "solid",
-}: Readonly<{ href: string; children: ReactNode; variant?: "solid" | "outline" }>) {
-  return (
-    <a className={`home-action home-action-${variant}`} href={href}>
-      <span>{children}</span>
-      <ArrowRightOutlined aria-hidden="true" />
-    </a>
-  );
+const signalCards = [
+  { value: "Seed / PubMed", label: "文献证据信号" },
+  { value: "50", label: "AD RAG 评估问题" },
+  { value: "PDF pending", label: "上传解析状态追踪" },
+  { value: "Mock graph", label: "成分-靶点-通路链" },
+  { value: DISCLAIMER, label: "输出边界" },
+];
+
+const promptSuggestions = [
+  "特应性皮炎和肠-脑-皮肤轴有什么关系？",
+  "消风散可能涉及哪些靶点？",
+  "上传 PDF 证据如何进入引用卡片？",
+  "RAG 评估如何检查免责声明覆盖？",
+];
+
+function buildRagQuestionHref(question: string) {
+  return `/rag?question=${encodeURIComponent(question)}`;
 }
 
 function TaskCard({
@@ -102,100 +102,124 @@ function TaskCard({
 
 export default function HomePage() {
   return (
-    <main className="workbench-page home-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section className="workbench-frame">
-        <header className="home-topbar">
-          <a className="home-brand" href="/" aria-label="Qiyan Nexus 首页">
-            <span className="home-brand-mark">
-              <AuditOutlined aria-hidden="true" />
-            </span>
-            <span className="home-brand-copy">
-              <span className="home-brand-title">Qiyan Nexus</span>
-              <span className="home-brand-subtitle">AD Evidence Workbench</span>
-            </span>
-          </a>
+    <>
+          <article className="home-hero" aria-label="Qiyan Nexus 首页">
+            <div className="home-hero-main">
+              <p className="workbench-kicker">Clinical evidence operating layer</p>
+              <h1 className="home-title">你好，告诉我们你想核对的证据问题</h1>
+              <p className="home-summary">
+                捕捉 AD 文献、上传 PDF、RAG 引用与网药 mock 信号，把研究问题送入可追溯、可评估、可声明边界的证据工作台。
+              </p>
+              <div className="home-app-console">
+                <div className="home-mode-tabs" role="tablist" aria-label="研究工作模式">
+                  <span className="home-mode-tab home-mode-tab-active" role="tab" aria-selected="true">
+                    <QuestionCircleOutlined aria-hidden="true" />
+                    RAG 引用问答
+                  </span>
+                  <span className="home-mode-tab" role="tab" aria-selected="false">
+                    <BranchesOutlined aria-hidden="true" />
+                    网药机制链
+                  </span>
+                </div>
 
-          <nav className="workbench-nav" aria-label="工作台导航">
-            {navItems.map((item) => (
-              <a key={item.href} href={item.href}>
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </header>
+                <form className="home-prompt-card" action="/rag" method="get">
+                  <textarea
+                    name="question"
+                    aria-label="输入证据问题"
+                    defaultValue={promptSuggestions[0]}
+                  />
+                  <div className="home-prompt-tools">
+                    <span className="home-tool-icons" aria-label="工作台快捷入口">
+                      <a href="/literature" aria-label="进入文献检索">
+                        <PaperClipOutlined aria-hidden="true" />
+                      </a>
+                      <a href="/network" aria-label="进入网络药理学">
+                        <PictureOutlined aria-hidden="true" />
+                      </a>
+                    </span>
+                    <button className="home-send-button" type="submit" aria-label="发送到 RAG 问答">
+                      <SendOutlined aria-hidden="true" />
+                    </button>
+                  </div>
+                </form>
 
-        <article className="home-hero" aria-label="Qiyan Nexus 首页">
-          <div className="home-hero-main">
-            <p className="workbench-kicker">Clinical evidence operating layer</p>
-            <h1 className="home-title">把特应性皮炎证据变成可审计的科研路径</h1>
-            <p className="home-summary">
-              面向医生与科研人员的中医药证据工作台。文献、问答、网络药理学和评估回归被放在同一条审阅链路里，先确认来源，再判断结论边界。
-            </p>
-            <div className="home-actions">
-              <PrimaryLink href="/literature">进入证据检索</PrimaryLink>
-              <PrimaryLink href="/rag" variant="outline">
-                查看引用问答
-              </PrimaryLink>
-            </div>
-          </div>
-
-          <aside className="home-boundary-panel" aria-label="当前产品边界摘要">
-            <div>
-              <span>MVP-A</span>
-              <strong>证据工作台收尾完成</strong>
-            </div>
-            <div>
-              <span>RAG eval</span>
-              <strong>50 题 seed benchmark</strong>
-            </div>
-            <div>
-              <span>Default</span>
-              <strong>本地 deterministic retrieval</strong>
-            </div>
-          </aside>
-        </article>
-
-        <section className="workbench-content-band" aria-label="工作台任务入口">
-          <div className="home-section-head">
-            <div>
-              <p className="workbench-kicker">Workbench routes</p>
-              <h2>每个入口都对应一段可复核的科研动作</h2>
-            </div>
-            <p>
-              首页展示当前能力、数据边界和审阅顺序，让使用者先理解证据来源，再进入具体工具。
-            </p>
-          </div>
-
-          <div className="task-grid">
-            {taskCards.map((card) => (
-              <TaskCard key={card.href} card={card} />
-            ))}
-          </div>
-
-          <section className="home-control-panel" aria-label="产品边界">
-            <div className="home-control-intro">
-              <SafetyCertificateOutlined aria-hidden="true" />
-              <div>
-                <h2>边界可见，结论才可信</h2>
-                <p>
-                  当前版本只做证据整理、链路验证和能力回归，不替代诊断、处方或个体治疗判断。
-                  <strong>{DISCLAIMER}</strong>
-                </p>
+                <div className="home-suggestion-row" aria-label="试试这些问题">
+                  <span className="home-suggestion-label">试试问这些</span>
+                  {promptSuggestions.slice(1).map((question) => (
+                    <a className="home-suggestion-chip" href={buildRagQuestionHref(question)} key={question}>
+                      {question}
+                      <ArrowRightOutlined aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <dl className="home-control-table">
-              {controlRows.map((row) => (
-                <div className="home-control-row" key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{row.value}</dd>
-                  <dd>{row.note}</dd>
-                </div>
-              ))}
-            </dl>
+            <aside className="home-boundary-panel" aria-label="当前产品边界摘要">
+              <div>
+                <span>MVP-A</span>
+                <strong>证据工作台收尾完成</strong>
+              </div>
+              <div>
+                <span>RAG eval</span>
+                <strong>50 题 seed benchmark</strong>
+              </div>
+              <div>
+                <span>Default</span>
+                <strong>本地 deterministic retrieval</strong>
+              </div>
+            </aside>
+          </article>
+
+          <section className="home-signal-strip" aria-label="证据信号概览">
+            {signalCards.map((card) => (
+              <article className="home-signal-card" key={card.label}>
+                <strong>{card.value}</strong>
+                <span>{card.label}</span>
+              </article>
+            ))}
           </section>
-        </section>
-      </section>
-    </main>
+
+          <section className="workbench-content-band" aria-label="工作台任务入口">
+            <div className="home-section-head">
+              <div>
+                <p className="workbench-kicker">Workbench routes</p>
+                <h2>每个入口都对应一段可复核的科研动作</h2>
+              </div>
+              <p>
+                首页展示当前能力、数据边界和审阅顺序，让使用者先理解证据来源，再进入具体工具。
+              </p>
+            </div>
+
+            <div className="task-grid">
+              {taskCards.map((card) => (
+                <TaskCard key={card.href} card={card} />
+              ))}
+            </div>
+
+            <section className="home-control-panel" aria-label="产品边界">
+              <div className="home-control-intro">
+                <SafetyCertificateOutlined aria-hidden="true" />
+                <div>
+                  <h2>边界可见，结论才可信</h2>
+                  <p>
+                    当前版本只做证据整理、链路验证和能力回归，不替代诊断、处方或个体治疗判断。
+                    <strong>{DISCLAIMER}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <dl className="home-control-table">
+                {controlRows.map((row) => (
+                  <div className="home-control-row" key={row.label}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                    <dd>{row.note}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </section>
+    </>
   );
 }

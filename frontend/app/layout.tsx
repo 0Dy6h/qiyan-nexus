@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "antd/dist/reset.css";
 import "./workbench.css";
+import WorkbenchShell from "../components/WorkbenchShell";
 
 export const metadata: Metadata = {
   title: "Qiyan Nexus",
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <WorkbenchShell>{children}</WorkbenchShell>
+      </body>
     </html>
   );
 }

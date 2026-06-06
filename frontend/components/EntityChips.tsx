@@ -30,9 +30,9 @@ const CHIP_STYLE = {
   borderRadius: 999,
   borderWidth: 1,
   borderStyle: "solid" as const,
-  borderColor: "#84c9bf",
-  background: "#e6f2f0",
-  color: "#0d9488",
+  borderColor: "rgba(45, 212, 191, 0.48)",
+  background: "rgba(20, 184, 166, 0.14)",
+  color: "var(--qiyan-teal-dark)",
   fontSize: 13,
   fontWeight: 600,
   lineHeight: 1.4,
@@ -48,7 +48,7 @@ const FALLBACK_CHIP_STYLE = {
   ...CHIP_STYLE,
   borderStyle: "dashed" as const,
   borderColor: "var(--qiyan-line)",
-  background: "var(--qiyan-surface)",
+  background: "rgba(15, 23, 42, 0.72)",
   color: "var(--qiyan-muted-2)",
 };
 

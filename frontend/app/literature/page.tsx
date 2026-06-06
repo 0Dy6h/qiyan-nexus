@@ -4,26 +4,10 @@ import DemoDataBanner from "../../components/DemoDataBanner";
 import LiteraturePubmedSyncClient from "../../components/LiteraturePubmedSyncClient";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
 import StatusPanel from "../../components/StatusPanel";
-import { getComplianceNavigationLinks } from "../../lib/compliance-page";
 
 export default function LiteraturePage() {
-  const navigationLinks = getComplianceNavigationLinks();
-
   return (
-    <main className="workbench-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section className="workbench-frame">
-        <nav aria-label="工作台导航" className="workbench-nav">
-          {navigationLinks.map((link) => {
-            const isCurrent = link.href === "/literature";
-
-            return (
-              <a key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
-                {link.label}
-              </a>
-            );
-          })}
-        </nav>
-
+    <>
         <article className="workbench-hero">
           <div className="workbench-hero-main">
             <p className="workbench-kicker">Evidence workbench</p>
@@ -64,7 +48,6 @@ export default function LiteraturePage() {
             本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
           </p>
         </section>
-      </section>
-    </main>
+    </>
   );
 }

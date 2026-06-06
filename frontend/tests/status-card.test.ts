@@ -16,7 +16,7 @@ test("getStatusCardStyle returns shared idle card visuals", () => {
   assert.deepEqual(getStatusCardStyle("idle"), {
     background: "var(--qiyan-status-idle-bg)",
     border: "1px solid var(--qiyan-status-idle-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   });
 });
@@ -25,7 +25,7 @@ test("getStatusCardStyle returns shared error card visuals", () => {
   assert.deepEqual(getStatusCardStyle("error"), {
     background: "var(--qiyan-status-error-bg)",
     border: "1px solid var(--qiyan-status-error-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   });
 });
@@ -34,7 +34,7 @@ test("getStatusCardStyle returns distinct warning card visuals", () => {
   assert.deepEqual(getStatusCardStyle("warning"), {
     background: "var(--qiyan-status-warning-bg)",
     border: "1px solid var(--qiyan-status-warning-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   });
 });
@@ -43,13 +43,13 @@ test("getStatusCardStyle returns distinct success and danger card visuals", () =
   assert.deepEqual(getStatusCardStyle("success"), {
     background: "var(--qiyan-status-success-bg)",
     border: "1px solid var(--qiyan-status-success-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   });
   assert.deepEqual(getStatusCardStyle("danger"), {
     background: "var(--qiyan-status-danger-bg)",
     border: "1px solid var(--qiyan-status-danger-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   });
 });
@@ -64,7 +64,7 @@ test("getStatusMessageStyle returns shared idle text visuals", () => {
 
 test("getStatusMessageStyle returns shared error text visuals", () => {
   assert.deepEqual(getStatusMessageStyle("error"), {
-    color: "#b45309",
+    color: "#fed7aa",
     margin: 0,
     lineHeight: 1.6,
   });
@@ -72,7 +72,7 @@ test("getStatusMessageStyle returns shared error text visuals", () => {
 
 test("getStatusMessageStyle returns distinct warning text visuals", () => {
   assert.deepEqual(getStatusMessageStyle("warning"), {
-    color: "#92400e",
+    color: "#fde68a",
     margin: 0,
     lineHeight: 1.6,
   });
@@ -80,12 +80,12 @@ test("getStatusMessageStyle returns distinct warning text visuals", () => {
 
 test("getStatusMessageStyle returns distinct success and danger text visuals", () => {
   assert.deepEqual(getStatusMessageStyle("success"), {
-    color: "#0f766e",
+    color: "#99f6e4",
     margin: 0,
     lineHeight: 1.6,
   });
   assert.deepEqual(getStatusMessageStyle("danger"), {
-    color: "#991b1b",
+    color: "#fecdd3",
     margin: 0,
     lineHeight: 1.6,
   });

@@ -1,24 +1,8 @@
 import RagEvalReportClient from "../../../components/RagEvalReportClient";
-import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
 
 export default function RagAdEvalPage() {
-  const navigationLinks = getComplianceNavigationLinks();
-
   return (
-    <main className="workbench-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section className="workbench-frame">
-        <nav aria-label="工作台导航" className="workbench-nav">
-          {navigationLinks.map((link) => {
-            const isCurrent = link.href === "/evals/rag-ad";
-
-            return (
-              <a key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
-                {link.label}
-              </a>
-            );
-          })}
-        </nav>
-
+    <>
         <article className="workbench-hero">
           <div className="workbench-hero-main">
             <p className="workbench-kicker">Evidence workbench</p>
@@ -53,7 +37,6 @@ export default function RagAdEvalPage() {
             非诊断结论、需结合临床。本评估仅用于产品回归与证据链路质量检查，不代表真实临床有效性结论。
           </p>
         </section>
-      </section>
-    </main>
+    </>
   );
 }

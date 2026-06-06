@@ -18,23 +18,26 @@ export default function GlobalError({
       <body>
         <div
           style={{
-            padding: "clamp(20px, 4vw, 48px)",
+            padding: "clamp(12px, 2vw, 24px)",
             maxWidth: 800,
             margin: "0 auto",
             fontFamily: "system-ui, sans-serif",
+            minHeight: "100vh",
+            backgroundColor: "#020508",
+            color: "#f6fbff",
           }}
         >
           <div
             style={{
-              backgroundColor: "#fef2f2",
-              border: "1px solid #fecaca",
-              borderRadius: 8,
+              backgroundColor: "#2a0d14",
+              border: "1px solid #fb7185",
+              borderRadius: 20,
               padding: 24,
             }}
           >
             <h2
               style={{
-                color: "#991b1b",
+                color: "#fecdd3",
                 fontSize: 20,
                 fontWeight: 700,
                 margin: "0 0 12px",
@@ -44,7 +47,7 @@ export default function GlobalError({
             </h2>
             <p
               style={{
-                color: "#7f1d1d",
+                color: "#ffe4e6",
                 lineHeight: 1.6,
                 margin: "0 0 16px",
               }}
@@ -54,7 +57,7 @@ export default function GlobalError({
             {error.digest && (
               <p
                 style={{
-                  color: "#7f1d1d",
+                  color: "#ffe4e6",
                   fontSize: 13,
                   fontFamily: "monospace",
                   margin: "0 0 16px",
@@ -67,10 +70,10 @@ export default function GlobalError({
               onClick={reset}
               style={{
                 padding: "8px 16px",
-                backgroundColor: "#dc2626",
+                backgroundColor: "#e11d48",
                 color: "#ffffff",
                 border: "none",
-                borderRadius: 6,
+                borderRadius: 12,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",

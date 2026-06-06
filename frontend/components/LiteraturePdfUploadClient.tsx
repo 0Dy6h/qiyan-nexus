@@ -225,10 +225,10 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
           {currentParseResult.quality_warning ? (
             <p
               style={{
-                color: "#92400e",
+                color: "#fde68a",
                 background: "var(--qiyan-status-warning-bg)",
                 border: "1px solid var(--qiyan-status-warning-line)",
-                borderRadius: 8,
+                borderRadius: 16,
                 margin: 0,
                 padding: "10px 12px",
                 fontSize: 14,

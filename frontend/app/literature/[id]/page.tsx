@@ -9,7 +9,6 @@ import {
   getLiteratureRecordOriginLabel,
   getLiteratureSourceLabel,
 } from "../../../lib/api/literature";
-import { getComplianceNavigationLinks } from "../../../lib/compliance-page";
 
 type LiteratureDetailPageProps = {
   params: Promise<{
@@ -22,23 +21,9 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
 
   try {
     const item = await getLiteratureDetail(id);
-    const navigationLinks = getComplianceNavigationLinks();
 
     return (
-      <main className="workbench-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
-        <section className="workbench-frame workbench-frame-narrow">
-          <nav aria-label="工作台导航" className="workbench-nav">
-            {navigationLinks.map((link) => {
-              const isCurrent = link.href === "/literature";
-
-              return (
-                <a key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
-                  {link.label}
-                </a>
-              );
-            })}
-          </nav>
-
+      <>
           <article className="workbench-hero">
             <div className="workbench-hero-main">
               <p className="workbench-kicker">Evidence workbench</p>
@@ -81,8 +66,8 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
                 ids={item.related_entity_ids ?? []}
                 emptyHint="该文献尚未挂载网药实体；如需跳转 /network 请使用相关词查询。"
               />
-              <h2 style={{ color: "#10231f", fontSize: 34, lineHeight: 1.28, margin: "18px 0 14px" }}>{item.title}</h2>
-              <div style={{ display: "grid", gap: 12, color: "#334155", fontSize: 17, lineHeight: 1.7 }}>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 34, lineHeight: 1.28, margin: "18px 0 14px" }}>{item.title}</h2>
+              <div style={{ display: "grid", gap: 12, color: "var(--qiyan-ink-2)", fontSize: 17, lineHeight: 1.7 }}>
                 <CardBodyText>{item.snippet}</CardBodyText>
               </div>
             </article>
@@ -96,8 +81,7 @@ export default async function LiteratureDetailPage({ params }: LiteratureDetailP
               本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
             </p>
           </section>
-        </section>
-      </main>
+      </>
     );
   } catch {
     notFound();

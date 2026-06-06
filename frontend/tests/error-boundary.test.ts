@@ -30,7 +30,7 @@ test("ErrorBoundary default fallback uses brand-compliant page padding", () => {
   const source = getSource("components/ErrorBoundary.tsx");
 
   // Must match the locked page padding token
-  assert.match(source, /clamp\(20px, 4vw, 48px\)/);
+  assert.match(source, /clamp\(12px, 2vw, 24px\)/);
 });
 
 test("ErrorBoundary default fallback offers reload and home navigation", () => {
@@ -61,7 +61,7 @@ test("app/error.tsx surfaces error digest and recovery actions", () => {
   assert.match(source, /error\.digest/);
   assert.match(source, /重试/);
   assert.match(source, /返回首页/);
-  assert.match(source, /clamp\(20px, 4vw, 48px\)/);
+  assert.match(source, /clamp\(12px, 2vw, 24px\)/);
 });
 
 test("app/error.tsx logs error in useEffect", () => {

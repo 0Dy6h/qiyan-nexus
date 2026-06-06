@@ -1,26 +1,12 @@
 import { CardBodyText } from "../../components/CardMeta";
-import { getComplianceHighlights, getComplianceNavigationLinks, getCompliancePageIntro } from "../../lib/compliance-page";
+import { getComplianceHighlights, getCompliancePageIntro } from "../../lib/compliance-page";
 
 export default function CompliancePage() {
   const intro = getCompliancePageIntro();
   const highlights = getComplianceHighlights();
-  const navigationLinks = getComplianceNavigationLinks();
 
   return (
-    <main className="workbench-page" style={{ minHeight: "100vh", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section className="workbench-frame workbench-frame-narrow">
-        <nav aria-label="工作台导航" className="workbench-nav">
-          {navigationLinks.map((link) => {
-            const isCurrent = link.href === "/compliance";
-
-            return (
-              <a key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
-                {link.label}
-              </a>
-            );
-          })}
-        </nav>
-
+    <>
         <article className="workbench-hero">
           <div className="workbench-hero-main">
             <p className="workbench-kicker">{intro.eyebrow}</p>
@@ -74,7 +60,6 @@ export default function CompliancePage() {
             本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
           </p>
         </section>
-      </section>
-    </main>
+    </>
   );
 }

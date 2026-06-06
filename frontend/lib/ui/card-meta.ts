@@ -4,17 +4,17 @@ export function joinMetaItems(items: Array<string | null | undefined>) {
 
 export function getMetaRowStyle() {
   return {
-    color: "var(--qiyan-muted-2)",
+    color: "var(--qiyan-muted)",
     margin: 0,
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 800,
     lineHeight: 1.6,
   };
 }
 
 export function getMetaTextStyle() {
   return {
-    color: "var(--qiyan-muted)",
+    color: "var(--qiyan-ink-2)",
     margin: "0 0 12px",
     lineHeight: 1.7,
   };

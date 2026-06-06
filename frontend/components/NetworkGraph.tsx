@@ -11,11 +11,11 @@ interface NetworkGraphProps {
 }
 
 const LAYER_FILL: Record<string, string> = {
-  herb: "#d8efea",
-  compound: "#e4e8f3",
-  target: "#f7e9bf",
-  pathway: "#dfeedd",
-  disease: "#f3dfeb",
+  herb: "#12342f",
+  compound: "#172b45",
+  target: "#3a2b0d",
+  pathway: "#1d3324",
+  disease: "#3a2030",
 };
 
 const LAYER_LABEL_MAP: Record<string, string> = {
@@ -95,7 +95,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           aria-label="网络药理学成分-靶点-通路-疾病链图"
           style={{ width: "100%", minWidth: 600 }}
         >
-          <rect x={0} y={0} width={1000} height={200} fill="#fbfcfb" />
+          <rect x={0} y={0} width={1000} height={200} fill="#08131f" />
           {layers.map((layer, i) => (
             <text
               key={layer.key}
@@ -104,12 +104,12 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
               textAnchor="middle"
               fontSize={14}
               fontWeight={700}
-              fill="#0f1f1d"
+              fill="#f6fbff"
             >
               {layer.label}
             </text>
           ))}
-          <text x={500} y={110} textAnchor="middle" fontSize={16} fill="#6b7d78">
+          <text x={500} y={110} textAnchor="middle" fontSize={16} fill="#a5b8c9">
             暂无网络数据
           </text>
         </svg>
@@ -189,9 +189,9 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             style={{
               padding: "6px 16px",
               fontSize: 14,
-              color: isExporting ? "#9ca3af" : "#0d9488",
-              backgroundColor: "#ffffff",
-              border: "1px solid #d1d5db",
+              color: isExporting ? "#7f92a7" : "#5eead4",
+              backgroundColor: "#0d1724",
+              border: "1px solid #22364b",
               borderRadius: 6,
               cursor: isExporting ? "not-allowed" : "pointer",
               fontWeight: 500,
@@ -205,9 +205,9 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             style={{
               padding: "6px 16px",
               fontSize: 14,
-              color: isExporting ? "#9ca3af" : "#0d9488",
-              backgroundColor: "#ffffff",
-              border: "1px solid #d1d5db",
+              color: isExporting ? "#7f92a7" : "#5eead4",
+              backgroundColor: "#0d1724",
+              border: "1px solid #22364b",
               borderRadius: 6,
               cursor: isExporting ? "not-allowed" : "pointer",
               fontWeight: 500,
@@ -215,7 +215,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           >
             {isExporting ? "导出中..." : "导出 SVG"}
           </button>
-          <span style={{ fontSize: 13, color: "#6b7d78" }}>
+          <span style={{ fontSize: 13, color: "#a5b8c9" }}>
             提示：可导出网络图为图片文件
           </span>
         </div>
@@ -233,7 +233,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           y={0}
           width={svgWidth}
           height={svgHeight}
-          fill="#fbfcfb"
+          fill="#08131f"
           onClick={() => setFocusedNodeId(null)}
         />
 
@@ -246,7 +246,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             textAnchor="middle"
             fontSize={14}
             fontWeight={700}
-            fill="#0f1f1d"
+            fill="#f6fbff"
           >
             {layer.label}
           </text>
@@ -382,7 +382,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
                 cx={node.x}
                 cy={node.y}
                 r={20}
-                fill={LAYER_FILL[node.layer] ?? "#edf3f1"}
+                fill={LAYER_FILL[node.layer] ?? "#13263a"}
                 stroke={effectiveStroke}
                 strokeWidth={1.5}
                 opacity={effectiveNodeOpacity}
@@ -393,7 +393,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize={11}
-                fill="#0f1f1d"
+                fill="#f6fbff"
                 fontWeight={600}
                 opacity={effectiveNodeOpacity}
               >
@@ -405,7 +405,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
         })}
 
         {/* Legend */}
-        <text x={20} y={legendY} fontSize={12} fill="#6b7d78" fontWeight={600}>
+        <text x={20} y={legendY} fontSize={12} fill="#a5b8c9" fontWeight={600}>
           {"图例: 连线粗细表示置信度（越粗越高）"}
         </text>
         <line
@@ -417,7 +417,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           strokeWidth={2.5}
           opacity={0.85}
         />
-        <text x={68} y={legendY + 24} fontSize={11} fill="#6b7d78">
+        <text x={68} y={legendY + 24} fontSize={11} fill="#a5b8c9">
           {"≥0.9"}
         </text>
         <line
@@ -429,7 +429,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           strokeWidth={1.8}
           opacity={0.65}
         />
-        <text x={168} y={legendY + 24} fontSize={11} fill="#6b7d78">
+        <text x={168} y={legendY + 24} fontSize={11} fill="#a5b8c9">
           {"≥0.7"}
         </text>
         <line
@@ -441,7 +441,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           strokeWidth={1.5}
           opacity={0.45}
         />
-        <text x={268} y={legendY + 24} fontSize={11} fill="#6b7d78">
+        <text x={268} y={legendY + 24} fontSize={11} fill="#a5b8c9">
           {"<0.7"}
         </text>
       </svg>

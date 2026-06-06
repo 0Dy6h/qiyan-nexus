@@ -52,7 +52,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     return {
       background: "var(--qiyan-status-error-bg)",
       border: "1px solid var(--qiyan-status-error-line)",
-      borderRadius: 8,
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
@@ -60,7 +60,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     return {
       background: "var(--qiyan-status-warning-bg)",
       border: "1px solid var(--qiyan-status-warning-line)",
-      borderRadius: 8,
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
@@ -68,7 +68,7 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     return {
       background: "var(--qiyan-status-success-bg)",
       border: "1px solid var(--qiyan-status-success-line)",
-      borderRadius: 8,
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
@@ -76,14 +76,14 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
     return {
       background: "var(--qiyan-status-danger-bg)",
       border: "1px solid var(--qiyan-status-danger-line)",
-      borderRadius: 8,
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
   return {
     background: "var(--qiyan-status-idle-bg)",
     border: "1px solid var(--qiyan-status-idle-line)",
-    borderRadius: 8,
+    borderRadius: 16,
     padding: "16px 18px",
   };
 }
@@ -91,28 +91,28 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
 export function getStatusMessageStyle(tone: StatusTone): Record<string, string | number> {
   if (tone === "error") {
     return {
-      color: "#b45309",
+      color: "#fed7aa",
       margin: 0,
       lineHeight: 1.6,
     };
   }
   if (tone === "warning") {
     return {
-      color: "#92400e",
+      color: "#fde68a",
       margin: 0,
       lineHeight: 1.6,
     };
   }
   if (tone === "success") {
     return {
-      color: "#0f766e",
+      color: "#99f6e4",
       margin: 0,
       lineHeight: 1.6,
     };
   }
   if (tone === "danger") {
     return {
-      color: "#991b1b",
+      color: "#fecdd3",
       margin: 0,
       lineHeight: 1.6,
     };
