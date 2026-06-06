@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import { buildNetworkGraphModel } from "../lib/network-graph";
+import { exportSvgToPng, exportSvgToSvg } from "../lib/export-svg";
 import type { NetworkChain } from "../lib/api/network";
 
 interface NetworkGraphProps {
   chains: NetworkChain[];
+  taskId?: string;
 }
 
 const LAYER_FILL: Record<string, string> = {
@@ -42,13 +44,47 @@ function getEdgeStyle(score: number): {
   return { stroke: "#84c9bf", strokeWidth: 1.5, opacity: 0.45 };
 }
 
-export default function NetworkGraph({ chains }: NetworkGraphProps) {
+export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const nodeRefs = useRef(new Map<string, SVGGElement>());
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const model = buildNetworkGraphModel(chains);
   const { layers, nodes, edges } = model;
+
+  const handleExportPng = async () => {
+    if (!svgRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      const filename = taskId
+        ? `network-graph-${taskId}.png`
+        : "network-graph.png";
+      await exportSvgToPng(svgRef.current, filename);
+    } catch (err) {
+      console.error("Failed to export PNG:", err);
+      alert("导出 PNG 失败，请重试");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportSvg = () => {
+    if (!svgRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      const filename = taskId
+        ? `network-graph-${taskId}.svg`
+        : "network-graph.svg";
+      exportSvgToSvg(svgRef.current, filename);
+    } catch (err) {
+      console.error("Failed to export SVG:", err);
+      alert("导出 SVG 失败，请重试");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (nodes.length === 0) {
     return (
@@ -136,13 +172,62 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
   }
 
   return (
-    <div style={{ overflowX: "auto", marginTop: 24 }}>
-      <svg
-        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        role="img"
-        aria-label="网络药理学成分-靶点-通路-疾病链图"
-        style={{ width: "100%", minWidth: 600 }}
-      >
+    <div>
+      {nodes.length > 0 && (
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 12,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <button
+            onClick={handleExportPng}
+            disabled={isExporting}
+            style={{
+              padding: "6px 16px",
+              fontSize: 14,
+              color: isExporting ? "#9ca3af" : "#0d9488",
+              backgroundColor: "#ffffff",
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              cursor: isExporting ? "not-allowed" : "pointer",
+              fontWeight: 500,
+            }}
+          >
+            {isExporting ? "导出中..." : "导出 PNG"}
+          </button>
+          <button
+            onClick={handleExportSvg}
+            disabled={isExporting}
+            style={{
+              padding: "6px 16px",
+              fontSize: 14,
+              color: isExporting ? "#9ca3af" : "#0d9488",
+              backgroundColor: "#ffffff",
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              cursor: isExporting ? "not-allowed" : "pointer",
+              fontWeight: 500,
+            }}
+          >
+            {isExporting ? "导出中..." : "导出 SVG"}
+          </button>
+          <span style={{ fontSize: 13, color: "#6b7d78" }}>
+            提示：可导出网络图为图片文件
+          </span>
+        </div>
+      )}
+      <div style={{ overflowX: "auto" }}>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          role="img"
+          aria-label="网络药理学成分-靶点-通路-疾病链图"
+          style={{ width: "100%", minWidth: 600 }}
+        >
         <rect
           x={0}
           y={0}
@@ -360,6 +445,7 @@ export default function NetworkGraph({ chains }: NetworkGraphProps) {
           {"<0.7"}
         </text>
       </svg>
+    </div>
     </div>
   );
 }

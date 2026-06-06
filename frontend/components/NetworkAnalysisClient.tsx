@@ -295,7 +295,7 @@ export default function NetworkAnalysisClient() {
               <span>导出报告为 Markdown</span>
             </button>
           </div>
-          <NetworkGraph chains={result.chains} />
+          <NetworkGraph chains={result.chains} taskId={result.task_id} />
           <div style={{ display: "grid", gap: 12 }}>
             {result.chains.map((chain, index) => (
               <article key={`${chain.compound}-${index}`} style={getSurfaceCardStyle()}>
