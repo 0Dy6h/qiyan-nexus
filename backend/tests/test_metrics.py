@@ -1,7 +1,5 @@
 """Tests for performance metrics."""
 
-import pytest
-
 from app.core.metrics import (
     LatencyStats,
     PerformanceMetrics,

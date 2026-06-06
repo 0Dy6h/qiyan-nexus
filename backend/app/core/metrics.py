@@ -1,10 +1,8 @@
 """Performance metrics collection for API endpoints."""
 
-import time
 from collections import defaultdict
 from dataclasses import dataclass
 from threading import Lock
-from typing import Dict, List
 
 
 @dataclass
@@ -15,7 +13,7 @@ class LatencyStats:
     total_ms: float
     min_ms: float
     max_ms: float
-    p50_samples: List[float]  # Rolling window for percentile calculation
+    p50_samples: list[float]  # Rolling window for percentile calculation
 
     @property
     def avg_ms(self) -> float:
@@ -60,7 +58,7 @@ class PerformanceMetrics:
             max_samples: Maximum number of samples to keep for percentile calculation.
         """
         self._lock = Lock()
-        self._metrics: Dict[str, LatencyStats] = defaultdict(
+        self._metrics: dict[str, LatencyStats] = defaultdict(
             lambda: LatencyStats(
                 count=0,
                 total_ms=0.0,
@@ -113,7 +111,7 @@ class PerformanceMetrics:
                 p50_samples=stats.p50_samples.copy(),
             )
 
-    def get_all_stats(self) -> Dict[str, LatencyStats]:
+    def get_all_stats(self) -> dict[str, LatencyStats]:
         """Get statistics for all endpoints.
 
         Returns:
@@ -163,7 +161,7 @@ def get_endpoint_stats(endpoint: str) -> LatencyStats | None:
     return _metrics.get_stats(endpoint)
 
 
-def get_all_endpoint_stats() -> Dict[str, LatencyStats]:
+def get_all_endpoint_stats() -> dict[str, LatencyStats]:
     """Get performance statistics for all endpoints.
 
     Returns:

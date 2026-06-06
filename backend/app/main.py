@@ -1,3 +1,5 @@
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,7 +10,11 @@ from app.api.network import router as network_router
 from app.api.rag import router as rag_router
 from app.api.upload import router as upload_router
 from app.core.access_control import install_access_token_middleware
+from app.core.logging_config import init_logging
 from app.core.logging_middleware import RequestLoggingMiddleware
+
+if "pytest" not in sys.modules:
+    init_logging()
 
 app = FastAPI(title="Qiyan Nexus API")
 # Order matters: Starlette installs middleware via `insert(0, ...)` and builds
