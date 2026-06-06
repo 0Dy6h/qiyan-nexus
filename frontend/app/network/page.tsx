@@ -47,6 +47,13 @@ export default function NetworkPage() {
         </article>
 
         <div className="workbench-content-band">
+          <section className="workbench-stage-note" role="note" aria-label="网络药理学演示数据说明">
+            <h2>演示数据边界</h2>
+            <p style={{ color: "var(--qiyan-muted)", lineHeight: 1.72 }}>
+              当前网络分析使用本地 mock seed graph 和本地 GO/KEGG 演示字典，仅用于功能验证与评审走查；不可作为科研发表、临床决策或真实数据库分析结果。
+            </p>
+          </section>
+
           <Suspense fallback={<StatusPanel message="加载网药分析面板..." />}>
             <NetworkAnalysisClient />
           </Suspense>

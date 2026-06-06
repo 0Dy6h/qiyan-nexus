@@ -95,7 +95,13 @@ pnpm e2e
 
 ## 当前下一步候选
 
-最新项目级状态见 `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`（✅ claim-quality v2 真实采样：10 题、14 条单 evidence-ref claims、4 passed / 6 NLI blocked）、`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`（✅ 4 个 passed answers 的 delta-only reviewer packet 已生成并由 Codex technical review 填写，且用户已确认：6 supported / 0 unsupported / 0 unclear）、`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`（✅ price SLI baseline：10 题估算 `$0.005042`，latency avg 13.148s）、`docs/evaluations/2026-06-01-nli-real-distribution.md`（✅ NLI 真实分布评估：0 FP, 0 FN, gap +0.9549）、`docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`（✅ 真实 LLM live smoke）、`docs/adr/0012-real-llm-enablement.md`、`docs/guides/real-llm-enablement-runbook.md`。**L2 推进** 工程前置、claim-quality v2 真实技术验证、passed-claim verdict 确认与 price SLI baseline 已完成；阻塞项转为 BGE=0.3 评估 profile 是否可接受的治理决策，以及生产预算前复核真实合同价格。近期候选方向包括：
+最新项目级状态见 `docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`（✅ claim-quality v2 真实采样：10 题、14 条单 evidence-ref claims、4 passed / 6 NLI blocked）、`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`（✅ 4 个 passed answers 的 delta-only reviewer packet 已生成并由 Codex technical review 填写，且用户已确认：6 supported / 0 unsupported / 0 unclear）、`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`（✅ price SLI baseline：10 题估算 `$0.005042`，latency avg 13.148s）、`docs/evaluations/2026-06-01-nli-real-distribution.md`（✅ NLI 真实分布评估：0 FP, 0 FN, gap +0.9549）、`docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`（✅ 真实 LLM live smoke）、`docs/adr/0012-real-llm-enablement.md`、`docs/guides/real-llm-enablement-runbook.md`。
+
+**AI Technical Pre-review 完成（2026-06-06）**：AI 技术视角的产品安全审查（临床与科研双视角）未发现 P0/P1 问题，结论为可进入小范围试用准备；详见 `docs/handoffs/2026-06-06-comprehensive-product-review.md`。该结论不替代真实临床医生/科研专家的领域判断；`docs/evaluations/2026-06-05-reviewer-feedback.md` 已恢复为正式真人 reviewer packet，clinician / research reviewer sign-off 仍待填写。AI 预审发现的 P2「网络药理学 mock 边界标注可增强」已在 2026-06-06 补强：`/network` 页面新增演示数据边界 note，network Markdown 报告头部新增数据说明。小范围试用反馈模板见 `docs/evaluations/2026-06-06-small-scale-trial-feedback.md`。
+
+**重要说明**：AI 审查侧重产品安全、术语规范、科学准确性和数据透明度，不替代真实临床医生/科研专家的领域判断。以下领域仍需在小范围试用中由真实用户验证：(1) 临床语境准确性，(2) 科研工作流适配性，(3) 用户认知边界，(4) 术语细节。
+
+**L2 推进** 工程前置、claim-quality v2 真实技术验证、passed-claim verdict 确认与 price SLI baseline 已完成；阻塞项转为 BGE=0.3 评估 profile 是否可接受的治理决策，以及生产预算前复核真实合同价格。近期候选方向包括：
 
 1. **✅ 语义 grounding BGE 评估（已完成）**：BGE (BAAI/bge-small-zh-v1.5) 评估已完成。详见 `docs/evaluations/2026-05-31-bge-semantic-evaluation.md`。
 2. **✅ 真实 LLM live smoke + 启用底座（已完成）**：OpenCode Go live smoke 已跑通。真实 provider 现可在 **L1 受控 smoke/演示** 启用；默认仍 deterministic。

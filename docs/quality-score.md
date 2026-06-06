@@ -11,7 +11,7 @@
 | 技术架构 | A | 后端分层严格，前端测试覆盖完整，真实 LLM/embedding 可 opt-in | 2026-06-05 |
 | 任务拆解 | A | 不再有模块级大任务，剩余是 spike 或 governance | 2026-06-05 |
 | 前端设计 | A | 完整 error boundary，loading state 健全，Suspense fallback 覆盖全部异步组件 | 2026-06-05 |
-| 后端 API | A | 474 passed，SLI 已落地，request logging 与 trace ID 已补齐 | 2026-06-05 |
+| 后端 API | A | 505 passed / 1 skipped，SLI 已落地，request logging 与 trace ID 已补齐 | 2026-06-06 |
 | 合规 | A | 免责声明、隐私政策、数据来源、PDF 版权均已完整 | 2026-06-05 |
 | 领域文档 | A | ADR、handoff、current-state、reviewer checklist 均已同步 | 2026-06-05 |
 | 可观测性 | A | Request ID、structured logging、前端 error boundary 均已落地 | 2026-06-05 |

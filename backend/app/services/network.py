@@ -309,6 +309,11 @@ def build_network_report_markdown(
     lines.append(f"- 链路数量：{len(result.chains)}")
     lines.append("- 数据来源：本报告基于本地 mock seed graph 生成")
     lines.append("")
+    lines.append(
+        "> **数据说明**：本报告基于本地演示数据生成，仅用于功能验证与评审走查；"
+        "不可作为科研发表、临床决策或真实数据库分析结果。"
+    )
+    lines.append("")
 
     # ── Chains table ────────────────────────────────────────
     lines.append("## 链路结果")

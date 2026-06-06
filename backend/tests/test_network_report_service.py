@@ -47,6 +47,15 @@ def test_build_report_includes_disclaimer():
     assert DISCLAIMER in md
 
 
+def test_build_report_leads_with_mock_data_publication_boundary():
+    md = build_network_report_markdown(_SAMPLE_RESULT)
+    assert (
+        "> **数据说明**：本报告基于本地演示数据生成，仅用于功能验证与评审走查；"
+        "不可作为科研发表、临床决策或真实数据库分析结果。"
+    ) in md
+    assert md.index("> **数据说明**") < md.index("## 链路结果")
+
+
 def test_build_report_chains_table():
     md = build_network_report_markdown(_SAMPLE_RESULT)
     # Header row

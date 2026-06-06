@@ -86,6 +86,8 @@ Preflight verification:
 
 ## Reviewer A — Clinician
 
+本节必须由真实临床 reviewer 填写。AI 技术预审、自动化测试、内部代走和彩排证据都不能替代本节。
+
 - 姓名：
 - 职称/角色：
 - 专业领域：
@@ -134,6 +136,8 @@ Preflight verification:
 
 ## Reviewer B — Research
 
+本节必须由真实科研 reviewer 填写。AI 技术预审、自动化测试、内部代走和彩排证据都不能替代本节。
+
 - 姓名：
 - 职称/角色：
 - 专业领域：
@@ -180,13 +184,29 @@ Preflight verification:
 - `disposition`:
 - `blocks_trial`: yes / no
 
+## AI Technical Pre-review Summary
+
+本节记录 2026-06-06 AI 技术预审结论，用于正式 reviewer 走查前的工程参考；它不是正式医生/科研 reviewer sign-off。
+
+报告位置：
+
+- `docs/handoffs/2026-06-06-comprehensive-product-review.md`
+
+预审结论：
+
+- AI 技术预审未发现 P0/P1 问题。
+- AI 技术预审建议可进入小范围试用准备，但仍需真实临床与科研 reviewer 现场走查后才能 close out。
+- 预审发现的 P2 `网络药理学 mock 边界标注可增强` 已在本轮补强：`/network` 页面新增演示数据边界 note，后端 network Markdown 报告头部新增数据说明。
+- 预审发现的 P3 `英文样本作者姓名可优化` 仍作为 backlog，不阻塞小范围试用准备。
+
 ## Consolidated Triage
 
 | ID | Reviewer | Flow | Priority | Blocks Trial | Disposition |
 |---|---|---|---|---|---|
 | E-1 | engineering pre-review | 文献检索与数据来源切换 | P1 | no after fix | fixed-before-formal-review |
-| A-1 | clinician |  |  |  |  |
-| B-1 | research |  |  |  |  |
+| E-2 | AI technical pre-review | 网络药理学 mock 边界标注 | P2 | no after fix | fixed-before-human-review |
+| A-1 | clinician |  |  |  | pending-human-review |
+| B-1 | research |  |  |  | pending-human-review |
 
 ## Closeout Decision
 
@@ -195,3 +215,5 @@ Preflight verification:
 - [ ] Feedback requires scope change; write a new implementation plan before coding.
 
 Decision notes:
+
+待真实 clinician reviewer 与 research reviewer 完成本文件对应章节后填写。AI 技术预审、自动化测试、内部代走与证据包均不能替代此 closeout decision。
