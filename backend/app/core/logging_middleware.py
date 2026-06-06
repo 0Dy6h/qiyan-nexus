@@ -8,6 +8,8 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.metrics import record_request_latency
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +50,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "elapsed_ms": round(elapsed_ms, 2),
                 },
             )
+            # Record performance metrics
+            record_request_latency(request.url.path, elapsed_ms)
             # Inject request ID into response headers for client correlation
             response.headers["X-Request-ID"] = request_id
             return response
@@ -66,4 +70,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 },
                 exc_info=True,
             )
+            # Record performance metrics even on error
+            record_request_latency(request.url.path, elapsed_ms)
             raise
