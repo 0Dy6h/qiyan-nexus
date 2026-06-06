@@ -23,6 +23,7 @@ dev = [
     "fastapi[standard]>=0.115.0",
     "sentence-transformers>=3.0.0",
     "transformers>=4.40.0",
+    "pytest-cov>=5.0.0",
 ]
 postgresql = [
     "psycopg[binary,pool]>=3.1.0",
