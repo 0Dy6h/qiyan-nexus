@@ -49,7 +49,7 @@ test("non-home workbench pages keep homepage rail and glass surface continuity",
   assert.match(source, /\.workbench-page \.home-app-rail \.workbench-nav\s*{/);
   assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav\s*{[\s\S]*background:\s*var\(--qiyan-glass-bg\)/);
   assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--qiyan-teal\)/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.16\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.025\)/);
   assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*backdrop-filter:\s*var\(--qiyan-glass-filter\)/);
 });
 

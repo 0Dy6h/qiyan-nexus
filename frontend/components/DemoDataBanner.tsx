@@ -10,10 +10,10 @@ export default function DemoDataBanner({ compact = false }: Props) {
         alignItems: "flex-start",
         gap: 12,
         padding: compact ? 10 : 16,
-        backdropFilter: "blur(14px) saturate(135%)",
+        backdropFilter: "blur(2px)",
         border: "1px solid rgba(245, 158, 11, 0.44)",
         borderRadius: 16,
-        background: "rgba(36, 24, 5, 0.36)",
+        background: "rgba(36, 24, 5, 0.06)",
       }}
     >
       <span
