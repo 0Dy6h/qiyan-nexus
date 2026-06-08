@@ -4,7 +4,8 @@ param(
     [string]$PdfPath = "",
     [string]$ProfileName = "",
     [string]$OutputJson = "",
-    [string]$OutputMarkdown = ""
+    [string]$OutputMarkdown = "",
+    [switch]$NetworkLive
 )
 
 Set-StrictMode -Version Latest
@@ -52,6 +53,10 @@ $startedAt = Get-Date
 
 if ($null -eq $pdfFullPath) {
     throw "PDF sample not found. Provide -PdfPath explicitly or add a PDF under local-review-pdfs."
+}
+
+if ($NetworkLive -and ([string]$env:QIYAN_NETWORK_DATA_PROVIDER).Trim().ToLowerInvariant() -ne "live") {
+    throw "-NetworkLive requires QIYAN_NETWORK_DATA_PROVIDER=live in the current shell and a backend started with the same explicit opt-in."
 }
 
 function Join-Url {
@@ -224,6 +229,7 @@ function Write-SmokeArtifacts {
         duration_seconds = [math]::Round(($finishedAt - $startedAt).TotalSeconds, 3)
         passed = $Passed
         token_profile_enabled = [bool]$AccessToken.Trim()
+        network_live = [bool]$NetworkLive
         disclaimer = $disclaimer
         flows = $flowResults
         request_ids = $requestIds
@@ -335,11 +341,19 @@ Assert-True ($ragExport.Status -eq 200) "RAG Markdown export failed."
 Assert-True (($ragExport.Payload | Out-String).Contains($disclaimer)) "RAG Markdown export missing disclaimer."
 Add-Result -Flow "rag_export" -Status $ragExport.Status -RequestId (Get-RequestId $ragExport.Headers) -Notes "markdown=ok"
 
+$networkQuery = if ($NetworkLive) { New-UnicodeString @(0x9EC4, 0x82AA) } else { New-UnicodeString @(0x6D88, 0x98CE, 0x6563) }
+$networkAnalysisType = if ($NetworkLive) { "herb" } else { "formula" }
 $network = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/network/analyze") -Body @{
-    query = New-UnicodeString @(0x6D88, 0x98CE, 0x6563)
-    analysis_type = "formula"
+    query = $networkQuery
+    analysis_type = $networkAnalysisType
 }
 Assert-True ($network.Status -eq 202) "Network analyze failed."
+if ($NetworkLive) {
+    Assert-True ($network.Payload.data_mode -eq "live") "Network analyze did not enter live data mode."
+}
+else {
+    Assert-True ($network.Payload.data_mode -eq "mock") "Network analyze did not stay in mock data mode."
+}
 $taskId = $network.Payload.task_id
 Add-Result -Flow "network_analyze" -Status $network.Status -RequestId (Get-RequestId $network.Headers) -Notes "task=$taskId"
 
@@ -347,10 +361,23 @@ Add-Result -Flow "network_analyze" -Status $network.Status -RequestId (Get-Reque
 $networkResult = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/result/$taskId")
 Assert-True ($networkResult.Status -eq 200) "Network result failed."
 Assert-True ($networkResult.Payload.status -eq "completed") "Network result did not complete."
+if ($NetworkLive) {
+    Assert-True ($networkResult.Payload.data_mode -eq "live") "Network result did not stay in live data mode."
+}
+else {
+    Assert-True ($networkResult.Payload.data_mode -eq "mock") "Network result did not stay in mock data mode."
+}
 Assert-True ($networkResult.Payload.result.disclaimer -eq $disclaimer) "Network disclaimer mismatch."
 Assert-True ($networkResult.Payload.result.chains.Count -gt 0) "Network result has no chains."
-Assert-True ($networkResult.Payload.result.enrichment.terms.Count -gt 0) "Network result has no enrichment terms."
-Add-Result -Flow "network_result" -Status $networkResult.Status -RequestId (Get-RequestId $networkResult.Headers) -Notes "chains=$($networkResult.Payload.result.chains.Count); enrichment=$($networkResult.Payload.result.enrichment.terms.Count)"
+if ($NetworkLive) {
+    Assert-True ($networkResult.Payload.result.data_sources.Count -gt 0) "Live network result has no data sources."
+    Assert-True ($networkResult.Payload.result.pipeline_steps.Count -gt 0) "Live network result has no pipeline steps."
+    Add-Result -Flow "network_result" -Status $networkResult.Status -RequestId (Get-RequestId $networkResult.Headers) -Notes "mode=live; chains=$($networkResult.Payload.result.chains.Count); sources=$($networkResult.Payload.result.data_sources.Count); warnings=$($networkResult.Payload.warnings.Count)"
+}
+else {
+    Assert-True ($networkResult.Payload.result.enrichment.terms.Count -gt 0) "Network result has no enrichment terms."
+    Add-Result -Flow "network_result" -Status $networkResult.Status -RequestId (Get-RequestId $networkResult.Headers) -Notes "mode=mock; chains=$($networkResult.Payload.result.chains.Count); enrichment=$($networkResult.Payload.result.enrichment.terms.Count)"
+}
 
 $networkReport = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/result/$taskId/report")
 Assert-True ($networkReport.Status -eq 200) "Network report failed."

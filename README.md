@@ -259,7 +259,7 @@ curl "http://127.0.0.1:8000/api/evals/rag-ad/report?corpus=runtime"
 
 当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 50 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。默认 `corpus=seed`，固定读取 tracked seed 文献/chunk，避免本地 uploaded PDF/runtime state 污染 benchmark；显式 `corpus=runtime` 才评估 `backend/data/runtime/` 本地状态。当前基线目标：50 题通过率保持内部基线，citation/chunk 命中、disclaimer coverage 与 must_not violations 以本地测试输出与最新 handoff 为准。
 
-Network pharmacology API（mock）：
+Network pharmacology API（默认 mock，live 需显式 opt-in）：
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
@@ -274,7 +274,36 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
-当前网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。当前不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+默认模式下，网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。mock 模式不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+
+真实网络药理学链路是显式 opt-in，不进入默认路径：
+
+- 设置 `QIYAN_NETWORK_DATA_PROVIDER="live"` 后，`POST /api/network/analyze` 与轮询 response 会返回 `data_mode="live"`，并输出 `data_sources`、`pipeline_steps`、`warnings`、`error`、`target_evidence_type`、`evidence_refs` 与可选 `ppi_edges`。
+- live 链路按 `TCMSP/cache → PubChem CID → ChEMBL known activity → UniProt 标准化 → STRING PPI → KEGG pathway/enrichment → report provenance` 执行；外部响应只写入 `backend/data/runtime/network_cache/`，不会回写 seed fixture。
+- `QIYAN_NETWORK_ALLOW_TCMSP_SCRAPE` 默认 `false`。关闭时 TCMSP 入口只读已有 cache；开启前需 operator 明确接受抓取稳定性、授权和限速风险。
+- SwissTargetPrediction 不自动 crawler；预测靶点只通过 `QIYAN_NETWORK_TARGET_PREDICTION_FILE` 指向本地 JSON/CSV artifact 导入，字段为 `compound,target_symbol,score,source,source_record_id,retrieved_at`。
+- `QIYAN_NETWORK_HTTP_TIMEOUT_SECONDS` 与 `QIYAN_NETWORK_RATE_LIMIT_PER_SECOND` 控制 live API timeout 和限速；外部失败会进入 `warnings` 或业务 `failed` task，不应变成正常业务流的 500。
+- 回滚路径：清空或设置 `QIYAN_NETWORK_DATA_PROVIDER="mock"` 即回到默认离线 mock。需要强制重新请求外部源时，清理 `backend/data/runtime/network_cache/`。
+
+PowerShell live smoke 示例（不会自动开启 TCMSP 抓取；需提前准备 cache 或 prediction artifact）：
+
+```powershell
+cd backend
+$env:QIYAN_NETWORK_DATA_PROVIDER="live"
+$env:QIYAN_NETWORK_CACHE_DIR="backend/data/runtime/network_cache"
+$env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions.csv"
+& .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
+```
+
+另开终端轮询：
+
+```powershell
+$task = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/network/analyze" `
+  -ContentType "application/json" `
+  -Body '{"query":"黄芪","analysis_type":"herb"}'
+Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
+Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+```
 
 Network analysis response 示例（包含 enrichment 字段）：
 

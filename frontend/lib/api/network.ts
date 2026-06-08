@@ -3,7 +3,10 @@ import { getBackendBaseUrl } from "./rag";
 
 export type NetworkAnalysisType = "formula" | "herb";
 
-export type NetworkTaskStatus = "queued" | "running" | "completed";
+export type NetworkTaskStatus = "queued" | "running" | "completed" | "failed";
+export type NetworkDataMode = "mock" | "live";
+export type NetworkTargetEvidenceType = "mock" | "known_activity" | "predicted" | "mixed";
+export type NetworkPipelineStepStatus = "completed" | "failed" | "skipped" | "degraded";
 
 export type NetworkChain = {
   herb: string;
@@ -14,6 +17,34 @@ export type NetworkChain = {
   disease: string;
   score: number;
   related_entity_ids: string[];
+  evidence_refs?: string[];
+  target_evidence_type?: NetworkTargetEvidenceType;
+};
+
+export type NetworkDataSource = {
+  name: string;
+  source_record_id?: string | null;
+  url?: string | null;
+  retrieved_at?: string | null;
+  license_note?: string | null;
+  cache_key?: string | null;
+  from_cache?: boolean;
+};
+
+export type NetworkPipelineStep = {
+  name: string;
+  status: NetworkPipelineStepStatus;
+  duration_ms: number;
+  external_request_count: number;
+  cache_hit_count: number;
+  warning?: string | null;
+};
+
+export type NetworkPpiEdge = {
+  source: string;
+  target: string;
+  score: number;
+  source_record_id: string;
 };
 
 export type EnrichmentTerm = {
@@ -40,8 +71,13 @@ export type NetworkAnalysisResult = {
   task_id: string;
   query: string;
   analysis_type: NetworkAnalysisType;
+  data_mode?: NetworkDataMode;
   chains: NetworkChain[];
   enrichment?: EnrichmentResult | null;
+  pipeline_steps?: NetworkPipelineStep[];
+  data_sources?: NetworkDataSource[];
+  ppi_edges?: NetworkPpiEdge[];
+  warnings?: string[];
   disclaimer: string;
 };
 
@@ -55,7 +91,10 @@ export type NetworkResultResponse = {
   task_id: string;
   status: NetworkTaskStatus;
   progress: number;
+  data_mode?: NetworkDataMode;
   result: NetworkAnalysisResult | null;
+  error?: string | null;
+  warnings?: string[];
 };
 
 export function buildNetworkAnalyzeUrl() {
@@ -75,6 +114,23 @@ export function buildNetworkReportUrl(taskId: string) {
 
 export function getNetworkAnalysisTypeLabel(type: NetworkAnalysisType) {
   return type === "herb" ? "单味中药" : "复方";
+}
+
+export function getNetworkDataModeLabel(mode: NetworkDataMode | undefined) {
+  return mode === "live" ? "真实数据 opt-in" : "Mock 演示数据";
+}
+
+export function getNetworkTargetEvidenceTypeLabel(type: NetworkTargetEvidenceType | undefined) {
+  switch (type) {
+    case "known_activity":
+      return "已知活性证据";
+    case "predicted":
+      return "预测靶点";
+    case "mixed":
+      return "已知+预测";
+    default:
+      return "Mock";
+  }
 }
 
 export async function submitNetworkAnalysis(

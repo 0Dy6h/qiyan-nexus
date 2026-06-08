@@ -34,7 +34,7 @@ export default function NetworkPage() {
           <section className="workbench-stage-note" role="note" aria-label="网络药理学演示数据说明">
             <h2>演示数据边界</h2>
             <p style={{ color: "var(--qiyan-muted)", lineHeight: 1.72 }}>
-              当前网络分析使用本地 mock seed graph 和本地 GO/KEGG 演示字典，仅用于功能验证与评审走查；不可作为科研发表、临床决策或真实数据库分析结果。
+              当前默认网络分析使用本地 mock seed graph 和本地 GO/KEGG 演示字典，仅用于功能验证与评审走查；真实数据链路需显式 opt-in，且不可作为科研发表、临床决策或真实数据库分析结果，live 结果也必须核对外部来源与缓存时间。
             </p>
           </section>
 

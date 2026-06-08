@@ -8,6 +8,8 @@ import {
   fetchNetworkReportMarkdown,
   fetchNetworkResult,
   getNetworkAnalysisTypeLabel,
+  getNetworkDataModeLabel,
+  getNetworkTargetEvidenceTypeLabel,
   NetworkAnalysisResult,
   NetworkAnalysisType,
   submitNetworkAnalysis,
@@ -62,6 +64,11 @@ export default function NetworkAnalysisClient() {
           return;
         }
         setProgress(polled.progress);
+        if (polled.status === "failed") {
+          setErrorMessage(polled.error ?? "网络分析任务失败，请检查真实数据来源与缓存配置。");
+          setPhase("error");
+          return;
+        }
         if (polled.status === "completed" && polled.result) {
           setResult(polled.result);
           setPhase("completed");
@@ -180,6 +187,8 @@ export default function NetworkAnalysisClient() {
       ? "提交中..."
       : `运行中... ${progress}%`
     : "开始分析";
+  const resultDataMode = result?.data_mode ?? "mock";
+  const isLiveResult = resultDataMode === "live";
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -268,7 +277,7 @@ export default function NetworkAnalysisClient() {
               <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>「成分-靶点-通路-疾病」链</h2>
               <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
                 分析对象 {result.query}（{getNetworkAnalysisTypeLabel(result.analysis_type)}）共返回 {result.chains.length} 条链；分数为
-                mock 置信度，仅用于 UI 演示。
+                {isLiveResult ? "来源置信度或预测分数，需核对下方数据来源与缓存状态。" : "mock 置信度，仅用于 UI 演示。"}
               </p>
             </div>
             <button
@@ -295,12 +304,32 @@ export default function NetworkAnalysisClient() {
               <span>导出报告为 Markdown</span>
             </button>
           </div>
+          {isLiveResult ? (
+            <div
+              aria-label="真实数据 opt-in 状态"
+              style={{
+                border: "1px solid rgba(13, 148, 136, 0.28)",
+                borderRadius: 8,
+                background: "rgba(240, 253, 250, 0.76)",
+                padding: "12px 14px",
+                marginBottom: 16,
+                color: "var(--qiyan-ink)",
+                lineHeight: 1.6,
+              }}
+            >
+              <strong>{getNetworkDataModeLabel(resultDataMode)}</strong>
+              <span style={{ color: "var(--qiyan-muted-2)" }}>
+                ：结果来自显式启用的真实数据链路，包含缓存或导入来源；预测靶点不会自动爬取 SwissTargetPrediction。
+              </span>
+            </div>
+          ) : null}
           <NetworkGraph chains={result.chains} taskId={result.task_id} />
           <div style={{ display: "grid", gap: 12 }}>
             {result.chains.map((chain, index) => (
               <article key={`${chain.compound}-${index}`} style={getSurfaceCardStyle()}>
                 <p style={{ color: "#0d9488", fontWeight: 700, margin: 0, fontSize: 13 }}>
                   链 #{index + 1} · 置信度 {formatScore(chain.score)}
+                  {isLiveResult ? ` · ${getNetworkTargetEvidenceTypeLabel(chain.target_evidence_type)}` : ""}
                 </p>
                 <p style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "8px 0 0", lineHeight: 1.6 }}>
                   {chain.herb} → {chain.compound} → {chain.target} → {chain.pathway} → {chain.disease}
@@ -311,6 +340,11 @@ export default function NetworkAnalysisClient() {
                   </p>
                   <EntityChips ids={chain.related_entity_ids} emptyHint="当前 mock 链未返回可跳转实体。" />
                 </div>
+                {isLiveResult && chain.evidence_refs && chain.evidence_refs.length > 0 ? (
+                  <p style={{ color: "var(--qiyan-muted-2)", fontSize: 13, margin: "10px 0 0" }}>
+                    Evidence refs：{chain.evidence_refs.join(", ")}
+                  </p>
+                ) : null}
                 <div
                   aria-label="链路跳转"
                   style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 14 }}
@@ -339,6 +373,95 @@ export default function NetworkAnalysisClient() {
               </article>
             ))}
           </div>
+          {isLiveResult && result.data_sources && result.data_sources.length > 0 ? (
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ color: "var(--qiyan-ink)", fontSize: 20, margin: "0 0 8px" }}>数据来源与缓存</h3>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--qiyan-line)" }}>
+                      <th style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontWeight: 700 }}>Source</th>
+                      <th style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontWeight: 700 }}>Record ID</th>
+                      <th style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontWeight: 700 }}>缓存/实时</th>
+                      <th style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontWeight: 700 }}>Retrieved at</th>
+                      <th style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontWeight: 700 }}>Usage note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.data_sources.map((source, idx) => (
+                      <tr
+                        key={`${source.name}-${source.cache_key ?? idx}`}
+                        style={{
+                          borderBottom: "1px solid var(--qiyan-line)",
+                          background: idx % 2 === 0 ? "var(--qiyan-surface)" : "var(--qiyan-surface-3)",
+                        }}
+                      >
+                        <td style={{ padding: "10px 8px", color: "var(--qiyan-ink)", fontWeight: 700 }}>
+                          {source.name}
+                        </td>
+                        <td style={{ padding: "10px 8px", color: "var(--qiyan-muted-2)", fontFamily: "monospace" }}>
+                          {source.source_record_id ?? "无"}
+                        </td>
+                        <td style={{ padding: "10px 8px", color: "#0f766e", fontWeight: 700 }}>
+                          {source.from_cache ? "缓存" : "实时"}
+                        </td>
+                        <td style={{ padding: "10px 8px", color: "var(--qiyan-muted-2)" }}>
+                          {source.retrieved_at ?? "无"}
+                        </td>
+                        <td style={{ padding: "10px 8px", color: "var(--qiyan-muted)", fontSize: 13 }}>
+                          {source.license_note ?? "无"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+          {isLiveResult && result.pipeline_steps && result.pipeline_steps.length > 0 ? (
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ color: "var(--qiyan-ink)", fontSize: 20, margin: "0 0 8px" }}>运行步骤</h3>
+              <div style={{ display: "grid", gap: 8 }}>
+                {result.pipeline_steps.map((step) => (
+                  <div
+                    key={step.name}
+                    style={{
+                      border: "1px solid var(--qiyan-line)",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      background: "var(--qiyan-surface)",
+                      color: "var(--qiyan-muted-2)",
+                    }}
+                  >
+                    <strong style={{ color: "var(--qiyan-ink)" }}>{step.name}</strong>
+                    <span> · {step.status}</span>
+                    <span> · cache hits {step.cache_hit_count}</span>
+                    {step.warning ? <span> · {step.warning}</span> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {isLiveResult && result.warnings && result.warnings.length > 0 ? (
+            <div
+              role="note"
+              aria-label="运行警告"
+              style={{
+                marginTop: 28,
+                border: "1px solid rgba(180, 83, 9, 0.28)",
+                borderRadius: 8,
+                background: "rgba(255, 251, 235, 0.78)",
+                padding: "12px 14px",
+              }}
+            >
+              <h3 style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "0 0 8px" }}>运行警告</h3>
+              <ul style={{ margin: 0, paddingLeft: 18, color: "var(--qiyan-muted-2)", lineHeight: 1.65 }}>
+                {result.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {result.enrichment && result.enrichment.terms.length > 0 ? (
             <div style={{ marginTop: 32 }}>
               <h3 style={{ color: "var(--qiyan-ink)", fontSize: 20, margin: "0 0 8px" }}>富集分析结果</h3>

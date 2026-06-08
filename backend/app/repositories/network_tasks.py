@@ -4,6 +4,7 @@ from typing import Any
 
 from app.schemas.network import (
     AnalysisType,
+    DataMode,
     NetworkAnalysisResult,
     NetworkTaskRecord,
     TaskStatus,
@@ -41,6 +42,9 @@ class NetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        data_mode: DataMode = "mock",
+        error: str | None = None,
+        warnings: list[str] | None = None,
     ) -> NetworkTaskRecord:
         raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
         record = NetworkTaskRecord(
@@ -50,7 +54,10 @@ class NetworkTaskRepository:
             status=status,
             progress=progress,
             poll_count=poll_count,
+            data_mode=data_mode,
             result=result,
+            error=error,
+            warnings=warnings or [],
             created_at=created_at,
         )
         payload = record.model_dump()

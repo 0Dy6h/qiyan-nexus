@@ -8,7 +8,13 @@ from typing import Any, Protocol
 
 from app.schemas.chunk import LiteratureChunk
 from app.schemas.literature import LiteratureItem, PdfParseResult
-from app.schemas.network import AnalysisType, NetworkAnalysisResult, NetworkTaskRecord, TaskStatus
+from app.schemas.network import (
+    AnalysisType,
+    DataMode,
+    NetworkAnalysisResult,
+    NetworkTaskRecord,
+    TaskStatus,
+)
 
 
 class LiteratureRepository(Protocol):
@@ -72,4 +78,7 @@ class NetworkTaskRepositoryProtocol(Protocol):
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        data_mode: DataMode = "mock",
+        error: str | None = None,
+        warnings: list[str] | None = None,
     ) -> NetworkTaskRecord: ...

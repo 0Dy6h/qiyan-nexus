@@ -75,9 +75,19 @@ CREATE TABLE IF NOT EXISTS network_tasks (
     status        TEXT NOT NULL,
     progress      INTEGER NOT NULL DEFAULT 0,
     poll_count    INTEGER NOT NULL DEFAULT 0,
+    data_mode     TEXT NOT NULL DEFAULT 'mock',
     result        JSONB,
+    error         TEXT,
+    warnings      JSONB NOT NULL DEFAULT '[]',
     created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS data_mode TEXT NOT NULL DEFAULT 'mock';
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS error TEXT;
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS warnings JSONB NOT NULL DEFAULT '[]';
 
 -- Indexes for network_tasks table
 CREATE INDEX IF NOT EXISTS idx_network_tasks_status ON network_tasks(status);

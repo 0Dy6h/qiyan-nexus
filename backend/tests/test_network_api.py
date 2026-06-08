@@ -5,7 +5,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from app.main import app
+from app.repositories.network_cache import NetworkCacheRepository, build_network_cache_key
+from app.services.network_connectors import UniProtConnector
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +33,7 @@ def test_network_analyze_endpoint_creates_task():
     payload = response.json()
     assert payload["status"] == "queued"
     assert payload["progress"] == 0
+    assert payload["data_mode"] == "mock"
     assert payload["task_id"].startswith("network-")
 
 
@@ -51,6 +55,7 @@ def test_network_result_endpoint_returns_progress_then_completed_result():
     first_payload = first_poll.json()
     assert first_payload["status"] == "running"
     assert first_payload["progress"] == 60
+    assert first_payload["data_mode"] == "mock"
     assert first_payload["result"] is None
 
     second_poll = client.get(f"/api/network/result/{task_id}")
@@ -58,13 +63,167 @@ def test_network_result_endpoint_returns_progress_then_completed_result():
     second_payload = second_poll.json()
     assert second_payload["status"] == "completed"
     assert second_payload["progress"] == 100
+    assert second_payload["data_mode"] == "mock"
+    assert second_payload["error"] is None
+    assert second_payload["warnings"] == []
     assert second_payload["result"] is not None
+    assert second_payload["result"]["data_mode"] == "mock"
     assert second_payload["result"]["analysis_type"] == "herb"
     assert second_payload["result"]["query"] == "黄芪"
     assert len(second_payload["result"]["chains"]) >= 1
     first_chain = second_payload["result"]["chains"][0]
     assert first_chain["related_entity_ids"]
     assert all(entity_id for entity_id in first_chain["related_entity_ids"])
+
+
+def test_network_live_mode_surfaces_provenance_fields(monkeypatch, tmp_path: Path):
+    cache_dir = tmp_path / "network_cache"
+    prediction_file = tmp_path / "predictions.csv"
+    cache_repo = NetworkCacheRepository(cache_dir)
+    compound_name = "Astragaloside IV"
+    cache_repo.write_json(
+        build_network_cache_key(
+            provider="tcmsp",
+            query="黄芪",
+            params={"herb": "黄芪", "analysis_type": "herb"},
+        ),
+        {"compounds": [{"name": compound_name, "herb": "黄芪"}]},
+    )
+    cache_repo.write_json(
+        build_network_cache_key(
+            provider="pubchem",
+            query=compound_name,
+            params={"compound": compound_name},
+        ),
+        {"IdentifierList": {"CID": [13943297]}},
+    )
+    cache_repo.write_json(
+        build_network_cache_key(
+            provider="chembl",
+            query=compound_name,
+            params={"compound": compound_name, "pubchem_cid": "13943297"},
+        ),
+        {
+            "activities": [
+                {
+                    "target_pref_name": "IL6",
+                    "target_organism": "Homo sapiens",
+                    "pchembl_value": "8.0",
+                    "assay_chembl_id": "CHEMBLASSAY-HQ-1",
+                }
+            ]
+        },
+    )
+    cache_repo.write_json(
+        build_network_cache_key(
+            provider="kegg",
+            query="IL6,TNF",
+            params={"genes": "IL6,TNF"},
+        ),
+        {
+            "link_text": "hsa:3569\tpath:hsa04668\nhsa:7124\tpath:hsa04668\n",
+            "list_text": "path:hsa04668\tTNF signaling pathway - Homo sapiens (human)\n",
+        },
+    )
+    for symbol, accession, name in [
+        ("IL6", "P05231", "Interleukin-6"),
+        ("TNF", "P01375", "Tumor necrosis factor"),
+    ]:
+        cache_repo.write_json(
+            build_network_cache_key(
+                provider="uniprot",
+                query=symbol,
+                params={
+                    "query": UniProtConnector.build_query(symbol),
+                    "fields": "accession,gene_names,protein_name",
+                    "format": "json",
+                    "size": 1,
+                },
+            ),
+            {
+                "results": [
+                    {
+                        "primaryAccession": accession,
+                        "genes": [{"geneName": {"value": symbol}}],
+                        "proteinDescription": {"recommendedName": {"fullName": {"value": name}}},
+                    }
+                ]
+            },
+        )
+    cache_repo.write_json(
+        build_network_cache_key(
+            provider="string",
+            query="IL6,TNF",
+            params={"identifiers": "IL6\rTNF", "species": 9606, "required_score": 400},
+        ),
+        "preferredName_A\tpreferredName_B\tscore\nIL6\tTNF\t0.982\n",
+    )
+    prediction_file.write_text(
+        "compound,target_symbol,score,source,source_record_id,retrieved_at\n"
+        f"{compound_name},TNF,0.72,SwissTargetPrediction,swiss-hq-1,2026-06-08T00:00:00Z\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("QIYAN_NETWORK_DATA_PROVIDER", "live")
+    monkeypatch.setenv("QIYAN_NETWORK_CACHE_DIR", str(cache_dir))
+    monkeypatch.setenv("QIYAN_NETWORK_TARGET_PREDICTION_FILE", str(prediction_file))
+    get_settings.cache_clear()
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/api/network/analyze",
+        json={
+            "query": "黄芪",
+            "analysis_type": "herb",
+        },
+    )
+    assert create_response.status_code == 202
+    accepted = create_response.json()
+    assert accepted["data_mode"] == "live"
+    task_id = accepted["task_id"]
+
+    client.get(f"/api/network/result/{task_id}")
+    completed_response = client.get(f"/api/network/result/{task_id}")
+    assert completed_response.status_code == 200
+    payload = completed_response.json()
+    assert payload["data_mode"] == "live"
+    assert payload["status"] == "completed"
+    assert payload["error"] is None
+    assert isinstance(payload["warnings"], list)
+    assert payload["result"]["data_mode"] == "live"
+    assert len(payload["result"]["pipeline_steps"]) >= 1
+    assert len(payload["result"]["data_sources"]) >= 1
+    first_chain = payload["result"]["chains"][0]
+    assert first_chain["target_evidence_type"] in {"known_activity", "predicted", "mixed"}
+    assert isinstance(first_chain["evidence_refs"], list)
+    get_settings.cache_clear()
+
+
+def test_network_live_mode_returns_failed_state_when_no_live_chain_can_be_built(
+    monkeypatch,
+    tmp_path: Path,
+):
+    monkeypatch.setenv("QIYAN_NETWORK_DATA_PROVIDER", "live")
+    monkeypatch.setenv("QIYAN_NETWORK_CACHE_DIR", str(tmp_path / "empty_cache"))
+    get_settings.cache_clear()
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/api/network/analyze",
+        json={"query": "黄芪", "analysis_type": "herb"},
+    )
+    task_id = create_response.json()["task_id"]
+
+    client.get(f"/api/network/result/{task_id}")
+    completed_response = client.get(f"/api/network/result/{task_id}")
+
+    assert completed_response.status_code == 200
+    payload = completed_response.json()
+    assert payload["status"] == "failed"
+    assert payload["data_mode"] == "live"
+    assert payload["result"] is None
+    assert payload["error"] == "No live target chains could be assembled."
+    assert "No live target chains could be assembled." in payload["warnings"]
+    get_settings.cache_clear()
 
 
 def test_network_result_endpoint_keeps_returning_completed_mock_result_after_completion():

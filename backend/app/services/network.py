@@ -4,10 +4,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from app.core.config import get_settings
 from app.repositories.network_entities import NetworkEntityRepository
 from app.repositories.runtime_storage import get_network_task_repository
 from app.schemas.network import (
     AnalysisType,
+    DataMode,
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkChain,
@@ -21,7 +23,7 @@ from app.schemas.network_entities import (
     Target,
 )
 from app.services.enrichment import build_enrichment_result
-from app.services.rag import DISCLAIMER
+from app.services.network_providers import select_network_provider
 
 if TYPE_CHECKING:
     from app.repositories.protocols import NetworkTaskRepositoryProtocol
@@ -134,9 +136,15 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _select_data_mode() -> DataMode:
+    provider_name = get_settings().network_data_provider.strip().lower()
+    return "live" if provider_name == "live" else "mock"
+
+
 def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> NetworkAnalyzeAccepted:
     task_id = f"network-{uuid4().hex[:12]}"
     repo = _get_repository()
+    data_mode = _select_data_mode()
     repo.upsert(
         task_id=task_id,
         query=query.strip(),
@@ -146,8 +154,9 @@ def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> Net
         poll_count=0,
         result=None,
         created_at=_now_iso(),
+        data_mode=data_mode,
     )
-    return NetworkAnalyzeAccepted(task_id=task_id, status="queued", progress=0)
+    return NetworkAnalyzeAccepted(task_id=task_id, status="queued", progress=0, data_mode=data_mode)
 
 
 def _load_go_terms() -> list[Any]:
@@ -182,6 +191,9 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
             poll_count=record.poll_count + 1,
             result=None,
             created_at=record.created_at,
+            data_mode=record.data_mode,
+            error=record.error,
+            warnings=record.warnings,
         )
         return (
             next_record,
@@ -189,7 +201,10 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
                 task_id=next_record.task_id,
                 status="running",
                 progress=60,
+                data_mode=next_record.data_mode,
                 result=None,
+                error=next_record.error,
+                warnings=next_record.warnings,
             ),
         )
 
@@ -205,14 +220,41 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
         kegg_pathways = _load_kegg_pathways()
         enrichment = build_enrichment_result(target_symbols, go_terms, kegg_pathways)
 
-    result_payload = NetworkAnalysisResult(
+    provider = select_network_provider(record.data_mode)
+    result_payload = provider.build_result(
         task_id=record.task_id,
         query=record.query,
         analysis_type=record.analysis_type,
         chains=chains,
         enrichment=enrichment,
-        disclaimer=DISCLAIMER,
     )
+    if record.data_mode == "live" and not result_payload.chains:
+        error_message = "No live target chains could be assembled."
+        next_record = repo.upsert(
+            task_id=record.task_id,
+            query=record.query,
+            analysis_type=record.analysis_type,
+            status="failed",
+            progress=100,
+            poll_count=record.poll_count + 1,
+            result=None,
+            created_at=record.created_at,
+            data_mode=record.data_mode,
+            error=error_message,
+            warnings=result_payload.warnings,
+        )
+        return (
+            next_record,
+            NetworkResultResponse(
+                task_id=next_record.task_id,
+                status="failed",
+                progress=100,
+                data_mode=next_record.data_mode,
+                result=None,
+                error=next_record.error,
+                warnings=next_record.warnings,
+            ),
+        )
     next_record = repo.upsert(
         task_id=record.task_id,
         query=record.query,
@@ -222,6 +264,8 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
         poll_count=record.poll_count + 1,
         result=result_payload,
         created_at=record.created_at,
+        data_mode=record.data_mode,
+        warnings=result_payload.warnings,
     )
     return (
         next_record,
@@ -229,7 +273,10 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
             task_id=next_record.task_id,
             status="completed",
             progress=100,
+            data_mode=next_record.data_mode,
             result=result_payload,
+            error=next_record.error,
+            warnings=next_record.warnings,
         ),
     )
 
@@ -286,6 +333,16 @@ def _analysis_type_label(analysis_type: AnalysisType) -> str:
     return "单味中药" if analysis_type == "herb" else "复方"
 
 
+def _target_evidence_type_label(value: str) -> str:
+    if value == "known_activity":
+        return "已知活性证据"
+    if value == "predicted":
+        return "预测靶点"
+    if value == "mixed":
+        return "已知+预测"
+    return "Mock"
+
+
 def build_network_report_markdown(
     result: NetworkAnalysisResult,
     exported_at: str | None = None,
@@ -306,14 +363,75 @@ def build_network_report_markdown(
     lines.append(f"- task_id：{result.task_id}")
     lines.append(f"- 分析对象：{result.query}")
     lines.append(f"- 分析类型：{_analysis_type_label(result.analysis_type)}")
+    lines.append(f"- 数据模式：{result.data_mode}")
     lines.append(f"- 链路数量：{len(result.chains)}")
-    lines.append("- 数据来源：本报告基于本地 mock seed graph 生成")
+    if result.data_mode == "live":
+        lines.append("- 数据来源：显式 opt-in 真实数据链路（含缓存/导入来源）")
+    else:
+        lines.append("- 数据来源：本报告基于本地 mock seed graph 生成")
     lines.append("")
-    lines.append(
-        "> **数据说明**：本报告基于本地演示数据生成，仅用于功能验证与评审走查；"
-        "不可作为科研发表、临床决策或真实数据库分析结果。"
-    )
+    if result.data_mode == "live":
+        lines.append(
+            "> **数据说明**：本报告来自显式启用的真实数据链路；仍需核对外部数据库版本、"
+            "缓存时间、授权边界与原始记录，不可直接作为临床决策结论。"
+        )
+    else:
+        lines.append(
+            "> **数据说明**：本报告基于本地演示数据生成，仅用于功能验证与评审走查；"
+            "不可作为科研发表、临床决策或真实数据库分析结果。"
+        )
     lines.append("")
+
+    if result.data_mode == "live":
+        lines.append("## 数据来源与参数版本")
+        lines.append("")
+        if result.data_sources:
+            lines.append(
+                "| Source | Record ID | URL | Retrieved at | Cache | Usage note | Cache key |"
+            )
+            lines.append("|---|---|---|---|---|---|---|")
+            for source in result.data_sources:
+                cells = [
+                    source.name,
+                    source.source_record_id,
+                    source.url,
+                    source.retrieved_at,
+                    "cache" if source.from_cache else "live",
+                    source.license_note,
+                    source.cache_key,
+                ]
+                escaped = [_escape_table_cell(c) for c in cells]
+                lines.append(f"| {' | '.join(escaped)} |")
+        else:
+            lines.append("（当前结果未返回外部数据来源元数据。）")
+        lines.append("")
+
+        lines.append("## 运行步骤")
+        lines.append("")
+        if result.pipeline_steps:
+            lines.append("| Step | Status | Duration ms | Requests | Cache hits | Warning |")
+            lines.append("|---|---|---:|---:|---:|---|")
+            for step in result.pipeline_steps:
+                pipeline_cells: list[str | int | float | None] = [
+                    step.name,
+                    step.status,
+                    step.duration_ms,
+                    step.external_request_count,
+                    step.cache_hit_count,
+                    step.warning,
+                ]
+                escaped = [_escape_table_cell(c) for c in pipeline_cells]
+                lines.append(f"| {' | '.join(escaped)} |")
+        else:
+            lines.append("（当前结果未返回运行步骤元数据。）")
+        lines.append("")
+
+        if result.warnings:
+            lines.append("## 运行警告")
+            lines.append("")
+            for warning in result.warnings:
+                lines.append(f"- {_escape_table_cell(warning)}")
+            lines.append("")
 
     # ── Chains table ────────────────────────────────────────
     lines.append("## 链路结果")
@@ -321,22 +439,42 @@ def build_network_report_markdown(
     if not result.chains:
         lines.append("（当前报告没有可导出的 mock 链路。）")
     else:
-        lines.append(
-            "| 序号 | 方剂 | 单味中药 | 成分 | 靶点 | 通路 | 疾病 | Mock 置信度 | 相关实体 ID |"
-        )
-        lines.append("|---|---|---|---|---|---|---|---:|---|")
+        if result.data_mode == "live":
+            lines.append(
+                "| 序号 | 方剂 | 单味中药 | 成分 | 靶点 | 靶点证据类型 | 通路 | 疾病 | 置信度 | Evidence refs |"
+            )
+            lines.append("|---|---|---|---|---|---|---|---|---:|---|")
+        else:
+            lines.append(
+                "| 序号 | 方剂 | 单味中药 | 成分 | 靶点 | 通路 | 疾病 | Mock 置信度 | 相关实体 ID |"
+            )
+            lines.append("|---|---|---|---|---|---|---|---:|---|")
         for idx, chain in enumerate(result.chains, start=1):
-            cells = [
-                str(idx),
-                chain.formula,
-                chain.herb,
-                chain.compound,
-                chain.target,
-                chain.pathway,
-                chain.disease,
-                _format_score(chain.score),
-                _format_entity_ids(chain.related_entity_ids),
-            ]
+            if result.data_mode == "live":
+                cells = [
+                    str(idx),
+                    chain.formula,
+                    chain.herb,
+                    chain.compound,
+                    chain.target,
+                    _target_evidence_type_label(chain.target_evidence_type),
+                    chain.pathway,
+                    chain.disease,
+                    _format_score(chain.score),
+                    _format_entity_ids(chain.evidence_refs),
+                ]
+            else:
+                cells = [
+                    str(idx),
+                    chain.formula,
+                    chain.herb,
+                    chain.compound,
+                    chain.target,
+                    chain.pathway,
+                    chain.disease,
+                    _format_score(chain.score),
+                    _format_entity_ids(chain.related_entity_ids),
+                ]
             escaped = [_escape_table_cell(c) for c in cells]
             lines.append(f"| {' | '.join(escaped)} |")
     lines.append("")
@@ -391,10 +529,15 @@ def build_network_report_markdown(
     # ── Boundary notes ──────────────────────────────────────
     lines.append("## 边界说明")
     lines.append("")
-    lines.append("- 不是正式网络药理学计算。")
-    lines.append(
-        "- 富集分析基于本地 JSON 字典（mock），不代表真实 KEGG REST API 或 STRING 数据库。"
-    )
+    if result.data_mode == "live":
+        lines.append("- 本报告来自显式 opt-in 真实数据链路，仍需人工核对外部来源版本与缓存时间。")
+        lines.append("- 预测靶点来自本地导入 artifact，不自动爬取 SwissTargetPrediction。")
+        lines.append("- TCMSP 入口仅在 operator 明确允许或已有缓存时使用。")
+    else:
+        lines.append("- 不是正式网络药理学计算。")
+        lines.append(
+            "- 富集分析基于本地 JSON 字典（mock），不代表真实 KEGG REST API 或 STRING 数据库。"
+        )
     lines.append("- 不构成诊断或治疗建议，实际判断需核对原始文献、参数版本与临床背景。")
     lines.append("")
     lines.append("---")

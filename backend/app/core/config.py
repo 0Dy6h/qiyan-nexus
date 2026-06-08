@@ -22,6 +22,20 @@ class Settings:
     grounding_semantic_threshold: float = 0.40
     nli_backend: str = ""
     nli_threshold: float = 0.0
+    network_data_provider: str = "mock"
+    network_task_runner: str = "local"
+    network_allow_tcmsp_scrape: bool = False
+    network_target_prediction_file: Path = Path("")
+    network_cache_dir: Path = Path("backend/data/runtime/network_cache")
+    network_http_timeout_seconds: float = 15.0
+    network_rate_limit_per_second: float = 1.0
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 @lru_cache
@@ -56,4 +70,13 @@ def get_settings() -> Settings:
         # docs/evaluations/2026-06-01-nli-grounding-spike.md.
         nli_backend=os.getenv("QIYAN_NLI_BACKEND", ""),
         nli_threshold=float(os.getenv("QIYAN_NLI_THRESHOLD", "0.0")),
+        network_data_provider=os.getenv("QIYAN_NETWORK_DATA_PROVIDER", "mock"),
+        network_task_runner=os.getenv("QIYAN_NETWORK_TASK_RUNNER", "local"),
+        network_allow_tcmsp_scrape=_bool_env("QIYAN_NETWORK_ALLOW_TCMSP_SCRAPE"),
+        network_target_prediction_file=Path(os.getenv("QIYAN_NETWORK_TARGET_PREDICTION_FILE", "")),
+        network_cache_dir=Path(
+            os.getenv("QIYAN_NETWORK_CACHE_DIR", "backend/data/runtime/network_cache")
+        ),
+        network_http_timeout_seconds=float(os.getenv("QIYAN_NETWORK_HTTP_TIMEOUT_SECONDS", "15")),
+        network_rate_limit_per_second=float(os.getenv("QIYAN_NETWORK_RATE_LIMIT_PER_SECOND", "1")),
     )
