@@ -19,50 +19,40 @@ interface LayerVisual {
   label: string;
   fill: string;
   stroke: string;
-  softFill: string;
-  bandFill: string;
   shape: NodeShape;
 }
 
+// Publication-standard network pharmacology palette (Cytoscape convention):
+// pastel fill + saturated border, distinct per category, print-friendly.
 const LAYER_VISUALS: Record<LayerKey, LayerVisual> = {
   herb: {
     label: "中药/复方",
-    fill: "#0f766e",
-    stroke: "#0d9488",
-    softFill: "#d9f4ef",
-    bandFill: "#effaf7",
+    fill: "#a8e6cf",
+    stroke: "#2e8b57",
     shape: "hexagon",
   },
   compound: {
     label: "化合物",
-    fill: "#2563eb",
-    stroke: "#3b82f6",
-    softFill: "#dbeafe",
-    bandFill: "#f0f7ff",
+    fill: "#a8d8ea",
+    stroke: "#2b6cb0",
     shape: "circle",
   },
   target: {
     label: "靶点",
-    fill: "#b45309",
-    stroke: "#d97706",
-    softFill: "#fef3c7",
-    bandFill: "#fffbeb",
+    fill: "#ffd3b6",
+    stroke: "#c05621",
     shape: "rounded-rect",
   },
   pathway: {
     label: "通路",
-    fill: "#15803d",
-    stroke: "#22c55e",
-    softFill: "#dcfce7",
-    bandFill: "#f0fdf4",
+    fill: "#d9b8ff",
+    stroke: "#6b46c1",
     shape: "diamond",
   },
   disease: {
     label: "疾病",
-    fill: "#be123c",
-    stroke: "#e11d48",
-    softFill: "#ffe4e6",
-    bandFill: "#fff1f2",
+    fill: "#ffb3b3",
+    stroke: "#c53030",
     shape: "pill",
   },
 };
@@ -78,12 +68,11 @@ const LAYER_LABEL_MAP: Record<string, string> = {
 const START_X = 60;
 const LAYER_GAP_X = 220;
 const GRAPH_OFFSET_X = 48;
-const GRAPH_OFFSET_Y = 78;
-const NODE_MIN_RADIUS = 16;
-const NODE_MAX_RADIUS = 34;
-const EDGE_PORT_OFFSET = 38;
-const LABEL_GAP_X = 6;
-const LAYER_BAND_WIDTH = 170;
+const GRAPH_OFFSET_Y = 56;
+const NODE_MIN_RADIUS = 14;
+const NODE_MAX_RADIUS = 26;
+const EDGE_PORT_OFFSET = 30;
+const LABEL_GAP_X = 4;
 const MAX_LABEL_LINES = 2;
 const MAX_LABEL_CHARS = 10;
 
@@ -96,13 +85,14 @@ function getEdgeStyle(score: number): {
   strokeWidth: number;
   opacity: number;
 } {
+  // Publication convention: uniform gray edges, subtle thickness for weight.
   if (score >= 0.9) {
-    return { stroke: "#1e293b", strokeWidth: 2.6, opacity: 0.92 };
+    return { stroke: "#666666", strokeWidth: 1.6, opacity: 0.7 };
   }
   if (score >= 0.7) {
-    return { stroke: "#64748b", strokeWidth: 1.8, opacity: 0.72 };
+    return { stroke: "#999999", strokeWidth: 1.1, opacity: 0.5 };
   }
-  return { stroke: "#cbd5e1", strokeWidth: 1.2, opacity: 0.56 };
+  return { stroke: "#bbbbbb", strokeWidth: 0.7, opacity: 0.38 };
 }
 
 function formatDegree(degree: number): string {
@@ -155,10 +145,11 @@ function renderNodeSymbol({
   visual: LayerVisual;
   opacity: number;
 }): ReactNode {
+  // Publication style: pastel fill + saturated category-colored border.
   const common = {
     fill: visual.fill,
-    stroke: "#ffffff",
-    strokeWidth: 1.8,
+    stroke: visual.stroke,
+    strokeWidth: 1.4,
     opacity,
   };
 
@@ -197,7 +188,9 @@ function renderNodeSymbol({
 }
 
 function buildEdgePath(sourceX: number, sourceY: number, targetX: number, targetY: number): string {
-  const curve = Math.max(34, Math.abs(targetX - sourceX) * 0.42);
+  // Gentle cubic bezier — subtle curve like Cytoscape's bundled-bezier style.
+  const dx = Math.abs(targetX - sourceX);
+  const curve = Math.max(20, dx * 0.3);
   return `M ${sourceX} ${sourceY} C ${sourceX + curve} ${sourceY}, ${targetX - curve} ${targetY}, ${targetX} ${targetY}`;
 }
 
@@ -271,42 +264,30 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
     return (
       <div style={{ overflowX: "auto", marginTop: 24 }}>
         <svg
-          viewBox="0 0 1040 220"
+          viewBox="0 0 1040 180"
           role="img"
           aria-label="网络药理学成分-靶点-通路-疾病链图"
           style={{ width: "100%", minWidth: 720 }}
         >
-          <rect x={0} y={0} width={1040} height={220} fill="#ffffff" />
+          <rect x={0} y={0} width={1040} height={180} fill="#ffffff" />
           {layers.map((layer, index) => {
-            const visual = getLayerVisual(layer.key);
             const x = layerX(index);
             return (
-              <g key={layer.key}>
-                <rect
-                  x={x - LAYER_BAND_WIDTH / 2}
-                  y={40}
-                  width={LAYER_BAND_WIDTH}
-                  height={120}
-                  rx={6}
-                  fill={visual.bandFill}
-                  opacity={0.5}
-                />
-                <text
-                  x={x}
-                  y={70}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fontWeight={700}
-                  fill="#475569"
-                  fontFamily="'Noto Sans SC', sans-serif"
-                >
-                  {layer.label}
-                </text>
-                {renderLegendShape(visual, x, 104, 10)}
-              </g>
+              <text
+                key={layer.key}
+                x={x}
+                y={50}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={600}
+                fill="#4a5568"
+                fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif"
+              >
+                {layer.label}
+              </text>
             );
           })}
-          <text x={520} y={190} textAnchor="middle" fontSize={12} fontWeight={600} fill="#64748b" fontFamily="'Noto Sans SC', sans-serif">
+          <text x={520} y={110} textAnchor="middle" fontSize={11} fontWeight={400} fill="#718096" fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif">
             暂无网络数据
           </text>
         </svg>
@@ -317,10 +298,9 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const maxNodeX = Math.max(...nodes.map((n) => n.x));
   const maxNodeY = Math.max(...nodes.map((n) => n.y));
-  const svgWidth = maxNodeX + GRAPH_OFFSET_X + 140;
-  const svgHeight = maxNodeY + GRAPH_OFFSET_Y + 160;
-  const graphBandHeight = Math.max(140, maxNodeY + GRAPH_OFFSET_Y - 30);
-  const legendY = maxNodeY + GRAPH_OFFSET_Y + 56;
+  const svgWidth = maxNodeX + GRAPH_OFFSET_X + 120;
+  const svgHeight = maxNodeY + GRAPH_OFFSET_Y + 130;
+  const legendY = maxNodeY + GRAPH_OFFSET_Y + 40;
 
   // Focus takes priority so keyboard users get a stable highlight.
   const activeNodeId = focusedNodeId ?? hoveredNodeId;
@@ -429,8 +409,6 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
       <div
         style={{
           overflowX: "auto",
-          border: "1px solid #e2e8f0",
-          borderRadius: 4,
           background: "#ffffff",
         }}
       >
@@ -445,13 +423,13 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             <marker
               id="networkGraphArrow"
               viewBox="0 0 10 10"
-              refX="8.5"
+              refX="9"
               refY="5"
-              markerWidth="5"
-              markerHeight="5"
+              markerWidth="4"
+              markerHeight="4"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" opacity={0.85} />
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#888888" opacity={0.6} />
             </marker>
           </defs>
 
@@ -464,33 +442,22 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             onClick={() => setFocusedNodeId(null)}
           />
 
-          {/* Layer columns */}
+          {/* Layer column headers — publication style: plain text, no background bands */}
           {layers.map((layer, i) => {
-            const visual = getLayerVisual(layer.key);
             const x = layerX(i);
             return (
-              <g key={layer.key}>
-                <rect
-                  x={x - LAYER_BAND_WIDTH / 2}
-                  y={44}
-                  width={LAYER_BAND_WIDTH}
-                  height={graphBandHeight}
-                  rx={6}
-                  fill={visual.bandFill}
-                  opacity={0.5}
-                />
-                <text
-                  x={x}
-                  y={36}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fontWeight={700}
-                  fill="#475569"
-                  fontFamily="'Noto Sans SC', sans-serif"
-                >
-                  {layer.label}
-                </text>
-              </g>
+              <text
+                key={layer.key}
+                x={x}
+                y={28}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={600}
+                fill="#4a5568"
+                fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif"
+              >
+                {layer.label}
+              </text>
             );
           })}
 
@@ -498,11 +465,11 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           {focusedNode ? (
             <text
               x={24}
-              y={20}
-              fontSize={10}
-              fill="#334155"
-              fontWeight={600}
-              fontFamily="'Noto Sans SC', sans-serif"
+              y={16}
+              fontSize={9}
+              fill="#4a5568"
+              fontWeight={500}
+              fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif"
             >
               {`聚焦：${LAYER_LABEL_MAP[focusedNode.layer] ?? focusedNode.layer}: ${focusedNode.label}（点击空白处取消）`}
             </text>
@@ -524,11 +491,11 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
 
             if (activeNodeId) {
               if (isConnected) {
-                effectiveStroke = isFocusedEdge ? "#0f172a" : "#334155";
-                effectiveStrokeWidth = style.strokeWidth + 0.6;
-                effectiveOpacity = 0.95;
+                effectiveStroke = isFocusedEdge ? "#333333" : "#555555";
+                effectiveStrokeWidth = style.strokeWidth + 0.4;
+                effectiveOpacity = 0.85;
               } else {
-                effectiveOpacity = 0.08;
+                effectiveOpacity = 0.06;
               }
             }
 
@@ -563,7 +530,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
 
             let effectiveNodeOpacity = 1;
             if (activeNodeId) {
-              effectiveNodeOpacity = isRelated ? 1 : 0.25;
+              effectiveNodeOpacity = isRelated ? 1 : 0.2;
             }
 
             const lines = splitLabelIntoLines(node.label);
@@ -617,11 +584,11 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
                   <circle
                     cx={x}
                     cy={y}
-                    r={nodeRadius + 5}
+                    r={nodeRadius + 4}
                     fill="none"
-                    stroke="#0f766e"
-                    strokeWidth={2}
-                    strokeDasharray="4 2"
+                    stroke="#333333"
+                    strokeWidth={1.2}
+                    strokeDasharray="3 2"
                   />
                 ) : null}
                 {renderNodeSymbol({
@@ -633,17 +600,17 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
                 })}
                 <text
                   x={labelX}
-                  y={y - (lines.length - 1) * 6}
+                  y={y - (lines.length - 1) * 5}
                   textAnchor="start"
                   dominantBaseline="central"
-                  fontSize={lines.length > 1 ? 9 : 10}
-                  fill="#1e293b"
-                  fontWeight={600}
-                  fontFamily="'Noto Sans SC', sans-serif"
+                  fontSize={lines.length > 1 ? 8 : 9}
+                  fill="#2d3748"
+                  fontWeight={400}
+                  fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif"
                   opacity={effectiveNodeOpacity}
                 >
                   {lines.map((line, index) => (
-                    <tspan key={`${node.id}-line-${index}`} x={labelX} dy={index === 0 ? 0 : 12}>
+                    <tspan key={`${node.id}-line-${index}`} x={labelX} dy={index === 0 ? 0 : 11}>
                       {line}
                     </tspan>
                   ))}
@@ -657,77 +624,74 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           <g aria-hidden="true">
             <rect
               x={26}
-              y={legendY - 18}
+              y={legendY - 14}
               width={svgWidth - 52}
-              height={86}
-              rx={4}
+              height={70}
+              rx={2}
               fill="#ffffff"
-              stroke="#e2e8f0"
-              strokeWidth={0.8}
+              stroke="#cccccc"
+              strokeWidth={0.5}
             />
-            <text x={40} y={legendY} fontSize={10} fill="#334155" fontWeight={700} fontFamily="'Noto Sans SC', sans-serif">
+            <text x={38} y={legendY} fontSize={9} fill="#4a5568" fontWeight={600} fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif">
               {"图例: 节点形状/颜色表示类别，节点符号大小表示 degree，连线粗细表示置信度"}
             </text>
             {layers.map((layer, index) => {
               const visual = getLayerVisual(layer.key);
-              const lx = 40 + index * 100;
+              const lx = 38 + index * 105;
               return (
                 <g key={`legend-${layer.key}`}>
-                  {renderLegendShape(visual, lx, legendY + 20, 7)}
-                  <text x={lx + 12} y={legendY + 24} fontSize={9} fill="#475569" fontWeight={600} fontFamily="'Noto Sans SC', sans-serif">
+                  {renderLegendShape(visual, lx, legendY + 18, 6)}
+                  <text x={lx + 10} y={legendY + 21} fontSize={8} fill="#4a5568" fontWeight={500} fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif">
                     {visual.label}
                   </text>
                 </g>
               );
             })}
-            <text x={40} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <text x={38} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500} fontFamily="Arial, Helvetica, sans-serif">
               {"置信度:"}
             </text>
             <line
-              x1={88}
-              y1={legendY + 47}
-              x2={120}
-              y2={legendY + 47}
-              stroke="#1e293b"
-              strokeWidth={2.6}
-              opacity={0.92}
-              strokeLinecap="round"
+              x1={82}
+              y1={legendY + 39}
+              x2={110}
+              y2={legendY + 39}
+              stroke="#666666"
+              strokeWidth={1.6}
+              opacity={0.7}
             />
-            <text x={126} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <text x={114} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500}>
               {"≥0.9"}
             </text>
             <line
-              x1={160}
-              y1={legendY + 47}
-              x2={192}
-              y2={legendY + 47}
-              stroke="#64748b"
-              strokeWidth={1.8}
-              opacity={0.72}
-              strokeLinecap="round"
+              x1={144}
+              y1={legendY + 39}
+              x2={172}
+              y2={legendY + 39}
+              stroke="#999999"
+              strokeWidth={1.1}
+              opacity={0.5}
             />
-            <text x={198} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <text x={176} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500}>
               {"≥0.7"}
             </text>
             <line
-              x1={232}
-              y1={legendY + 47}
-              x2={264}
-              y2={legendY + 47}
-              stroke="#cbd5e1"
-              strokeWidth={1.2}
-              opacity={0.56}
-              strokeLinecap="round"
+              x1={206}
+              y1={legendY + 39}
+              x2={234}
+              y2={legendY + 39}
+              stroke="#bbbbbb"
+              strokeWidth={0.7}
+              opacity={0.38}
             />
-            <text x={270} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <text x={238} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500}>
               {"<0.7"}
             </text>
-            <circle cx={320} cy={legendY + 47} r={5} fill="#94a3b8" opacity={0.5} />
-            <text x={330} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <circle cx={284} cy={legendY + 39} r={4} fill="#cccccc" opacity={0.6} />
+            <text x={292} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500}>
               {"小 = 低 degree"}
             </text>
-            <circle cx={410} cy={legendY + 47} r={10} fill="#94a3b8" opacity={0.5} />
-            <text x={424} y={legendY + 50} fontSize={9} fill="#475569" fontWeight={600}>
+            <circle cx={368} cy={legendY + 39} r={8} fill="#cccccc" opacity={0.6} />
+            <text x={380} y={legendY + 42} fontSize={8} fill="#4a5568" fontWeight={500}>
               {"大 = 高 degree"}
             </text>
           </g>
@@ -735,14 +699,14 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           {/* Figure caption */}
           <text
             x={svgWidth / 2}
-            y={svgHeight - 12}
+            y={svgHeight - 8}
             textAnchor="middle"
-            fontSize={10}
-            fill="#334155"
-            fontWeight={600}
-            fontFamily="'Noto Sans SC', sans-serif"
+            fontSize={9}
+            fill="#4a5568"
+            fontWeight={400}
+            fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif"
           >
-            {`Fig. 「成分-靶点-通路-疾病」网络图 (nodes: ${nodes.length}, edges: ${edges.length})`}
+            {`Fig. 「中药-成分-靶点-通路-疾病」网络 (Nodes: ${nodes.length}, Edges: ${edges.length})`}
           </text>
         </svg>
       </div>
