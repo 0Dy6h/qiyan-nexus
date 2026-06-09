@@ -35,9 +35,9 @@ def test_default_settings(monkeypatch):
     assert settings.upload_storage_dir == Path("uploads")
     assert settings.anthropic_api_key == ""
     assert settings.opencode_go_api_key == ""
-    assert settings.opencode_go_base_url == "https://opencode.ai/zen/go/v1"
-    assert settings.opencode_go_model == "deepseek-v4-flash"
-    assert settings.opencode_go_max_tokens == 1200
+    assert settings.opencode_go_base_url == "https://ai.router.team/v1"
+    assert settings.opencode_go_model == "gpt-5.5"
+    assert settings.opencode_go_max_tokens == 4096
     assert settings.opencode_go_temperature == 0.2
     assert settings.opencode_go_price_input_per_mtok == 0.0
     assert settings.opencode_go_price_output_per_mtok == 0.0

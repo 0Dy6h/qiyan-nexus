@@ -15,8 +15,8 @@ Preflight status: completed by engineering; formal clinician/research reviewer s
 |---|---|
 | Branch | `feat/multilingual-bge-m3-backend` |
 | Baseline commit | `c3c177d` |
-| Current technical refresh base commit | `a723472` |
-| Verified worktree | engineering pre-review closeout changes for record origin labels and Windows smoke compatibility |
+| Current technical refresh base commit | `8bd38a6` |
+| Verified worktree | Slice 0 repository hygiene and fact-source refresh for router.team/gpt-5.5 opt-in provider, network live opt-in status, frontend UI handoff, and TCMBench contact tracking |
 | Backend URL | `http://127.0.0.1:8000` |
 | Frontend URL | `http://127.0.0.1:3000` |
 | Runtime profile | default offline preview |
@@ -25,16 +25,17 @@ Preflight status: completed by engineering; formal clinician/research reviewer s
 | State backend | `json` |
 | Access control | open dev mode verified; shared-token profile also verified as internal preview gate |
 | External data egress | none; no real LLM / embedding / PostgreSQL enabled |
-| Runtime isolation | `.tmp/internal-preview-evidence/20260606-152844/runtime-open` and `.tmp/internal-preview-evidence/20260606-152844/runtime-token` |
-| Evidence package | `.tmp/internal-preview-evidence/20260606-152844/evidence-summary.md` |
+| Runtime isolation | `.tmp/internal-preview-evidence/20260608-224628/runtime-open` and `.tmp/internal-preview-evidence/20260608-224628/runtime-token` |
+| Evidence package | `.tmp/internal-preview-evidence/20260608-224628/evidence-summary.md` |
 
 Preflight verification:
 
-- 2026-06-06 technical refresh passed:
-  - `.\scripts\verify-local.ps1` passed: backend `ruff format --check`, `ruff check`, `mypy app`, `pytest -q` (`505 passed, 1 skipped`); frontend `pnpm test` (`168 passed`), `pnpm typecheck`, `pnpm build`.
+- 2026-06-08 Slice 0 technical refresh passed:
+  - `.\scripts\verify-local.ps1` passed: backend `ruff format --check`, `ruff check`, `mypy app`, `pytest -q` (`562 passed, 1 skipped`); frontend `pnpm test` (`201 passed`), `pnpm typecheck`, `pnpm build`.
   - `.\scripts\verify-local.ps1 -IncludeE2E` passed: same backend/frontend gates plus Playwright open-mode E2E (`4 passed`).
   - `.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile` passed: same backend/frontend gates plus shared-token Playwright E2E (`4 passed`).
-  - `.\scripts\collect-internal-preview-evidence.ps1` passed after Windows PowerShell compatibility hardening and created `.tmp/internal-preview-evidence/20260606-152844/`.
+  - `.\scripts\collect-internal-preview-evidence.ps1` passed and created `.tmp/internal-preview-evidence/20260608-224628/`.
+  - Note: Playwright Chromium headless shell was installed locally before the E2E rerun because the browser executable was missing from the machine cache; the rerun passed after installation.
 - Evidence smoke summary:
   - open profile: passed, 12 flows, 12 request IDs.
   - shared-token profile: passed, 12 flows, 12 request IDs; access token value intentionally omitted.

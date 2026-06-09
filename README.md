@@ -220,8 +220,8 @@ Grounding：
 
 - `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
 - API key 只从 `QIYAN_OPENCODE_GO_API_KEY` 读取，不能写入仓库、README、handoff 或测试。
-- 默认 endpoint 与模型：`QIYAN_OPENCODE_GO_BASE_URL="https://opencode.ai/zen/go/v1"`，`QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"`。
-- 建议 smoke 时使用 `QIYAN_OPENCODE_GO_MAX_TOKENS="4000"`；实测 `deepseek-v4-flash`（thinking mode）会先消耗大量 reasoning token，默认 `1200` 常导致 `content` 为空（`finish_reason=length`）并触发 deterministic fallback，需要 >=4000 才能让真实路径生效。该模型还会拒绝强制 `tool_choice`（HTTP 400），真实路径走 structured claims v3。详见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md` 与 `docs/guides/real-llm-enablement-runbook.md`。
+- 当前 opt-in smoke 默认 endpoint 与模型（2026-06-08）：`QIYAN_OPENCODE_GO_BASE_URL="https://ai.router.team/v1"`，`QIYAN_OPENCODE_GO_MODEL="gpt-5.5"`，`QIYAN_OPENCODE_GO_MAX_TOKENS="4096"`。
+- 历史基线说明：2026-05-31/06-02 的 live smoke 与 price SLI 基于 `deepseek-v4-flash`，该模型为 thinking mode，曾拒绝强制 `tool_choice`（HTTP 400），且需要 >=4000 token 才能避免空 content fallback。切到 router.team + gpt-5.5 后，价格、延迟、NLI pass rate 与治理通过率都需要重新采样，不能沿用 deepseek 历史数字作为当前预算或 L2 决策依据。详见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`、`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md` 与 `docs/guides/real-llm-enablement-runbook.md`。
 - 未设置 key、HTTP 错误、网关失败或响应结构异常时，provider 会记录不含 secret 的 warning，并回退到 deterministic answer。
 
 可选 retrieval providers（默认不启用 vector/hybrid）：
@@ -237,8 +237,8 @@ PowerShell 本地 smoke 示例：
 cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
-$env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4000"
+$env:QIYAN_OPENCODE_GO_MODEL="gpt-5.5"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4096"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 

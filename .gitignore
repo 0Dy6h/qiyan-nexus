@@ -71,3 +71,7 @@ opencode.jsonc
 
 # Trae temporary documents (session-specific planning)
 .trae/
+
+# Local-only work tracks (paper output, project entity archive)
+论文产出/
+项目实体/
