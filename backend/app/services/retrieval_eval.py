@@ -27,11 +27,18 @@ from app.schemas.eval import (
     CrossLingualRetrievalItem,
     CrossLingualRetrievalReport,
     CrossLingualRetrievalSummary,
+    EvalCorpus,
     load_rag_eval_dataset,
 )
 from app.services.retrieval.provider import select_retrieval_provider
 
 _CN_PATTERN = re.compile(r"[\u4e00-\u9fff]")
+_SEED_LITERATURE_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+)
+_SEED_CHUNK_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+)
 
 
 def _identify_question_language(question: str) -> str:
@@ -127,6 +134,7 @@ def run_cross_lingual_retrieval_eval(
     strategy: str | None = None,
     top_k: int = 10,
     eval_data_path: Path | None = None,
+    corpus: EvalCorpus = "seed",
 ) -> CrossLingualRetrievalReport:
     """Run a retrieval-only cross-lingual evaluation.
 
@@ -138,6 +146,7 @@ def run_cross_lingual_retrieval_eval(
         strategy: retrieval provider name (keyword/vector/hybrid), default keyword
         top_k: number of top candidates to inspect
         eval_data_path: path to eval questions JSON, defaults to dataset
+        corpus: seed benchmark corpus or runtime local state corpus
 
     Returns:
         CrossLingualRetrievalReport with per-item metrics and aggregated summary
@@ -157,8 +166,14 @@ def run_cross_lingual_retrieval_eval(
 
     # Load retrieval provider and data
     provider = select_retrieval_provider(strategy)
-    lit_repo = InMemoryLiteratureRepository(resolve_literature_storage_path())
-    chunk_repo = InMemoryChunkRepository(resolve_chunk_storage_path())
+    if corpus == "runtime":
+        literature_path = resolve_literature_storage_path()
+        chunk_path = resolve_chunk_storage_path()
+    else:
+        literature_path = _SEED_LITERATURE_PATH
+        chunk_path = _SEED_CHUNK_PATH
+    lit_repo = InMemoryLiteratureRepository(literature_path)
+    chunk_repo = InMemoryChunkRepository(chunk_path)
     all_items = lit_repo.list_items()
     chunks_by_item: dict[str, list[LiteratureChunk]] = {}
     for lit_item in all_items:
@@ -215,6 +230,7 @@ def run_cross_lingual_retrieval_eval(
 
     summary = CrossLingualRetrievalSummary(
         total_questions=n,
+        corpus=corpus,
         top_k=top_k,
         retrieval_strategy=provider.name,
         avg_monolingual_recall=avg_mono,

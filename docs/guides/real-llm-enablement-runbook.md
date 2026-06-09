@@ -1,12 +1,38 @@
 # Real LLM Enablement Runbook
 
-date: 2026-05-31
+date: 2026-05-31 (updated 2026-06-08 for router.team / gpt-5.5 switch)
 scope: how to safely turn the real `opencode_go` provider on/off for Qiyan Nexus RAG
 decision: governed by ADR-0012; data flow by ADR-0011
 
 This runbook is operational. For the *why* and the hard invariants, read
 `docs/adr/0012-real-llm-enablement.md`. For smoke-test mechanics, read
 `docs/guides/opencode-go-bge-smoke-test.md`.
+
+## 2026-06-08 Provider switch — router.team gateway + gpt-5.5
+
+The default `opencode_go` configuration was switched from
+`opencode.ai/zen/go/v1` + `deepseek-v4-flash` to `ai.router.team/v1` +
+`gpt-5.5`. The provider class, `.name`, env var prefix, and grounding policy
+are unchanged — only the gateway
+URL, model name, and `max_tokens` default (1200 → 4096). All sections below
+referencing `deepseek-v4-flash` describe **historical** findings from prior
+smoke runs; they remain accurate as historical evidence but the live model is
+now gpt-5.5. New baselines (price SLI, NLI pass rate, latency) should be
+captured with gpt-5.5 before relying on them for governance decisions.
+
+Key model-level differences vs the previous deepseek-v4-flash:
+
+- gpt-5.5 via router.team does not use thinking-mode reasoning tokens, so
+  `max_tokens=4096` is adequate (previously 4000 was the minimum to survive
+  reasoning).
+- Forced `tool_choice` is expected to work (this was the OpenAI-spec default
+  the provider already implements; deepseek-v4-flash rejected it with HTTP 400
+  and the provider's no-tools structured retry path covered that).
+- Pricing is unknown until a router.team contract baseline is recorded; keep
+  `QIYAN_OPENCODE_GO_PRICE_*` at `0.0` until then so `estimated_cost_usd` stays
+  `null` instead of surfacing a guessed price.
+
+---
 
 ## Hard invariants (must hold whenever a real provider is on)
 
@@ -46,16 +72,26 @@ $env:QIYAN_OPENCODE_GO_API_KEY = [Environment]::GetEnvironmentVariable("QIYAN_OP
 $env:QIYAN_LLM_PROVIDER = "opencode_go"
 $env:QIYAN_EMBEDDING_BACKEND = "bge"
 $env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.78"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"   # REQUIRED: 1200 silently degrades to fallback
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4096"   # gpt-5.5 default; deepseek-v4-flash needed >=4000
 # Optional cost SLI: set real prices (USD per million tokens).
-# 2026-06-02 deepseek-v4-flash baseline: input 0.14, output 0.28.
-# Re-check provider pricing/contract before using these for budgeting.
-$env:QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK = "0.14"
-$env:QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK = "0.28"
+# Keep these unset or 0.0 until the router.team/gpt-5.5 contract price is known.
+# The 2026-06-02 deepseek-v4-flash baseline is historical evidence, not a
+# router.team/gpt-5.5 budget.
+Remove-Item Env:\QIYAN_OPENCODE_GO_PRICE_INPUT_PER_MTOK -ErrorAction SilentlyContinue
+Remove-Item Env:\QIYAN_OPENCODE_GO_PRICE_OUTPUT_PER_MTOK -ErrorAction SilentlyContinue
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
-Model-specific constraints (from the 2026-05-31 live smoke):
+Current model note (2026-06-08):
+
+- The current opt-in smoke default is router.team `gpt-5.5` with
+  `QIYAN_OPENCODE_GO_MAX_TOKENS=4096`.
+- Price SLI, NLI pass rate, latency, and L2 governance baselines for gpt-5.5 are
+  not yet recorded. Keep cost env vars unset/0.0 until the contract price is
+  known.
+
+Historical model-specific constraints (from the 2026-05-31 deepseek-v4-flash
+live smoke):
 
 - `deepseek-v4-flash` runs in thinking mode and **rejects forced tool_choice**
   (HTTP 400). The supported grounding route is structured claims v3, not
@@ -85,7 +121,7 @@ Claim-quality constraints (2026-06-01 prompt/schema v2):
 cd backend
 $env:QIYAN_OPENCODE_GO_API_KEY = [Environment]::GetEnvironmentVariable("QIYAN_OPENCODE_GO_API_KEY","User")
 $env:QIYAN_LLM_PROVIDER = "opencode_go"; $env:QIYAN_EMBEDDING_BACKEND = "bge"
-$env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.78"; $env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"
+$env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.78"; $env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4096"
 $env:PYTHONUTF8 = "1"
 & .\.uv-test-venv\Scripts\python.exe scripts\smoke_opencode_go_bge.py
 ```
@@ -107,7 +143,7 @@ NLI entailment gate can evaluate real cross-lingual/paraphrased claims.
 cd backend
 $env:QIYAN_OPENCODE_GO_API_KEY = [Environment]::GetEnvironmentVariable("QIYAN_OPENCODE_GO_API_KEY","User")
 $env:QIYAN_LLM_PROVIDER = "opencode_go"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4000"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS = "4096"
 $env:QIYAN_EMBEDDING_BACKEND = "bge"
 $env:QIYAN_GROUNDING_SEMANTIC_THRESHOLD = "0.3"
 $env:QIYAN_NLI_BACKEND = "transformers"

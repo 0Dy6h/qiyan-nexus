@@ -45,10 +45,11 @@ test("buildPdfDownloadUrl encodes reserved upload id characters", () => {
 });
 
 test("uploadLiteraturePdf sends only literature_id and file in multipart form", async () => {
-  const captured: (BodyInit | null | undefined)[] = [];
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
+  const captured: { body: BodyInit | null | undefined; headers: HeadersInit | undefined }[] = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_url: URL | RequestInfo, init?: RequestInit) => {
-    captured.push(init?.body);
+    captured.push({ body: init?.body, headers: init?.headers });
     return {
       ok: true,
       async json() {
@@ -71,12 +72,16 @@ test("uploadLiteraturePdf sends only literature_id and file in multipart form", 
     await uploadLiteraturePdf("cn-ad-gbs-001", file);
 
     assert.equal(captured.length, 1);
-    const formData = captured[0] as FormData;
+    const formData = captured[0].body as FormData;
+    const headers = captured[0].headers as Record<string, string>;
     assert.equal(formData.get("literature_id"), "cn-ad-gbs-001");
     assert.equal((formData.get("file") as File).name, "review.pdf");
     assert.equal(formData.has("auto_parse"), false);
+    assert.equal(headers["X-Access-Token"], "dev-token");
+    assert.equal("Content-Type" in headers, false);
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 

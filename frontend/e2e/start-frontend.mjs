@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 const port = process.env.QIYAN_E2E_FRONTEND_PORT ?? "3000";
 const backendPort = process.env.QIYAN_E2E_BACKEND_PORT ?? "8000";
+const e2eAccessToken = process.env.QIYAN_E2E_ACCESS_TOKEN?.trim() ?? "";
 
 const pnpmEntrypoint = process.env.npm_execpath;
 const command = pnpmEntrypoint ? process.execPath : process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -18,6 +19,7 @@ const child = spawn(command, args, {
   env: {
     ...process.env,
     NEXT_PUBLIC_API_BASE_URL: `http://127.0.0.1:${backendPort}`,
+    NEXT_PUBLIC_QIYAN_ACCESS_TOKEN: e2eAccessToken,
   },
   shell: needsShell,
   stdio: "inherit",

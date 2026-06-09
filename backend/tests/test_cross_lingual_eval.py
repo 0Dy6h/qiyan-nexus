@@ -217,6 +217,66 @@ def test_compute_item_metrics_english_question():
 _EVAL_DATA_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "evals" / "rag_ad_eval_questions.json"
 )
+_SEED_LITERATURE_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_literature.json"
+)
+_SEED_CHUNK_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "literature" / "sample_ad_chunks.json"
+)
+
+
+def _write_polluted_runtime_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a runtime-like corpus with uploaded chunks that distort retrieval ranking."""
+    literature_path = tmp_path / "literature_state.json"
+    chunk_path = tmp_path / "chunk_state.json"
+    literature_path.write_text(_SEED_LITERATURE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    raw_chunks = load_json_chunks(_SEED_CHUNK_PATH)
+    for index, literature_id in enumerate(
+        [
+            "pmid-40100001",
+            "cn-ad-barrier-006",
+            "cn-ad-pruritus-005",
+            "cn-ad-external-008",
+            "cn-ad-gbs-001",
+            "cn-ad-child-009",
+        ]
+    ):
+        raw_chunks.append(
+            {
+                "chunk_id": f"chunk-uploaded-runtime-noise-{index}",
+                "literature_id": literature_id,
+                "section": "uploaded_pdf",
+                "text": (
+                    "分子对接 分子模拟 靶点 通路 后续 线索 molecular docking "
+                    "molecular simulation target pathway targeted therapy "
+                )
+                * 5,
+                "source_quote": "分子对接 分子模拟 靶点 通路",
+                "evidence_tags": [
+                    "uploaded_pdf",
+                    "network_pharmacology",
+                    "pathway",
+                    "targeted_therapy",
+                ],
+                "related_entity_ids": [],
+                "source_type": "uploaded_pdf",
+                "pdf_upload_id": f"pdf-{literature_id}-polluted",
+            }
+        )
+    chunk_path.write_text(json_dumps(raw_chunks), encoding="utf-8")
+    return literature_path, chunk_path
+
+
+def load_json_chunks(path: Path) -> list[dict[str, object]]:
+    import json
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def json_dumps(value: object) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
 def test_run_cross_lingual_retrieval_eval_returns_report():
@@ -274,6 +334,41 @@ def test_run_cross_lingual_retrieval_eval_only_bilingual_questions():
         assert len(item.expected_pubmed_ids) > 0, f"Item {item.id} has no pubmed expected IDs"
 
 
+def test_cross_lingual_eval_default_uses_seed_corpus_even_when_runtime_is_polluted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Benchmark eval must not silently consume local uploaded-PDF runtime chunks."""
+    literature_path, chunk_path = _write_polluted_runtime_fixture(tmp_path)
+    monkeypatch.setenv("LITERATURE_RUNTIME_STATE_PATH", str(literature_path))
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(chunk_path))
+
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
+    )
+
+    assert report.summary.corpus == "seed"
+    assert report.summary.avg_cross_lingual_recall >= _CROSS_LINGUAL_RECALL_BASELINE
+
+
+def test_cross_lingual_eval_runtime_corpus_is_explicit_and_can_reflect_local_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Runtime eval is still available, but it must be opt-in and labeled."""
+    literature_path, chunk_path = _write_polluted_runtime_fixture(tmp_path)
+    monkeypatch.setenv("LITERATURE_RUNTIME_STATE_PATH", str(literature_path))
+    monkeypatch.setenv("CHUNK_RUNTIME_STATE_PATH", str(chunk_path))
+
+    report = run_cross_lingual_retrieval_eval(
+        strategy="keyword",
+        top_k=10,
+        eval_data_path=_EVAL_DATA_PATH,
+        corpus="runtime",
+    )
+
+    assert report.summary.corpus == "runtime"
+    assert report.summary.avg_cross_lingual_recall < _CROSS_LINGUAL_RECALL_BASELINE
+
+
 # ---------------------------------------------------------------------------
 # Slice 2: cross-lingual retrieval fix — regression + improvement tests
 # ---------------------------------------------------------------------------
@@ -304,8 +399,9 @@ def test_cross_lingual_recall_improves_above_zero_after_fix():
 # 从 0 → 1.0（两题都只期望一个 cross-lingual id：pmid-40100002），聚合升至 0.9118；
 # Slice 8 expected-label 审计把 pmid-40100004 从 rag-eval-020 移除，rag-eval-020 失去
 # pubmed 期望被 bilingual 过滤剔除（17→16 题），剩余 15 题完美 + rag-eval-011 单题
-# 0.5，聚合 (15+0.5)/16 = 0.9688。锁紧贴的实测值，沿用 Slice 6/7 风格。
-_CROSS_LINGUAL_RECALL_BASELINE = 0.9688
+# 0.5，聚合 (15+0.5)/16 = 0.9688。Slice 9 把「微生态」同时桥接到 microbiome，
+# 闭合 q011 的皮肤微生态英文期望，16 道 bilingual 题全部达到 cross recall=1.0。
+_CROSS_LINGUAL_RECALL_BASELINE = 1.0
 
 
 def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRetrievalItem:
@@ -315,28 +411,21 @@ def _item_by_id(report: CrossLingualRetrievalReport, qid: str) -> CrossLingualRe
     raise AssertionError(f"question {qid} not found in cross-lingual report")
 
 
-def test_rag_eval_011_cross_lingual_recall_above_zero():
-    """rag-eval-011（中英文献 AD 微生态研究对比）此前 cross_lingual_recall=0：
-    查询词「微生态」触发不了任何 microbiome/gut 桥，期望英文文献拿不到主题性跨语 token。
-    扩展术语桥后应 > 0——至少召回 pmid-40100002（带 gut_skin_axis 标签，吃到 +7 tag-bonus）。
-
-    pmid-40100009（皮肤微生态 + S. aureus）目前仍在 top-10 之外，归因 **keyword-bridge
-    ceiling**：「微生态」桥到 `gut` canonical，而非 `microbiome` / `skin_microbiome`，
-    pmid-40100009 的 evidence_tags（`microbiome`, `skin_barrier`, `flare`）拿不到 +7
-    tag-bonus。Per 2026-06-02 expected-label audit，pmid-40100009 作为 EN 皮肤微生态视角
-    对比 CN 肠道微生态视角是合法期望，保留在 expected_literature_ids；进一步提升需多语
-    embedding（bge-m3 / multilingual-e5-large）或扩展桥语义，而非数据侧补标签。
-    详见 docs/evaluations/2026-06-02-expected-label-audit.md。"""
+def test_rag_eval_011_cross_lingual_recall_equals_one():
+    """rag-eval-011（中英文献 AD 微生态研究对比）应同时召回中文肠道微生态、
+    英文 microbiome 及英文 skin microbiome / S. aureus 视角。2026-06-04 审计确认
+    「微生态」不是纯 gut 术语，也应桥接到 microbiome，从而闭合 pmid-40100009。"""
     if not _EVAL_DATA_PATH.exists():
         pytest.skip("eval dataset not found")
     report = run_cross_lingual_retrieval_eval(
         strategy="keyword", top_k=10, eval_data_path=_EVAL_DATA_PATH
     )
     item = _item_by_id(report, "rag-eval-011")
-    assert item.cross_lingual_recall > 0.0, (
-        f"rag-eval-011 cross-lingual recall should improve above 0, got {item.cross_lingual_recall}"
+    assert item.cross_lingual_recall == 1.0, (
+        f"rag-eval-011 cross-lingual recall should be 1.0, got {item.cross_lingual_recall}"
     )
     assert "pmid-40100002" in item.retrieved_ids
+    assert "pmid-40100009" in item.retrieved_ids
 
 
 def test_cross_lingual_term_bridge_no_aggregate_regression():
@@ -392,7 +481,7 @@ def test_rag_eval_047_cross_lingual_recall_equals_one():
 # - rag-eval-020：pmid-40100004（草药系统综述）与「合规要求」主题不重叠，
 #   expected_chunk_ids 也未收录其 chunk，从 expected_literature_ids 移除。
 # - rag-eval-011：pmid-40100009（皮肤微生态 + S. aureus）作为 EN 视角合法保留；
-#   retrieval miss 归因 keyword-bridge ceiling，详见上面 011 测的 docstring。
+#   2026-06-04 审计将「微生态」补桥到 microbiome，retrieval miss 不再接受为 ceiling。
 # 详见 docs/evaluations/2026-06-02-expected-label-audit.md。
 # ---------------------------------------------------------------------------
 

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { NetworkChain } from "../lib/api/network";
 import {
   buildNetworkGraphModel,
+  countEdgeCrossings,
   type GraphModel,
   type GraphNode,
   type GraphEdge,
@@ -232,3 +233,156 @@ test("node y coordinates increase monotonically within each layer", () => {
     }
   }
 });
+
+// --- Crossing-reduction (barycenter) layout ---------------------------------
+
+// Three chains sharing one herb / pathway / disease so only the compound→target
+// band varies. First-occurrence order yields compound=[C1,C2], target=[T1,T2],
+// but the edges C2→T1 and C1→T2 cross under that ordering. The barycenter pass
+// should reorder the target layer to remove the crossing.
+const CROSSING_CHAINS: NetworkChain[] = [
+  {
+    herb: "药X",
+    compound: "化合物1",
+    target: "靶点1",
+    pathway: "通路P",
+    disease: "特应性皮炎",
+    score: 0.9,
+    related_entity_ids: [],
+  },
+  {
+    herb: "药X",
+    compound: "化合物2",
+    target: "靶点1",
+    pathway: "通路P",
+    disease: "特应性皮炎",
+    score: 0.8,
+    related_entity_ids: [],
+  },
+  {
+    herb: "药X",
+    compound: "化合物1",
+    target: "靶点2",
+    pathway: "通路P",
+    disease: "特应性皮炎",
+    score: 0.7,
+    related_entity_ids: [],
+  },
+];
+
+test("countEdgeCrossings returns 0 for a single chain", () => {
+  const model = buildNetworkGraphModel([
+    {
+      herb: "黄芪",
+      compound: "槲皮素",
+      target: "IL6",
+      pathway: "PI3K-Akt",
+      disease: "特应性皮炎",
+      score: 0.9,
+      related_entity_ids: [],
+    },
+  ]);
+  assert.equal(countEdgeCrossings(model), 0);
+});
+
+test("barycenter layout reduces crossings vs naive first-occurrence order", () => {
+  const model = buildNetworkGraphModel(CROSSING_CHAINS);
+
+  // Recompute crossings under the naive (first-occurrence) ordering to prove
+  // the optimised layout is no worse — and on this fixture, strictly better.
+  const naivePos = computeFirstOccurrencePositions(CROSSING_CHAINS);
+  const naiveCrossings = countCrossingsWithPositions(model.edges, naivePos);
+  const optimisedCrossings = countEdgeCrossings(model);
+
+  assert.ok(
+    optimisedCrossings <= naiveCrossings,
+    `Optimised crossings ${optimisedCrossings} should be <= naive ${naiveCrossings}`,
+  );
+  assert.ok(
+    naiveCrossings > 0,
+    "Fixture should produce crossings under naive ordering (guards the test itself)",
+  );
+  assert.equal(optimisedCrossings, 0, "Barycenter should fully untangle this fixture");
+});
+
+test("barycenter layout is deterministic across calls", () => {
+  const m1 = buildNetworkGraphModel(CROSSING_CHAINS);
+  const m2 = buildNetworkGraphModel(CROSSING_CHAINS);
+  assert.deepEqual(
+    m1.nodes.map((n) => [n.id, n.x, n.y]),
+    m2.nodes.map((n) => [n.id, n.x, n.y]),
+  );
+});
+
+test("barycenter layout preserves node/edge counts and layer X positions", () => {
+  const model = buildNetworkGraphModel(CROSSING_CHAINS);
+
+  // 1 herb + 2 compounds + 2 targets + 1 pathway + 1 disease = 7 nodes.
+  assert.equal(model.nodes.length, 7);
+  // 3 chains × 4 edges = 12 edges.
+  assert.equal(model.edges.length, 12);
+
+  // Each layer still sits at a single, monotonically increasing X.
+  const xByLayer = new Map<string, number>();
+  for (const node of model.nodes) {
+    const existing = xByLayer.get(node.layer);
+    if (existing === undefined) xByLayer.set(node.layer, node.x);
+    else assert.equal(node.x, existing, `Layer ${node.layer} must share one X`);
+  }
+  const xs = LAYER_ORDER.map((k) => xByLayer.get(k)!);
+  for (let i = 1; i < xs.length; i++) {
+    assert.ok(xs[i]! > xs[i - 1]!, "Layer X must increase left-to-right");
+  }
+});
+
+// Helpers: reproduce the pre-barycenter (first-occurrence) vertical ordering so
+// the test can independently measure the crossings the optimiser started from.
+function computeFirstOccurrencePositions(chains: NetworkChain[]): Map<string, number> {
+  const orderByLayer = new Map<string, string[]>();
+  const seenByLayer = new Map<string, Set<string>>();
+  for (const layer of LAYER_ORDER) {
+    orderByLayer.set(layer, []);
+    seenByLayer.set(layer, new Set());
+  }
+  for (const chain of chains) {
+    const entries: [string, string][] = [
+      ["herb", chain.formula ?? chain.herb],
+      ["compound", chain.compound],
+      ["target", chain.target],
+      ["pathway", chain.pathway],
+      ["disease", chain.disease],
+    ];
+    for (const [layer, label] of entries) {
+      const seen = seenByLayer.get(layer)!;
+      if (!seen.has(label)) {
+        seen.add(label);
+        orderByLayer.get(layer)!.push(label);
+      }
+    }
+  }
+  const pos = new Map<string, number>();
+  for (const layer of LAYER_ORDER) {
+    orderByLayer.get(layer)!.forEach((label, i) => pos.set(`${layer}-${label}`, i));
+  }
+  return pos;
+}
+
+function countCrossingsWithPositions(
+  edges: GraphEdge[],
+  posById: Map<string, number>,
+): number {
+  let crossings = 0;
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const a = edges[i]!;
+      const b = edges[j]!;
+      if (a.sourceLayer !== b.sourceLayer || a.targetLayer !== b.targetLayer) continue;
+      const aSrc = posById.get(a.sourceId)!;
+      const aTgt = posById.get(a.targetId)!;
+      const bSrc = posById.get(b.sourceId)!;
+      const bTgt = posById.get(b.targetId)!;
+      if ((aSrc - bSrc) * (aTgt - bTgt) < 0) crossings++;
+    }
+  }
+  return crossings;
+}

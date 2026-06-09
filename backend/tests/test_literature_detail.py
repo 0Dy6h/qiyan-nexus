@@ -31,6 +31,7 @@ def test_literature_detail_returns_item_by_id(monkeypatch, tmp_path: Path):
         "language": "zh",
         "source_type": "cn_literature",
         "source": "CNKI curated AD sample",
+        "record_origin": "seed_sample",
         "year": 2025,
         "snippet": "围绕特应性皮炎、肠-脑-皮肤轴与中医证候关联进行综述，强调脾虚湿蕴、血虚风燥等证候与皮肤屏障、神经免疫调节之间的联系。",
         "authors": ["王琳", "张倩", "刘晨"],

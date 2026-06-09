@@ -13,6 +13,7 @@ from typing import Any
 
 from app.schemas.network import (
     AnalysisType,
+    DataMode,
     NetworkAnalysisResult,
     NetworkTaskRecord,
     TaskStatus,
@@ -26,7 +27,10 @@ CREATE TABLE IF NOT EXISTS network_task (
     status         TEXT NOT NULL,
     progress       INTEGER NOT NULL,
     poll_count     INTEGER NOT NULL,
+    data_mode      TEXT NOT NULL DEFAULT 'mock',
     result         TEXT,
+    error          TEXT,
+    warnings       TEXT NOT NULL DEFAULT '[]',
     created_at     TEXT NOT NULL
 )
 """
@@ -38,6 +42,8 @@ def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
     # result is stored as JSON TEXT; None stays None
     if data.get("result") is not None:
         data["result"] = NetworkAnalysisResult.model_validate(json.loads(data["result"]))
+    if data.get("warnings") is not None and isinstance(data["warnings"], str):
+        data["warnings"] = json.loads(data["warnings"])
     return NetworkTaskRecord.model_validate(data)
 
 
@@ -51,6 +57,7 @@ class SqliteNetworkTaskRepository:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute(_CREATE_TABLE_SQL)
+        self._ensure_columns()
         self._conn.commit()
 
         # Bootstrap from seed JSON if the table is empty.
@@ -58,6 +65,21 @@ class SqliteNetworkTaskRepository:
         count = self._conn.execute("SELECT COUNT(*) FROM network_task").fetchone()[0]
         if count == 0:
             self._bootstrap_from_seed(seed_path)
+
+    def _ensure_columns(self) -> None:
+        """Add columns introduced after the first SQLite spike."""
+        rows = self._conn.execute("PRAGMA table_info(network_task)").fetchall()
+        existing = {row["name"] for row in rows}
+        if "data_mode" not in existing:
+            self._conn.execute(
+                "ALTER TABLE network_task ADD COLUMN data_mode TEXT NOT NULL DEFAULT 'mock'"
+            )
+        if "error" not in existing:
+            self._conn.execute("ALTER TABLE network_task ADD COLUMN error TEXT")
+        if "warnings" not in existing:
+            self._conn.execute(
+                "ALTER TABLE network_task ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'"
+            )
 
     # ------------------------------------------------------------------
     # Bootstrap
@@ -94,9 +116,16 @@ class SqliteNetworkTaskRepository:
             "status",
             "progress",
             "poll_count",
+            "data_mode",
             "result",
+            "error",
+            "warnings",
             "created_at",
         ]
+        if item.get("warnings") is None:
+            item["warnings"] = []
+        if not isinstance(item.get("warnings"), str):
+            item["warnings"] = json.dumps(item.get("warnings", []), ensure_ascii=False)
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
@@ -139,10 +168,14 @@ class SqliteNetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        data_mode: DataMode = "mock",
+        error: str | None = None,
+        warnings: list[str] | None = None,
     ) -> NetworkTaskRecord:
         result_json: str | None = None
         if result is not None:
             result_json = json.dumps(result.model_dump(), ensure_ascii=False)
+        warnings_json = json.dumps(warnings or [], ensure_ascii=False)
 
         existing = self._conn.execute(
             "SELECT task_id FROM network_task WHERE task_id = ?",
@@ -157,7 +190,10 @@ class SqliteNetworkTaskRepository:
                        status = ?,
                        progress = ?,
                        poll_count = ?,
+                       data_mode = ?,
                        result = ?,
+                       error = ?,
+                       warnings = ?,
                        created_at = ?
                    WHERE task_id = ?""",
                 (
@@ -166,7 +202,10 @@ class SqliteNetworkTaskRepository:
                     status,
                     progress,
                     poll_count,
+                    data_mode,
                     result_json,
+                    error,
+                    warnings_json,
                     created_at,
                     task_id,
                 ),
@@ -174,8 +213,9 @@ class SqliteNetworkTaskRepository:
         else:
             self._conn.execute(
                 """INSERT INTO network_task
-                   (task_id, query, analysis_type, status, progress, poll_count, result, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (task_id, query, analysis_type, status, progress, poll_count,
+                    data_mode, result, error, warnings, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     task_id,
                     query,
@@ -183,7 +223,10 @@ class SqliteNetworkTaskRepository:
                     status,
                     progress,
                     poll_count,
+                    data_mode,
                     result_json,
+                    error,
+                    warnings_json,
                     created_at,
                 ),
             )

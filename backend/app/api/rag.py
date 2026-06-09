@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import PlainTextResponse
 
 from app.schemas.rag import RagAnswerRequest, RagAnswerResponse
@@ -9,9 +9,16 @@ router = APIRouter(prefix="/api/rag", tags=["rag"])
 
 @router.post("/answer", response_model=RagAnswerResponse)
 def answer_question_endpoint(
-    request: RagAnswerRequest = Body(),
+    request_body: RagAnswerRequest,
+    request: Request,
 ) -> RagAnswerResponse:
-    return answer_question(request.question, source=request.source, top_k=request.top_k)
+    request_id = getattr(request.state, "request_id", None)
+    return answer_question(
+        request_body.question,
+        source=request_body.source,
+        top_k=request_body.top_k,
+        request_id=request_id,
+    )
 
 
 @router.post("/answer/export", response_class=PlainTextResponse)

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   getLiteratureDataSourceFilter,
   getPdfParseStatusLabel,
+  getLiteratureRecordOriginLabel,
   getLiteratureSourceLabel,
   LiteratureDataSourceView,
   LiteratureItem,
@@ -35,12 +36,12 @@ type SearchState = {
 const fieldLabelStyle = {
   display: "grid",
   gap: 8,
-  color: "#1e293b",
+  color: "var(--qiyan-ink)",
   fontWeight: 700,
 } as const;
 
 const fieldControlStyle = {
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--qiyan-line)",
   borderRadius: 8,
   fontSize: 16,
   padding: "12px 14px",
@@ -168,8 +169,8 @@ export default function LiteratureSearchClient() {
 
       <section style={getSurfaceSectionStyle()}>
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-          <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索条件</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+          <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>检索条件</h2>
+          <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
             先明确关键词，再限定来源、排序与每页数量，随后进入结果核对与原文追踪。
           </p>
         </div>
@@ -200,7 +201,7 @@ export default function LiteratureSearchClient() {
                 style={{ ...fieldControlStyle, minWidth: 180 }}
               >
                 <option value="all">全部来源</option>
-                <option value="pubmed_live">PubMed 实时</option>
+                <option value="pubmed_live">PubMed 记录</option>
                 <option value="cnki_sample">CNKI sample</option>
                 <option value="uploaded_pdf">上传 PDF</option>
               </select>
@@ -248,7 +249,7 @@ export default function LiteratureSearchClient() {
           <div
             style={{
               alignItems: "center",
-              color: "#475569",
+              color: "var(--qiyan-muted)",
               display: "flex",
               flexWrap: "wrap",
               fontSize: 14,
@@ -258,8 +259,8 @@ export default function LiteratureSearchClient() {
             }}
           >
             <div style={{ display: "grid", gap: 4 }}>
-              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索结果</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>检索结果</h2>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
                 共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页；请优先核对来源、年份与解析状态。
               </p>
             </div>
@@ -269,10 +270,11 @@ export default function LiteratureSearchClient() {
                 disabled={state.isLoading || state.page <= 1}
                 onClick={() => runSearch(state.query, state.view, state.page - 1, state.pageSize, state.sort)}
                 style={{
-                  border: "1px solid #cbd5e1",
+                  backdropFilter: "blur(10px) saturate(125%)",
+                  border: "1px solid var(--qiyan-line)",
                   borderRadius: 8,
-                  background: "white",
-                  color: "#334155",
+                  background: "var(--qiyan-surface)",
+                  color: "var(--qiyan-ink-2)",
                   fontSize: 14,
                   fontWeight: 600,
                   padding: "10px 14px",
@@ -307,13 +309,14 @@ export default function LiteratureSearchClient() {
                 <CardMetaRow
                   items={[
                     `语言 ${item.language === "zh" ? "中文" : "英文"}`,
+                    `记录来源 ${getLiteratureRecordOriginLabel(item.record_origin)}`,
                     `来源 ${getLiteratureSourceLabel(item.source_type)}`,
                     `期刊 ${item.source}`,
                     `年份 ${String(item.year)}`,
                     `解析状态 ${getPdfParseStatusLabel(item.pdf_parse_status ?? null)}`,
                   ]}
                 />
-                <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{item.title}</h3>
+                <h3 style={{ color: "var(--qiyan-ink)", fontSize: 22, marginBottom: 12 }}>{item.title}</h3>
                 <CardBodyText>{item.snippet}</CardBodyText>
                 <a href={`/literature/${encodeURIComponent(item.id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
                   查看详情 →

@@ -57,6 +57,14 @@ test("pdf upload metadata uses explicit labeled review-first copy", () => {
   assert.doesNotMatch(source, /Upload ID/);
 });
 
+test("pdf file picker and upload submit button have distinct accessible names", () => {
+  const source = getSource("components/LiteraturePdfUploadClient.tsx");
+
+  assert.match(source, /aria-label="选择 PDF 文件"/);
+  assert.match(source, /: "上传 PDF"\}/);
+  assert.doesNotMatch(source, /aria-label="上传 PDF"/);
+});
+
 test("parse result description branches on extraction_method", () => {
   const source = getSource("components/LiteraturePdfUploadClient.tsx");
 

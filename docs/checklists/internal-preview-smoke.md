@@ -35,8 +35,8 @@ Default expectation: no real LLM key is required; deterministic provider and key
 ## UI Path 1: Literature Search
 
 - Preparation: backend and frontend running; no external key required.
-- Operation: open `/literature`; search `特应性皮炎` or `AD`; switch data-source view among `全部来源`、`PubMed 实时`、`CNKI sample`、`上传 PDF`.
-- Expected: search results render with source metadata; data-source banner changes; clicking a result opens `/literature/[id]`.
+- Operation: open `/literature`; search `特应性皮炎` or `AD`; switch data-source view among `全部来源`、`PubMed 记录`、`CNKI sample`、`上传 PDF`.
+- Expected: search results render with source metadata and `记录来源`; the PubMed view banner reads `PubMed 记录（含演示 seed）` and states seed entries are not externally searchable real literature; clicking a result opens `/literature/[id]`.
 - Record issues: empty state mismatch, source label ambiguity, broken detail link, stale runtime state.
 
 ## UI Path 2: PDF Upload And Parse

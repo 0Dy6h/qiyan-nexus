@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .pytest-tmp/
 backend/.pytest-tmp/
+.tmp/
 .mypy_cache/
 .ruff_cache/
 .venv/
@@ -39,6 +40,7 @@ backend/data/runtime/**
 .env
 .env.*
 !.env.example
+infra/postgresql-spike.env.local
 
 # OS / editor
 .DS_Store
@@ -60,3 +62,16 @@ yarn-error.log*
 opencode.json
 opencode.jsonc
 .opencode/
+
+# Codex local hooks/config (per-machine agent tooling)
+.codex/
+
+# Claude Code hook runtime state (per-session Read tracking)
+.claude/hooks/.enforce-codegraph-state.json
+
+# Trae temporary documents (session-specific planning)
+.trae/
+
+# Local-only work tracks (paper output, project entity archive)
+论文产出/
+项目实体/

@@ -30,9 +30,9 @@ const CHIP_STYLE = {
   borderRadius: 999,
   borderWidth: 1,
   borderStyle: "solid" as const,
-  borderColor: "#14b8a6",
-  background: "#f0fdfa",
-  color: "#0d9488",
+  borderColor: "rgba(45, 212, 191, 0.48)",
+  background: "rgba(20, 184, 166, 0.1)",
+  color: "var(--qiyan-teal-dark)",
   fontSize: 13,
   fontWeight: 600,
   lineHeight: 1.4,
@@ -40,16 +40,17 @@ const CHIP_STYLE = {
 };
 
 const CHIP_KIND_STYLE = {
-  color: "#64748b",
+  color: "var(--qiyan-muted-2)",
   fontWeight: 500,
 };
 
 const FALLBACK_CHIP_STYLE = {
   ...CHIP_STYLE,
+  backdropFilter: "blur(10px) saturate(125%)",
   borderStyle: "dashed" as const,
-  borderColor: "#cbd5e1",
-  background: "white",
-  color: "#64748b",
+  borderColor: "var(--qiyan-line)",
+  background: "rgba(15, 23, 42, 0.16)",
+  color: "var(--qiyan-muted-2)",
 };
 
 export default function EntityChips({ ids, emptyHint }: EntityChipsProps) {
@@ -75,7 +76,7 @@ export default function EntityChips({ ids, emptyHint }: EntityChipsProps) {
 
   if (!ids || ids.length === 0) {
     return emptyHint ? (
-      <p style={{ color: "#94a3b8", margin: 0, marginTop: 8, fontSize: 13 }}>{emptyHint}</p>
+      <p style={{ color: "var(--qiyan-muted-2)", margin: 0, marginTop: 8, fontSize: 13 }}>{emptyHint}</p>
     ) : null;
   }
 

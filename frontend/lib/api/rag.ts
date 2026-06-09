@@ -1,3 +1,5 @@
+import { apiFetch, buildApiHeaders } from "./client";
+
 export type RagSource = "all" | "cn_literature" | "pubmed";
 
 export type CitationCard = {
@@ -102,11 +104,11 @@ export async function answerRagQuestion(
   source: RagSource = "all",
   topK = 2,
 ): Promise<RagAnswerResponse> {
-  const response = await fetch(buildRagAnswerUrl(), {
+  const response = await apiFetch(buildRagAnswerUrl(), {
     method: "POST",
-    headers: {
+    headers: buildApiHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(buildRagAnswerRequest(question, source, topK)),
   });
 
@@ -118,11 +120,11 @@ export async function answerRagQuestion(
 }
 
 export async function fetchRagAnswerMarkdown(answer: RagAnswerResponse): Promise<string> {
-  const response = await fetch(buildRagAnswerExportUrl(), {
+  const response = await apiFetch(buildRagAnswerExportUrl(), {
     method: "POST",
-    headers: {
+    headers: buildApiHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(answer),
   });
 

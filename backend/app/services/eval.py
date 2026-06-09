@@ -1,7 +1,10 @@
 from pathlib import Path
 from typing import Any
 
+from app.repositories.chunk import InMemoryChunkRepository
+from app.repositories.literature import InMemoryLiteratureRepository
 from app.schemas.eval import (
+    EvalCorpus,
     RagEvalItemResult,
     RagEvalReport,
     RagEvalSummary,
@@ -17,6 +20,12 @@ from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import DEFAULT_RETRIEVAL_PROVIDER_NAME
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "evals" / "rag_ad_eval_questions.json"
+_SEED_LITERATURE_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_literature.json"
+)
+_SEED_CHUNK_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "literature" / "sample_ad_chunks.json"
+)
 _SEMANTIC_PAIRS_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "evals" / "grounding_semantic_pairs.json"
 )
@@ -37,10 +46,18 @@ def get_rag_eval_questions() -> list[dict[str, Any]]:
     return [item.model_dump() for item in load_rag_eval_dataset(_DATA_PATH)]
 
 
-def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
+def run_rag_ad_eval_report(
+    strategy: str | None = None,
+    corpus: EvalCorpus = "seed",
+) -> dict[str, Any]:
     results: list[RagEvalItemResult] = []
     run_provider_name = DEFAULT_PROVIDER_NAME
     applied_strategy = strategy or DEFAULT_RETRIEVAL_PROVIDER_NAME
+    literature_repository = None
+    chunk_repository = None
+    if corpus == "seed":
+        literature_repository = InMemoryLiteratureRepository(_SEED_LITERATURE_PATH)
+        chunk_repository = InMemoryChunkRepository(_SEED_CHUNK_PATH)
     for question in load_rag_eval_dataset(_DATA_PATH):
         response = answer_question(
             question.question,
@@ -48,6 +65,8 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
             top_k=3,
             llm_provider_name=DEFAULT_PROVIDER_NAME,
             retrieval_provider_name=strategy,
+            literature_repository=literature_repository,
+            chunk_repository=chunk_repository,
         )
         run_provider_name = response.provider_name
         applied_strategy = response.retrieval.strategy
@@ -117,6 +136,7 @@ def run_rag_ad_eval_report(strategy: str | None = None) -> dict[str, Any]:
     report = RagEvalReport(
         summary=RagEvalSummary(
             total_questions=total_questions,
+            corpus=corpus,
             passed_questions=passed_questions,
             pass_rate=round(passed_questions / total_questions, 3) if total_questions else 0,
             citation_hit_count=sum(1 for item in results if item.expected_literature_hits),

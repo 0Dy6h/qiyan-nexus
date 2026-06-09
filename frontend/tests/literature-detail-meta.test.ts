@@ -8,6 +8,7 @@ const uploadClientSource = readFileSync(new URL("../components/LiteraturePdfUplo
 
 test("literature detail metadata line stays concise and labeled", () => {
   assert.match(detailPageSource, /语言 \$\{item\.language === "zh" \? "中文" : "英文"\}/);
+  assert.match(detailPageSource, /记录来源 \$\{getLiteratureRecordOriginLabel\(item\.record_origin\)\}/);
   assert.match(detailPageSource, /来源 \$\{getLiteratureSourceLabel\(item\.source_type\)\}/);
   assert.match(detailPageSource, /文献 ID \$\{item\.id\}/);
 });

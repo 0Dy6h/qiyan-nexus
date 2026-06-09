@@ -5,6 +5,8 @@ from app.schemas.network import (
     EnrichmentTerm,
     NetworkAnalysisResult,
     NetworkChain,
+    NetworkDataSource,
+    NetworkPipelineStep,
 )
 from app.services.network import build_network_report_markdown
 
@@ -45,6 +47,15 @@ def _make_result(**overrides: object) -> NetworkAnalysisResult:
 def test_build_report_includes_disclaimer():
     md = build_network_report_markdown(_SAMPLE_RESULT)
     assert DISCLAIMER in md
+
+
+def test_build_report_leads_with_mock_data_publication_boundary():
+    md = build_network_report_markdown(_SAMPLE_RESULT)
+    assert (
+        "> **数据说明**：本报告基于本地演示数据生成，仅用于功能验证与评审走查；"
+        "不可作为科研发表、临床决策或真实数据库分析结果。"
+    ) in md
+    assert md.index("> **数据说明**") < md.index("## 链路结果")
 
 
 def test_build_report_chains_table():
@@ -185,3 +196,53 @@ def test_build_report_formula_chain_shows_formula():
     result = _make_result(chains=[chain])
     md = build_network_report_markdown(result)
     assert "消风散" in md
+
+
+def test_build_report_includes_live_provenance_sections():
+    chain = NetworkChain(
+        herb="黄芪",
+        compound="Astragaloside IV",
+        target="IL6",
+        pathway="TNF signaling pathway",
+        disease="Atopic dermatitis",
+        score=0.8,
+        evidence_refs=["CHEMBLASSAY-HQ-1"],
+        target_evidence_type="known_activity",
+    )
+    result = _make_result(
+        data_mode="live",
+        chains=[chain],
+        data_sources=[
+            NetworkDataSource(
+                name="chembl",
+                source_record_id="CHEMBLASSAY-HQ-1",
+                url="https://www.ebi.ac.uk/chembl/",
+                retrieved_at="2026-06-08T00:00:00+00:00",
+                license_note="ChEMBL activity cache/import.",
+                cache_key="chembl-v1-abc",
+                from_cache=True,
+            )
+        ],
+        pipeline_steps=[
+            NetworkPipelineStep(
+                name="known-activity-targets",
+                status="completed",
+                duration_ms=12,
+                external_request_count=0,
+                cache_hit_count=1,
+            )
+        ],
+        warnings=["Prediction target file is not configured or does not exist."],
+    )
+
+    md = build_network_report_markdown(result)
+
+    assert "## 数据来源与参数版本" in md
+    assert "数据模式：live" in md
+    assert "chembl" in md
+    assert "CHEMBLASSAY-HQ-1" in md
+    assert "## 运行步骤" in md
+    assert "known-activity-targets" in md
+    assert "## 运行警告" in md
+    assert "Prediction target file is not configured or does not exist." in md
+    assert "已知活性证据" in md
