@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from app.repositories.literature import normalize_literature_item_payload
 from app.schemas.literature import LiteratureItem, PdfParseResult
 
 # Columns stored as JSON TEXT (de/serialised with json.dumps / json.loads).
@@ -76,7 +77,7 @@ def _row_to_item(row: sqlite3.Row) -> LiteratureItem:
     # pdf_parse_result may be None → keep None
     if data.get("pdf_parse_result") is not None:
         data["pdf_parse_result"] = PdfParseResult(**data["pdf_parse_result"])
-    return LiteratureItem(**data)
+    return LiteratureItem(**normalize_literature_item_payload(data))
 
 
 class SqliteLiteratureRepository:

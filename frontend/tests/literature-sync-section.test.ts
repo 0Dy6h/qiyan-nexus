@@ -31,6 +31,7 @@ test("LiteraturePubmedSyncClient renders fetched/created/updated counts on succe
   assert.match(source, /`拉取条数 \$\{state\.result\.fetched\}`/);
   assert.match(source, /`新增 \$\{state\.result\.created\}`/);
   assert.match(source, /`刷新 \$\{state\.result\.updated\}`/);
+  assert.match(source, /记录来源 \$\{getLiteratureRecordOriginLabel\(item\.record_origin\)\}/);
 });
 
 test("literature page mounts LiteraturePubmedSyncClient above LiteratureSearchClient", () => {

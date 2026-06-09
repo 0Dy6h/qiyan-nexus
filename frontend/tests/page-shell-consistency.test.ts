@@ -10,36 +10,80 @@ function getPageSource(relativePath: string) {
   return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
 }
 
-test("rag and literature page shells align with compliance shell navigation, intro, and usage reminder block", () => {
+test("root layout uses a persistent app-style left rail navigation and reserves account entry", () => {
+  const layoutSource = getPageSource("app/layout.tsx");
+  const shellSource = getPageSource("components/WorkbenchShell.tsx");
+
+  assert.match(layoutSource, /<WorkbenchShell>\{children\}<\/WorkbenchShell>/);
+  assert.match(shellSource, /usePathname\(\)/);
+  assert.match(shellSource, /className="workbench-frame home-app-frame"/);
+  assert.match(shellSource, /className="home-app-rail"/);
+  assert.match(shellSource, /aria-label="工作台侧栏"/);
+  assert.match(shellSource, /className="home-account-entry"/);
+  assert.match(shellSource, /登录 \/ 注册/);
+  assert.match(shellSource, /className="meteor-shower"/);
+  assert.match(shellSource, /aria-hidden="true"/);
+  assert.match(shellSource, /next\/link/);
+});
+
+test("workbench shell uses a clean meteor background without legacy decorative clutter", () => {
+  const source = getPageSource("app/workbench.css");
+
+  assert.match(source, /--qiyan-glass-bg/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\)::before\s*{/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\)::after\s*{/);
+  assert.match(source, /\.meteor-shower\s*{/);
+  assert.match(source, /\.meteor::before\s*{/);
+  assert.match(source, /qiyanStarDrift/);
+  assert.match(source, /meteorFall/);
+  assert.doesNotMatch(source, /qiyanMeteorDrift/);
+  assert.doesNotMatch(source, /linear-gradient\(rgba\(56, 189, 248/);
+  assert.match(source, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.meteor[\s\S]*animation:\s*none/);
+});
+
+test("non-home workbench pages keep homepage rail and glass surface continuity", () => {
+  const source = getPageSource("app/workbench.css");
+
+  assert.match(source, /\.workbench-frame\s*{[\s\S]*width:\s*min\(1480px, 100%\);[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\)/);
+  assert.match(source, /\.home-main-stack,\s*\.workbench-main-stack\s*{/);
+  assert.match(source, /\.workbench-page \.home-app-rail \.workbench-nav\s*{/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav\s*{[\s\S]*background:\s*var\(--qiyan-glass-bg\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--qiyan-teal\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.025\)/);
+  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*backdrop-filter:\s*var\(--qiyan-glass-filter\)/);
+});
+
+test("workbench routes render only right-side content inside the persistent shell", () => {
   const pages = [
-    ["app/rag/page.tsx", "/rag"],
-    ["app/literature/page.tsx", "/literature"],
-    ["app/network/page.tsx", "/network"],
+    "app/rag/page.tsx",
+    "app/literature/page.tsx",
+    "app/network/page.tsx",
+    "app/evals/rag-ad/page.tsx",
+    "app/compliance/page.tsx",
   ];
 
-  for (const [pagePath, currentHref] of pages) {
+  for (const pagePath of pages) {
     const source = getPageSource(pagePath);
 
-    assert.match(source, /padding:\s*"clamp\(20px, 4vw, 48px\)"/);
-    assert.match(source, /aria-label=\"工作台导航\"/);
-    assert.match(source, /getComplianceNavigationLinks\(\)/);
-    assert.match(source, new RegExp(`link\\.href === \\"${currentHref.replace("/", "\\/")}\\"`));
-    assert.match(source, /Evidence workbench/);
+    assert.doesNotMatch(source, /className="workbench-page"/);
+    assert.doesNotMatch(source, /className="workbench-nav"/);
+    assert.doesNotMatch(source, /getComplianceNavigationLinks\(\)/);
+    assert.doesNotMatch(source, /padding:\s*"clamp\(12px, 2vw, 24px\)"/);
+    assert.match(source, /workbench-kicker/);
+    assert.match(source, /className="workbench-hero"/);
+    assert.match(source, /className="workbench-content-band"/);
     assert.match(source, /aria-label=\"使用提醒\"/);
     assert.match(source, /使用提醒/);
-    assert.doesNotMatch(source, /← 返回首页/);
-    assert.doesNotMatch(source, /非诊断结论、需结合临床。/);
   }
 });
 
-test("literature detail page keeps workbench navigation and review-first reminder language", () => {
+test("literature detail page renders right-side content and review-first reminder language", () => {
   const source = getPageSource("app/literature/[id]/page.tsx");
 
-  assert.match(source, /padding:\s*"clamp\(20px, 4vw, 48px\)"/);
-  assert.match(source, /aria-label=\"工作台导航\"/);
-  assert.match(source, /getComplianceNavigationLinks\(\)/);
-  assert.match(source, /link\.href === \"\/literature\"/);
-  assert.match(source, /aria-current=\{isCurrent \? "page" : undefined\}/);
+  assert.doesNotMatch(source, /className="workbench-page"/);
+  assert.doesNotMatch(source, /className="workbench-nav"/);
+  assert.doesNotMatch(source, /getComplianceNavigationLinks\(\)/);
+  assert.doesNotMatch(source, /padding:\s*"clamp\(12px, 2vw, 24px\)"/);
   assert.match(source, /Evidence workbench/);
   assert.match(source, /文献详情/);
   assert.match(source, /先核对文献来源、摘要与年份，再进入 PDF 上传、解析状态与后续人工校正流程/);

@@ -1,1 +1,10 @@
 model_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+

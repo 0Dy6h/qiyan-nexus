@@ -4,79 +4,50 @@ import DemoDataBanner from "../../components/DemoDataBanner";
 import LiteraturePubmedSyncClient from "../../components/LiteraturePubmedSyncClient";
 import LiteratureSearchClient from "../../components/LiteratureSearchClient";
 import StatusPanel from "../../components/StatusPanel";
-import { getComplianceNavigationLinks } from "../../lib/compliance-page";
-import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
 export default function LiteraturePage() {
-  const navigationLinks = getComplianceNavigationLinks();
-
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gap: 20 }}>
-        <nav aria-label="工作台导航" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {navigationLinks.map((link) => {
-            const isCurrent = link.href === "/literature";
-
-            return (
-              <a
-                key={link.href}
-                href={link.href}
-                aria-current={isCurrent ? "page" : undefined}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  borderRadius: 999,
-                  background: isCurrent ? "#ecfeff" : "transparent",
-                  border: `1px solid ${isCurrent ? "#99f6e4" : "#cbd5e1"}`,
-                  color: isCurrent ? "#115e59" : "#475569",
-                  fontSize: 14,
-                  fontWeight: isCurrent ? 700 : 600,
-                  padding: "10px 14px",
-                  textDecoration: "none",
-                  minHeight: 44,
-                }}
-              >
-                {link.label}
-              </a>
-            );
-          })}
-        </nav>
-
-        <DemoDataBanner />
-
-        <article style={getSurfaceSectionStyle()}>
-          <div style={{ display: "grid", gap: 8 }}>
-            <p style={{ color: "#0d9488", fontWeight: 700, margin: 0 }}>Evidence workbench</p>
-            <h1 style={{ color: "#1e293b", fontSize: 36, lineHeight: 1.3, margin: 0 }}>文献检索</h1>
-            <p style={{ color: "#64748b", fontSize: 17, lineHeight: 1.7, margin: 0 }}>
-              当前页面调用后端 <code>/api/literature/search</code>，用于验证文献检索的第一条前后端链路。
+    <>
+        <article className="workbench-hero">
+          <div className="workbench-hero-main">
+            <p className="workbench-kicker">Evidence workbench</p>
+            <h1 className="workbench-title">文献检索</h1>
+            <p className="workbench-summary">
+              从来源、年份、摘要与 PDF 状态开始审阅，把 PubMed runtime、seed sample 与上传 PDF 放在同一套证据入口里。
             </p>
           </div>
+          <aside className="workbench-hero-aside" aria-label="文献检索能力边界">
+            <div className="workbench-stat">
+              <span>Endpoint</span>
+              <strong>/api/literature/search</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Review order</span>
+              <strong>来源 → 摘要 → PDF</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Data scope</span>
+              <strong>Seed / PubMed / Upload</strong>
+            </div>
+          </aside>
         </article>
 
-        <LiteraturePubmedSyncClient />
+        <div className="workbench-content-band">
+          <DemoDataBanner />
 
-        <Suspense fallback={<StatusPanel message="加载文献检索面板..." />}>
-          <LiteratureSearchClient />
-        </Suspense>
+          <LiteraturePubmedSyncClient />
 
-        <section
-          aria-label="使用提醒"
-          style={{
-            ...getSurfaceSectionStyle(),
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            padding: 20,
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <p style={{ color: "#334155", fontSize: 14, fontWeight: 700, margin: 0 }}>使用提醒</p>
-            <p style={{ color: "#64748b", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-              本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
-            </p>
-          </div>
+          <Suspense fallback={<StatusPanel message="加载文献检索面板..." />}>
+            <LiteratureSearchClient />
+          </Suspense>
+        </div>
+
+        <section aria-label="使用提醒" className="workbench-reminder">
+          <p className="workbench-reminder-title">使用提醒</p>
+          <p className="workbench-reminder-copy">
+            本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
+          </p>
         </section>
-      </section>
-    </main>
+    </>
   );
 }

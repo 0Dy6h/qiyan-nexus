@@ -35,7 +35,7 @@ test("internal preview: pdf upload, rag eval, and network mock paths", async ({ 
   await expect(page.getByRole("heading", { name: "文献详情" })).toBeVisible();
 
   const pdfPath = createMinimalPdf();
-  await page.getByLabel("上传 PDF").setInputFiles(pdfPath);
+  await page.getByLabel("选择 PDF 文件").setInputFiles(pdfPath);
   const uploadResponse = page.waitForResponse(
     (response) => response.url().includes("/api/uploads/pdf") && response.status() === 201,
   );

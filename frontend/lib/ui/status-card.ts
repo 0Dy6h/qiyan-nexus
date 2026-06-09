@@ -50,24 +50,45 @@ export function getPdfStatusCopy(
 export function getStatusCardStyle(tone: StatusTone): Record<string, string | number> {
   if (tone === "error") {
     return {
-      background: "#fff7ed",
-      border: "1px solid #fdba74",
-      borderRadius: 12,
+      backdropFilter: "blur(14px) saturate(135%)",
+      background: "var(--qiyan-status-error-bg)",
+      border: "1px solid var(--qiyan-status-error-line)",
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
   if (tone === "warning") {
     return {
-      background: "#fffbeb",
-      border: "1px solid #fbbf24",
-      borderRadius: 12,
+      backdropFilter: "blur(14px) saturate(135%)",
+      background: "var(--qiyan-status-warning-bg)",
+      border: "1px solid var(--qiyan-status-warning-line)",
+      borderRadius: 16,
+      padding: "16px 18px",
+    };
+  }
+  if (tone === "success") {
+    return {
+      backdropFilter: "blur(14px) saturate(135%)",
+      background: "var(--qiyan-status-success-bg)",
+      border: "1px solid var(--qiyan-status-success-line)",
+      borderRadius: 16,
+      padding: "16px 18px",
+    };
+  }
+  if (tone === "danger") {
+    return {
+      backdropFilter: "blur(14px) saturate(135%)",
+      background: "var(--qiyan-status-danger-bg)",
+      border: "1px solid var(--qiyan-status-danger-line)",
+      borderRadius: 16,
       padding: "16px 18px",
     };
   }
   return {
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
+    backdropFilter: "blur(14px) saturate(135%)",
+    background: "var(--qiyan-status-idle-bg)",
+    border: "1px solid var(--qiyan-status-idle-line)",
+    borderRadius: 16,
     padding: "16px 18px",
   };
 }
@@ -75,20 +96,34 @@ export function getStatusCardStyle(tone: StatusTone): Record<string, string | nu
 export function getStatusMessageStyle(tone: StatusTone): Record<string, string | number> {
   if (tone === "error") {
     return {
-      color: "#b45309",
+      color: "#fed7aa",
       margin: 0,
       lineHeight: 1.6,
     };
   }
   if (tone === "warning") {
     return {
-      color: "#92400e",
+      color: "#fde68a",
+      margin: 0,
+      lineHeight: 1.6,
+    };
+  }
+  if (tone === "success") {
+    return {
+      color: "#99f6e4",
+      margin: 0,
+      lineHeight: 1.6,
+    };
+  }
+  if (tone === "danger") {
+    return {
+      color: "#fecdd3",
       margin: 0,
       lineHeight: 1.6,
     };
   }
   return {
-    color: "#64748b",
+    color: "var(--qiyan-muted)",
     margin: 0,
     lineHeight: 1.6,
   };

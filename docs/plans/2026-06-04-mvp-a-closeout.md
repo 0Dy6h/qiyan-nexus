@@ -25,7 +25,7 @@
 | Loose end | 归属 | 处理 |
 |---|---|---|
 | `DEP0190` 警告（Node 22+ `shell:true` + args 数组 deprecated） | 工程纪律 | 留 as-is。本地 node 路径含中文目录（`D:\辅助应用\node.js\node.exe`）拼字符串风险大于警告价值；无注入面。`docs/handoffs/2026-06-03-session-wrap.md:48` 已书面记录 |
-| rag-eval-011 / pmid-40100009 cross-lingual recall ceiling（`avg_cross_lingual_recall=0.9688`） | B/C 阶段（多语 embedding spike） | 关键字 + 术语桥到顶；handoff-2026-06-03 推荐为下阶段优先方向 |
+| rag-eval-011 / pmid-40100009 跨语召回 loose end | 已处理（eval 数据审计） | 2026-06-04 已完成 eval corpus isolation + q011 审计：`pmid-40100009` 保留为合法英文视角，`chunk-pmid-40100009-staph` 纳入 expected chunks，microbiome bridge 补齐「微生态 / 皮肤微生态 / skin microbiome」；seed keyword bilingual cohort 当前 cross=1.0000 |
 | `pnpm e2e` 非 per-commit gauntlet（CI 接入未做） | 工程纪律（CI 接入独立工作） | 不阻 MVP-A 出口；A4 验收只要求 `pnpm e2e` 本地可跑全绿 |
 | 真实 provider 合同价格（price SLI baseline 用公开价格） | 非工程（业务/采购） | `docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md` 已书面记录"生产预算前需复核真实合同价格" |
 
@@ -42,25 +42,25 @@
 | B3 网络药理学任务壳（前后端） | **已落地** | `/api/network/analyze` + `/api/network/result/{task_id}` + `/network` 页面全栈 |
 | B4 herb/compound/target/pathway sample 数据集 | **已落地** | `backend/data/network/sample_*.json` + `app/schemas/network_entities.py` |
 | B5 RAG citation ↔ network entity 双向跳转 | **已落地** | citation 含 `related_entity_ids` + `/network` 节点指回 |
-| B6 数据来源切换面板（合规） | 待补 | 当前 `/literature` 已隐式支持 source 切换，但合规 banner 文案随选择切换的部分未单独 slice |
+| B6 数据来源切换面板（合规） | **已落地并补 e2e** | `/literature` 已支持“全部来源 / PubMed 记录 / CNKI sample / 上传 PDF”四来源视图，`LiteratureDataSourceBanner` 随选择切换合规口径；PubMed 记录视图明示包含演示 seed，卡片/详情显示 `记录来源`；上传 PDF 视图走 `has_pdf_upload=true`；`frontend/e2e/literature-data-source.spec.ts` 锁定浏览器 → API 参数合同 |
 
 **结论**：阶段 B 原 slice 大部分已在 cross-lingual / network 推进期间附带落地。
 
 **下次 session 起手建议**（不强约束）：
 
-1. **多语 embedding spike 的 model-选型 sub-slice（推荐）**：handoff-2026-06-03 §Recommended next action 推荐。子序列：
-   - ① model 选型纯文档 sub-slice（bge-m3 vs e5-multilingual vs labse 静态对比）
-   - ② 接 retrieval provider 最小可跑（代码 sub-slice）
-   - ③ eval 复跑 sub-slice，目标突破 `avg_cross_lingual_recall=0.97` 天花板
-2. **B6 数据来源切换面板**（补回 B 阶段最后一颗 slice，1 工作日内）
-3. **PostgreSQL/pgvector spike**（handoff-2026-06-03 候选）
-4. **L2 governance**（战略议题，先讨论再动手；见 ADR-0012）
+1. **L2 governance**：BGE=0.3 + NLI=0.5 profile 是否可接受仍是治理决策；默认路径继续 deterministic。
+2. **PostgreSQL/pgvector spike**：runtime SQLite 已落地，生产数据库路径可独立评估。
+3. **PDF 抽取质量 spike**：OCR、表格重建或质量启发式可作为独立 spike，不扩进默认内部预览路径。
+4. **内部 reviewer sign-off**：当前工程/e2e 基线可支撑内部预览，但正式医生/科研 reviewer 走查仍需单独记录，不能由自动化替代。
+
+**已完成补记**：多语 embedding spike 三个 sub-slice 已于 2026-06-04 闭合，结论为 BGE-M3 不翻默认，仅保留 `QIYAN_EMBEDDING_BACKEND=multilingual_bge_m3` env opt-in；随后 eval corpus isolation + q011 数据审计已把 seed keyword bilingual cohort 对账到 cross=1.0000。详见 `docs/evaluations/2026-06-04-multilingual-bge-m3-eval.md` 与 `docs/evaluations/2026-06-04-eval-corpus-isolation-and-rag-eval-011-audit.md`。
 
 ## 引用
 
 - `docs/plans/2026-05-21-roadmap.md` — 原路线图（仍是路线唯一入口）
 - `docs/handoffs/2026-06-03-session-wrap.md` — 阶段 A 最后一次 cross-lingual / e2e 工作 wrap
 - `docs/handoffs/2026-06-04-a5-chinese-pdf-verification.md` — A5 closure
+- `docs/handoffs/2026-06-04-internal-preview-baseline.md` — B6 数据来源 e2e + 内部预览基线收口
 - `docs/adr/0010-module-roadmap.md` — MVP-A/B/C 模块边界
 - `docs/adr/0012-real-llm-enablement.md` — L2 治理决策
 

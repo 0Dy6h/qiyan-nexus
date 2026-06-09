@@ -21,6 +21,26 @@ _PDF_PARSE_RESULT_FALLBACK_PREVIEW = (
     "已读取上传 PDF 文件，当前提供文件级解析预览；正文抽取将在后续接入。"
 )
 _PDF_TEXT_QUALITY_WARNING = "检测到抽取文本可能存在数字或表格乱码，请对照原始 PDF 核对关键数值。"
+_PDF_BODY_SIGNALS = (
+    "摘要",
+    "目的",
+    "方法",
+    "结果",
+    "结论",
+    "特应性皮炎",
+    "异位性皮炎",
+    "atopic dermatitis",
+    "methods",
+    "results",
+    "conclusion",
+    "skin barrier",
+)
+_PDF_HEADER_FOOTER_PATTERNS = (
+    re.compile(r"^\s*\d+\s*$"),
+    re.compile(r"^\s*第\s*\d+\s*(卷|期|页)\s*$"),
+    re.compile(r"^\s*(参考文献|references)\s*$", re.IGNORECASE),
+    re.compile(r"^\s*\[\d+\]"),
+)
 
 _REPOSITORY = get_literature_repository()
 DEFAULT_SEARCH_PAGE_SIZE = 10
@@ -201,22 +221,177 @@ def build_parse_metadata(pdf_parse_status: str) -> tuple[str, str, str]:
     return "Mock parser completed successfully", started_at, finished_at
 
 
+def _calculate_cjk_ratio(text: str) -> float:
+    """Calculate the ratio of CJK (Chinese/Japanese/Korean) characters in text."""
+    if not text:
+        return 0.0
+    cjk_count = sum(1 for c in text if "一" <= c <= "鿿")
+    return cjk_count / len(text)
+
+
+def _detect_low_text_density(text: str) -> bool:
+    """Detect if text has low alphanumeric density (likely table/formula).
+
+    Returns True if text appears to be mostly non-textual content.
+    """
+    if not text or len(text) < 10:
+        return False
+    alphanumeric = sum(1 for c in text if c.isalnum())
+    # If <20% alphanumeric, likely table/formula/diagram
+    return (alphanumeric / len(text)) < 0.2
+
+
+def _filter_header_footer_pages(
+    reader: PdfReader, skip_top_ratio: float = 0.15, skip_bottom_ratio: float = 0.15
+) -> str:
+    """Extract text from PDF pages, skipping likely header/footer regions.
+
+    Args:
+        reader: pypdf PdfReader instance
+        skip_top_ratio: Skip top N% of each page (default 15% for headers)
+        skip_bottom_ratio: Skip bottom N% of each page (default 15% for footers)
+
+    Returns:
+        Extracted text with headers/footers filtered
+    """
+    full_pages_text = []
+
+    for page in reader.pages:
+        try:
+            # Extract full page text first
+            page_text = page.extract_text() or ""
+            if not page_text:
+                continue
+
+            lines = page_text.split("\n")
+            if len(lines) <= 3:
+                # Too few lines, keep as-is
+                full_pages_text.append(page_text.strip())
+                continue
+
+            # Skip top and bottom portions (likely headers/footers)
+            skip_top_lines = max(1, int(len(lines) * skip_top_ratio))
+            skip_bottom_lines = max(1, int(len(lines) * skip_bottom_ratio))
+
+            # Keep middle portion
+            middle_lines = lines[skip_top_lines : len(lines) - skip_bottom_lines]
+            filtered_text = "\n".join(middle_lines).strip()
+
+            if filtered_text:
+                full_pages_text.append(filtered_text)
+        except Exception:
+            # If page extraction fails, skip this page
+            continue
+
+    return "\n".join(full_pages_text)
+
+
+def _is_likely_pdf_preview_noise(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if any(pattern.search(stripped) for pattern in _PDF_HEADER_FOOTER_PATTERNS):
+        return True
+    if _detect_low_text_density(stripped):
+        return True
+    nul_count = stripped.count("\x00")
+    return nul_count >= 5 and nul_count / max(len(stripped), 1) >= 0.15
+
+
+def _score_pdf_preview_line(line: str) -> int:
+    normalized = line.lower()
+    score = 0
+    for signal in _PDF_BODY_SIGNALS:
+        if signal in normalized:
+            score += 4
+    cjk_ratio = _calculate_cjk_ratio(line)
+    if cjk_ratio >= 0.2:
+        score += 1
+    if len(line.strip()) >= 24:
+        score += 1
+    return score
+
+
+def _select_pdf_preview_window(text: str, max_chars: int = 300) -> str:
+    """Select the most readable body-like preview window from extracted text."""
+
+    candidates = [
+        line.strip()
+        for line in re.split(r"[\r\n]+", text)
+        if not _is_likely_pdf_preview_noise(line)
+    ]
+    if not candidates:
+        return text[:max_chars].strip()
+
+    best_index = 0
+    best_score = -1
+    for index, line in enumerate(candidates):
+        score = _score_pdf_preview_line(line)
+        if score > best_score:
+            best_index = index
+            best_score = score
+
+    window_lines: list[str] = []
+    total_length = 0
+    for line in candidates[best_index:]:
+        if total_length and total_length + 1 + len(line) > max_chars:
+            break
+        window_lines.append(line)
+        total_length += len(line) + (1 if total_length else 0)
+
+    preview = "\n".join(window_lines).strip()
+    if not preview:
+        preview = "\n".join(candidates).strip()
+    return preview[:max_chars].strip()
+
+
 def extract_pdf_preview_text(storage_path: Path, max_chars: int = 300) -> str | None:
+    """Extract preview text from PDF with quality improvements.
+
+    Improvements:
+    - Filter header/footer regions (top/bottom 15% of pages)
+    - Skip low-density text (likely tables/formulas)
+
+    Args:
+        storage_path: Path to PDF file
+        max_chars: Maximum characters to return
+
+    Returns:
+        Extracted text preview or None if extraction fails
+    """
     try:
         reader = PdfReader(str(storage_path))
-        text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
+
+        # Use improved extraction with header/footer filtering
+        text = _filter_header_footer_pages(reader)
+
     except Exception:
         return None
+
     if not text:
         return None
-    return text[:max_chars]
+
+    return _select_pdf_preview_window(text, max_chars=max_chars)
 
 
 def detect_pdf_text_quality_warning(preview_text: str | None) -> str | None:
+    """Detect if PDF text extraction has quality issues.
+
+    Improved thresholds:
+    - NUL byte ratio increased from 2% to 5% (more tolerant of header garbling)
+    - Still requires >=3 NUL bytes as absolute minimum
+
+    Args:
+        preview_text: Extracted preview text
+
+    Returns:
+        Warning message if quality issues detected, None otherwise
+    """
     if not preview_text:
         return None
     nul_count = preview_text.count("\x00")
-    if nul_count >= 3 or (nul_count > 0 and nul_count / max(len(preview_text), 1) >= 0.02):
+    # Increased tolerance from 0.02 (2%) to 0.05 (5%)
+    if nul_count >= 3 or (nul_count > 0 and nul_count / max(len(preview_text), 1) >= 0.05):
         return _PDF_TEXT_QUALITY_WARNING
     return None
 
@@ -282,6 +457,7 @@ def _pubmed_record_to_item_dict(record: PubmedRecord) -> dict[str, object]:
         "language": "en",
         "source_type": "pubmed",
         "source": "PubMed live sync",
+        "record_origin": "pubmed_live",
         "year": record.year if record.year is not None else 0,
         "snippet": snippet,
         "abstract": abstract or None,

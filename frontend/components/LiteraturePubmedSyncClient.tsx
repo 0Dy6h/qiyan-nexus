@@ -6,6 +6,7 @@ import {
   LITERATURE_SYNC_MAX_RESULTS_CAP,
   LiteratureItem,
   LiteratureSyncResponse,
+  getLiteratureRecordOriginLabel,
   syncLiteratureFromPubmed,
 } from "../lib/api/literature";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
@@ -23,12 +24,12 @@ type SyncState = {
 const fieldLabelStyle = {
   display: "grid",
   gap: 8,
-  color: "#1e293b",
+  color: "var(--qiyan-ink)",
   fontWeight: 700,
 } as const;
 
 const fieldControlStyle = {
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--qiyan-line)",
   borderRadius: 8,
   fontSize: 16,
   padding: "12px 14px",
@@ -37,8 +38,15 @@ const fieldControlStyle = {
 function SyncResultItem({ item }: { item: LiteratureItem }) {
   return (
     <article style={getSurfaceCardStyle()}>
-      <CardMetaRow items={[`PMID ${item.id.replace(/^pmid-/, "")}`, `年份 ${item.year}`, `来源 ${item.source}`]} />
-      <h3 style={{ color: "#1e293b", fontSize: 18, marginTop: 8, marginBottom: 8 }}>{item.title}</h3>
+      <CardMetaRow
+        items={[
+          `PMID ${item.id.replace(/^pmid-/, "")}`,
+          `记录来源 ${getLiteratureRecordOriginLabel(item.record_origin)}`,
+          `年份 ${item.year}`,
+          `来源 ${item.source}`,
+        ]}
+      />
+      <h3 style={{ color: "var(--qiyan-ink)", fontSize: 18, marginTop: 8, marginBottom: 8 }}>{item.title}</h3>
       <CardBodyText>{item.snippet}</CardBodyText>
       <a
         href={`/literature/${encodeURIComponent(item.id)}`}
@@ -92,8 +100,8 @@ export default function LiteraturePubmedSyncClient() {
   return (
     <section style={getSurfaceSectionStyle()}>
       <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-        <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>同步 PubMed</h2>
-        <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+        <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>同步 PubMed</h2>
+        <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
           调用后端 <code>/api/literature/sync</code>，从 NCBI E-utilities 拉取并合并到 runtime
           文献库；不覆盖已有的 PDF 元数据与解析状态。
         </p>

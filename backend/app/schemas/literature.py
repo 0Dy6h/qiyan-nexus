@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 LiteratureSource = Literal["all", "cn_literature", "pubmed"]
 LiteratureSearchSort = Literal["relevance", "year_desc", "year_asc"]
+LiteratureRecordOrigin = Literal["seed_sample", "pubmed_live"]
 
 
 class PdfParseResult(BaseModel):
@@ -21,6 +22,7 @@ class LiteratureItem(BaseModel):
     language: str
     source_type: str
     source: str
+    record_origin: LiteratureRecordOrigin = "seed_sample"
     year: int
     snippet: str
     authors: list[str] = Field(default_factory=list)

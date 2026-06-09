@@ -40,6 +40,27 @@ test("NetworkGraph renders legend", () => {
   assert(source.includes("≥0.7"));
 });
 
+test("NetworkGraph uses publication-style category shapes and curved edges", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  assert(source.includes('shape: "hexagon"'));
+  assert(source.includes('shape: "circle"'));
+  assert(source.includes('shape: "rounded-rect"'));
+  assert(source.includes('shape: "diamond"'));
+  assert(source.includes('shape: "pill"'));
+  assert(source.includes("buildEdgePath"));
+  assert(source.includes("markerEnd=\"url(#networkGraphArrow)\""));
+});
+
+test("NetworkGraph renders node degree and category legend copy", () => {
+  const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  assert(source.includes("createDegreeMap"));
+  assert(source.includes("formatDegree(degree)"));
+  assert(source.includes("节点形状/颜色表示类别"));
+  assert(source.includes("节点符号大小表示 degree"));
+});
+
 test("NetworkGraph renders node with title tooltip", () => {
   const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
 

@@ -113,3 +113,11 @@ test("rag retrieval metadata surfaces provider latency and cost SLI", () => {
   assert.match(ragSource, /Provider 延迟 \$\{formatLatencyMs\(state\.result\.sli\)\}/);
   assert.match(ragSource, /预估成本 \$\{formatEstimatedCost\(state\.result\.sli\)\}/);
 });
+
+test("rag eval report surfaces explicit corpus scope", () => {
+  const evalSource = getSource("components/RagEvalReportClient.tsx");
+
+  assert.match(evalSource, /getRagEvalCorpusLabel/);
+  assert.match(evalSource, /label="语料范围"/);
+  assert.match(evalSource, /state\.report\.summary\.corpus/);
+});

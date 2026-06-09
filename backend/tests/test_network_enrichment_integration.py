@@ -43,6 +43,26 @@ def test_network_analysis_includes_enrichment_when_enough_targets():
         assert result.enrichment is None
 
 
+def test_xiaofengsan_mock_analysis_returns_visible_enrichment_terms():
+    """Reviewer walkthrough seed query should render a non-empty enrichment table."""
+    accepted = create_network_analysis_task("消风散", "formula")
+    task_id = accepted.task_id
+
+    status, response = get_network_analysis_result(task_id)
+    assert status == "ok"
+    assert response is not None
+
+    if response.status == "running":
+        status, response = get_network_analysis_result(task_id)
+        assert status == "ok"
+        assert response is not None
+
+    assert response.status == "completed"
+    assert response.result is not None
+    assert response.result.enrichment is not None
+    assert len(response.result.enrichment.terms) > 0
+
+
 def test_network_analysis_enrichment_skipped_for_single_target():
     """Network analysis skips enrichment when only 1 unique target."""
     # This test assumes there exists a query that produces only 1 unique target

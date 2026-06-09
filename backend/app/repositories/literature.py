@@ -5,13 +5,27 @@ from typing import Any
 from app.schemas.literature import LiteratureItem, PdfParseResult
 
 
+def infer_record_origin(item: dict[str, Any]) -> str:
+    if item.get("record_origin"):
+        return str(item["record_origin"])
+    if item.get("source") == "PubMed live sync":
+        return "pubmed_live"
+    return "seed_sample"
+
+
+def normalize_literature_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(item)
+    normalized["record_origin"] = infer_record_origin(normalized)
+    return normalized
+
+
 class InMemoryLiteratureRepository:
     def __init__(self, data_path: Path):
         self.data_path = data_path
 
     def list_items(self) -> list[LiteratureItem]:
         raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        return [LiteratureItem(**item) for item in raw_items]
+        return [LiteratureItem(**normalize_literature_item_payload(item)) for item in raw_items]
 
     def get_item_by_id(self, item_id: str) -> LiteratureItem | None:
         for item in self.list_items():
@@ -41,7 +55,7 @@ class InMemoryLiteratureRepository:
                 self.data_path.write_text(
                     json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
                 )
-                return LiteratureItem(**item)
+                return LiteratureItem(**normalize_literature_item_payload(item))
         return None
 
     def update_pdf_parse_status(
@@ -71,7 +85,7 @@ class InMemoryLiteratureRepository:
                 self.data_path.write_text(
                     json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
                 )
-                return LiteratureItem(**item)
+                return LiteratureItem(**normalize_literature_item_payload(item))
         return None
 
     def bulk_upsert_pubmed_items(self, incoming_items: list[dict[str, Any]]) -> tuple[int, int]:
@@ -98,10 +112,12 @@ class InMemoryLiteratureRepository:
             "pubmed_id",
             "language",
             "source_type",
+            "record_origin",
         }
         created = 0
         updated = 0
         for incoming in incoming_items:
+            incoming = normalize_literature_item_payload(incoming)
             item_id = incoming["id"]
             if item_id in index_by_id:
                 existing = raw_items[index_by_id[item_id]]

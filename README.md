@@ -2,7 +2,7 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
-当前状态：MVP-A 证据工作台基本可内部走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
+当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成优先正文/摘要窗口的预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
 
@@ -15,6 +15,33 @@
 - `docs/archive/pre-dev-planning/` — 早期 AI 工具链规划、Word 文档与 HTML 原型，仅作历史参考
 
 ## 后端
+
+统一本地门禁（Windows PowerShell，推荐先跑这个）：
+
+```powershell
+.\scripts\verify-local.ps1
+```
+
+默认顺序执行后端 `ruff format --check`、`ruff check`、`mypy app`、`pytest -q`，以及前端 `pnpm test`、`pnpm typecheck`、`pnpm build`。`pnpm typecheck` 与 `pnpm build` 会写 `.next` route type 产物，必须顺序跑，不要并行跑。
+
+如需在 reviewer 走查或分支收口前追加 Playwright E2E：
+
+```powershell
+.\scripts\verify-local.ps1 -IncludeE2E
+```
+
+如需确认内部预览 shared-token profile 的浏览器 E2E：
+
+```powershell
+.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile
+```
+
+单独跑一侧：
+
+```powershell
+.\scripts\verify-local.ps1 -BackendOnly
+.\scripts\verify-local.ps1 -FrontendOnly
+```
 
 首次安装（Windows PowerShell）：
 
@@ -50,7 +77,27 @@ curl http://127.0.0.1:8000/health
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
 - 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
-- CORS 配置不变；前端如需带 token 调用，需要后续在 fetch wrapper 里加 header（A2 不动前端）。
+- 前端可通过 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN` 为所有 backend fetch 自动附加同名 header；该变量只用于内部预览最小共享 token 门禁，不是正式认证/权限系统。例如：`$env:NEXT_PUBLIC_QIYAN_ACCESS_TOKEN="dev-token-1"; pnpm dev`。
+- CORS 配置不变；multipart PDF 上传只附加 `X-Access-Token`，不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
+
+内部预览一键启动 / smoke（默认离线 deterministic + keyword + isolated runtime）：
+
+```powershell
+# open dev profile
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open
+.\scripts\smoke-internal-preview.ps1
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
+
+# shared-token profile（仅内部预览最小门禁，不是正式认证）
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
+.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -Stop
+
+# 生成本地内部预览证据包（open + shared-token smoke，输出到 .tmp\internal-preview-evidence\<timestamp>\）
+.\scripts\collect-internal-preview-evidence.ps1
+```
+
+`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 shared-token 两种 profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
 
 文献检索 API 数据来源：
 
@@ -59,10 +106,11 @@ curl http://127.0.0.1:8000/health
 - runtime 文献状态：`backend/data/runtime/literature_state.json`（gitignored，可从 seed bootstrap）
 - repository 层：`backend/app/repositories/literature.py`
 - service 层：`backend/app/services/literature.py`
+- 当前每个 `LiteratureItem` 返回 `record_origin`：`seed_sample` 表示演示 seed 样本，不可当作外部数据库真实文献引用；`pubmed_live` 表示来自 PubMed E-utilities 实时同步的 runtime 记录。
 - 当前 PDF metadata 字段：`pdf_upload_id`、`pdf_file_name`、`pdf_parse_status`、`pdf_parse_message`、`pdf_parse_started_at`、`pdf_parse_finished_at`、`last_parse_trigger`、`parse_attempt_count`、`pdf_parse_result`
 - 当前支持本地 PDF 上传存储：`POST /api/uploads/pdf`（multipart `file`），默认写入 `backend/uploads/`，可通过 `UPLOAD_STORAGE_DIR` 覆盖
 - 当前支持本地 PDF 下载/预览：`GET /api/uploads/pdf/{pdf_upload_id}`，按稳定 upload id 读取 `UPLOAD_STORAGE_DIR` 下的 PDF 文件
-- 当前支持文本型 PDF 预览：parse result 可返回 `extraction_method="pypdf-text-preview"` 与 `preview_text`；无法抽取文本时返回 `file-metadata-placeholder`
+- 当前支持文本型 PDF 预览：parse result 可返回 `extraction_method="pypdf-text-preview"` 与 `preview_text`；预览会优先选择摘要/正文信号窗口，避开明显页眉页脚、参考文献开头和低文本密度行；无法抽取文本时返回 `file-metadata-placeholder`
 
 文献检索 API：
 
@@ -77,14 +125,16 @@ curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎"
 - `page`：页码，默认 `1`。
 - `page_size`：每页数量，默认 `10`，最大 `50`。
 - `sort`：`relevance` / `year_desc` / `year_asc`，默认 `relevance`。
+- `has_pdf_upload`：可选布尔值；`true` 仅返回已挂载上传 PDF metadata 的条目，`false` 排除已挂载 PDF 的条目，省略则不按 PDF 状态过滤。
 
 示例：
 
 ```bash
 curl "http://127.0.0.1:8000/api/literature/search?q=瘙痒&source=cn_literature&page=1&page_size=5&sort=relevance"
+curl "http://127.0.0.1:8000/api/literature/search?q=特应性皮炎&has_pdf_upload=true"
 ```
 
-返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页和排序展示。
+返回字段保留 `query`、`total`、`items`，并新增 `source`、`page`、`page_size`、`total_pages`、`sort`，用于前端分页、排序和数据来源视图展示。`items[*].record_origin` 用于区分 `seed_sample` 演示样本与 `pubmed_live` 实时同步记录。
 
 文献详情 API：
 
@@ -170,8 +220,8 @@ Grounding：
 
 - `QIYAN_LLM_PROVIDER=opencode_go` 时，RAG answer 文本会调用 OpenCode Go OpenAI-compatible Chat Completions API；检索、citation cards 与 disclaimer 仍由本地后端控制。
 - API key 只从 `QIYAN_OPENCODE_GO_API_KEY` 读取，不能写入仓库、README、handoff 或测试。
-- 默认 endpoint 与模型：`QIYAN_OPENCODE_GO_BASE_URL="https://opencode.ai/zen/go/v1"`，`QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"`。
-- 建议 smoke 时使用 `QIYAN_OPENCODE_GO_MAX_TOKENS="4000"`；实测 `deepseek-v4-flash`（thinking mode）会先消耗大量 reasoning token，默认 `1200` 常导致 `content` 为空（`finish_reason=length`）并触发 deterministic fallback，需要 >=4000 才能让真实路径生效。该模型还会拒绝强制 `tool_choice`（HTTP 400），真实路径走 structured claims v3。详见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md` 与 `docs/guides/real-llm-enablement-runbook.md`。
+- 当前 opt-in smoke 默认 endpoint 与模型（2026-06-08）：`QIYAN_OPENCODE_GO_BASE_URL="https://ai.router.team/v1"`，`QIYAN_OPENCODE_GO_MODEL="gpt-5.5"`，`QIYAN_OPENCODE_GO_MAX_TOKENS="4096"`。
+- 历史基线说明：2026-05-31/06-02 的 live smoke 与 price SLI 基于 `deepseek-v4-flash`，该模型为 thinking mode，曾拒绝强制 `tool_choice`（HTTP 400），且需要 >=4000 token 才能避免空 content fallback。切到 router.team + gpt-5.5 后，价格、延迟、NLI pass rate 与治理通过率都需要重新采样，不能沿用 deepseek 历史数字作为当前预算或 L2 决策依据。详见 `docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`、`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md` 与 `docs/guides/real-llm-enablement-runbook.md`。
 - 未设置 key、HTTP 错误、网关失败或响应结构异常时，provider 会记录不含 secret 的 warning，并回退到 deterministic answer。
 
 可选 retrieval providers（默认不启用 vector/hybrid）：
@@ -187,8 +237,8 @@ PowerShell 本地 smoke 示例：
 cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
-$env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4000"
+$env:QIYAN_OPENCODE_GO_MODEL="gpt-5.5"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4096"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
@@ -204,11 +254,12 @@ RAG eval API：
 
 ```bash
 curl "http://127.0.0.1:8000/api/evals/rag-ad/report"
+curl "http://127.0.0.1:8000/api/evals/rag-ad/report?corpus=runtime"
 ```
 
-当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 50 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。当前基线目标：50 题通过率保持内部基线，citation/chunk 命中、disclaimer coverage 与 must_not violations 以本地测试输出与最新 handoff 为准。
+当前评估报告基于 `backend/data/evals/rag_ad_eval_questions.json` 的 50 个特应性皮炎问题，调用 deterministic RAG 后返回 summary + item results。默认 `corpus=seed`，固定读取 tracked seed 文献/chunk，避免本地 uploaded PDF/runtime state 污染 benchmark；显式 `corpus=runtime` 才评估 `backend/data/runtime/` 本地状态。当前基线目标：50 题通过率保持内部基线，citation/chunk 命中、disclaimer coverage 与 must_not violations 以本地测试输出与最新 handoff 为准。
 
-Network pharmacology API（mock）：
+Network pharmacology API（默认 mock，live 需显式 opt-in）：
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
@@ -223,7 +274,36 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
-当前网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。当前不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+默认模式下，网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。mock 模式不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+
+真实网络药理学链路是显式 opt-in，不进入默认路径：
+
+- 设置 `QIYAN_NETWORK_DATA_PROVIDER="live"` 后，`POST /api/network/analyze` 与轮询 response 会返回 `data_mode="live"`，并输出 `data_sources`、`pipeline_steps`、`warnings`、`error`、`target_evidence_type`、`evidence_refs` 与可选 `ppi_edges`。
+- live 链路按 `TCMSP/cache → PubChem CID → ChEMBL known activity → UniProt 标准化 → STRING PPI → KEGG pathway/enrichment → report provenance` 执行；外部响应只写入 `backend/data/runtime/network_cache/`，不会回写 seed fixture。
+- `QIYAN_NETWORK_ALLOW_TCMSP_SCRAPE` 默认 `false`。关闭时 TCMSP 入口只读已有 cache；开启前需 operator 明确接受抓取稳定性、授权和限速风险。
+- SwissTargetPrediction 不自动 crawler；预测靶点只通过 `QIYAN_NETWORK_TARGET_PREDICTION_FILE` 指向本地 JSON/CSV artifact 导入，字段为 `compound,target_symbol,score,source,source_record_id,retrieved_at`。
+- `QIYAN_NETWORK_HTTP_TIMEOUT_SECONDS` 与 `QIYAN_NETWORK_RATE_LIMIT_PER_SECOND` 控制 live API timeout 和限速；外部失败会进入 `warnings` 或业务 `failed` task，不应变成正常业务流的 500。
+- 回滚路径：清空或设置 `QIYAN_NETWORK_DATA_PROVIDER="mock"` 即回到默认离线 mock。需要强制重新请求外部源时，清理 `backend/data/runtime/network_cache/`。
+
+PowerShell live smoke 示例（不会自动开启 TCMSP 抓取；需提前准备 cache 或 prediction artifact）：
+
+```powershell
+cd backend
+$env:QIYAN_NETWORK_DATA_PROVIDER="live"
+$env:QIYAN_NETWORK_CACHE_DIR="backend/data/runtime/network_cache"
+$env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions.csv"
+& .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
+```
+
+另开终端轮询：
+
+```powershell
+$task = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/network/analyze" `
+  -ContentType "application/json" `
+  -Body '{"query":"黄芪","analysis_type":"herb"}'
+Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
+Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+```
 
 Network analysis response 示例（包含 enrichment 字段）：
 
@@ -296,6 +376,13 @@ cd frontend
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
 ```
 
+如后端启用了内部预览 token gate，同时给前端设置同一个 token：
+
+```bash
+cd frontend
+NEXT_PUBLIC_QIYAN_ACCESS_TOKEN=dev-token-1 pnpm dev
+```
+
 前端测试：
 
 ```bash
@@ -317,10 +404,10 @@ pnpm build
 
 当前前端能力：
 
-- `/literature`：支持 query 输入、来源筛选、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示。
+- `/literature`：支持 query 输入、4 类数据来源视图（全部来源 / PubMed 记录 / CNKI sample / 上传 PDF）、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示与随来源切换的合规 banner；每条结果会标明记录来源，演示 seed 不可当作外部数据库真实文献引用。
 - `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
-- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
+- `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的语料范围、通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
 - `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链，并可把当前完成结果导出为 Markdown 报告。
 - `/rag` 与 `/literature` 的状态文案、状态面板、meta 行和正文密度已做最小统一。
 - 当 RAG 成功返回 0 citations 时，会展示明确空状态提示，而不是空白引用区。

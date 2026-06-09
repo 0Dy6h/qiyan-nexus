@@ -13,16 +13,17 @@ test("joinMetaItems drops empty items and joins with bullets", () => {
 
 test("getMetaRowStyle returns shared card meta layout", () => {
   assert.deepEqual(getMetaRowStyle(), {
-    color: "#64748b",
+    color: "var(--qiyan-muted)",
     margin: 0,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 800,
     lineHeight: 1.6,
   });
 });
 
 test("getMetaTextStyle returns shared body text layout", () => {
   assert.deepEqual(getMetaTextStyle(), {
-    color: "#475569",
+    color: "var(--qiyan-ink-2)",
     margin: "0 0 12px",
     lineHeight: 1.7,
   });

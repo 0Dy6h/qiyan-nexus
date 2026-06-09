@@ -1,0 +1,6 @@
+# GitHub Actions 工件
+# 包括 Playwright 失败报告、覆盖率报告等
+playwright-report/
+test-results/
+coverage/
+*.log

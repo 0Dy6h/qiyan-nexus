@@ -30,6 +30,8 @@ test("main path: literature search → detail → rag answer with citations + di
   await firstDetailLink.click();
   await expect(page).toHaveURL(/\/literature\/.+/);
   await expect(page.getByRole("navigation", { name: "工作台导航" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文献详情" })).toBeVisible();
+  await expect(page.getByText("文献 ID cn-ad-gbs-001")).toBeVisible();
 
   // 4. Navigate to /rag and submit the seed AD question.
   await page.goto("/rag");

@@ -53,6 +53,23 @@ def test_repository_loads_all_sample_items_from_json(tmp_path: Path):
     assert [item.id for item in items] == ["cn-ad-gbs-001", "pmid-40100001"]
 
 
+def test_repository_infers_record_origin_for_legacy_items(tmp_path: Path):
+    data_path = tmp_path / "sample_ad_literature.json"
+    legacy_items = [
+        SAMPLE_ITEMS[0],
+        {
+            **SAMPLE_ITEMS[1],
+            "source": "PubMed live sync",
+        },
+    ]
+    write_sample_data(data_path, legacy_items)
+
+    items_by_id = {item.id: item for item in InMemoryLiteratureRepository(data_path).list_items()}
+
+    assert items_by_id["cn-ad-gbs-001"].record_origin == "seed_sample"
+    assert items_by_id["pmid-40100001"].record_origin == "pubmed_live"
+
+
 def test_repository_exposes_required_and_extended_fields(tmp_path: Path):
     data_path = tmp_path / "sample_ad_literature.json"
     write_sample_data(data_path, SAMPLE_ITEMS)

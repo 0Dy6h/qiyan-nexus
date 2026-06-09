@@ -5,7 +5,9 @@ import {
   buildNetworkAnalyzeUrl,
   buildNetworkReportUrl,
   buildNetworkResultUrl,
+  getNetworkDataModeLabel,
   getNetworkAnalysisTypeLabel,
+  getNetworkTargetEvidenceTypeLabel,
 } from "../lib/api/network";
 
 test("buildNetworkAnalyzeUrl returns the analyze endpoint", () => {
@@ -24,7 +26,16 @@ test("getNetworkAnalysisTypeLabel maps formula and herb to display labels", () =
   assert.equal(getNetworkAnalysisTypeLabel("herb"), "单味中药");
 });
 
+test("network provenance label helpers map live data fields to Chinese labels", () => {
+  assert.equal(getNetworkDataModeLabel("mock"), "Mock 演示数据");
+  assert.equal(getNetworkDataModeLabel("live"), "真实数据 opt-in");
+  assert.equal(getNetworkTargetEvidenceTypeLabel("known_activity"), "已知活性证据");
+  assert.equal(getNetworkTargetEvidenceTypeLabel("predicted"), "预测靶点");
+  assert.equal(getNetworkTargetEvidenceTypeLabel("mixed"), "已知+预测");
+});
+
 test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task id", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
   const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
   globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
@@ -44,6 +55,9 @@ test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/network/analyze");
     assert.equal(captured[0].init?.method, "POST");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["Content-Type"], "application/json");
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.deepEqual(JSON.parse(String(captured[0].init?.body ?? "{}")), {
       query: "消风散",
       analysis_type: "formula",
@@ -52,6 +66,7 @@ test("submitNetworkAnalysis posts trimmed query and analysis_type, returns task 
     assert.equal(accepted.status, "queued");
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 
@@ -65,10 +80,14 @@ test("fetchNetworkResult returns the polled response shape", async () => {
           task_id: "network-abc123",
           status: "completed",
           progress: 100,
+          data_mode: "live",
+          error: null,
+          warnings: ["Prediction target file is not configured or does not exist."],
           result: {
             task_id: "network-abc123",
             query: "消风散",
             analysis_type: "formula",
+            data_mode: "live",
             chains: [
               {
                 herb: "消风散",
@@ -77,6 +96,8 @@ test("fetchNetworkResult returns the polled response shape", async () => {
                 pathway: "PI3K-Akt signaling pathway",
                 disease: "Atopic dermatitis",
                 score: 0.87,
+                evidence_refs: ["CHEMBLASSAY-1"],
+                target_evidence_type: "known_activity",
                 related_entity_ids: [
                   "herb-jingjie",
                   "compound-quercetin",
@@ -85,6 +106,27 @@ test("fetchNetworkResult returns the polled response shape", async () => {
                 ],
               },
             ],
+            pipeline_steps: [
+              {
+                name: "known-activity-targets",
+                status: "completed",
+                duration_ms: 12,
+                external_request_count: 0,
+                cache_hit_count: 1,
+              },
+            ],
+            data_sources: [
+              {
+                name: "chembl",
+                source_record_id: "CHEMBLASSAY-1",
+                url: "https://www.ebi.ac.uk/chembl/",
+                retrieved_at: "2026-06-08T00:00:00Z",
+                license_note: "ChEMBL activity cache/import.",
+                cache_key: "chembl-v1-abc",
+                from_cache: true,
+              },
+            ],
+            warnings: ["Prediction target file is not configured or does not exist."],
             disclaimer: "非诊断结论、需结合临床。",
           },
         };
@@ -97,7 +139,12 @@ test("fetchNetworkResult returns the polled response shape", async () => {
     const polled = await fetchNetworkResult("network-abc123");
 
     assert.equal(polled.status, "completed");
+    assert.equal(polled.data_mode, "live");
+    assert.equal(polled.warnings[0], "Prediction target file is not configured or does not exist.");
     assert.equal(polled.result?.chains[0].target, "IL6");
+    assert.equal(polled.result?.chains[0].target_evidence_type, "known_activity");
+    assert.equal(polled.result?.data_sources[0].name, "chembl");
+    assert.equal(polled.result?.pipeline_steps[0].name, "known-activity-targets");
     assert.deepEqual(polled.result?.chains[0].related_entity_ids, [
       "herb-jingjie",
       "compound-quercetin",
@@ -137,10 +184,11 @@ test("buildNetworkReportUrl encodes task id and points at report endpoint", () =
 });
 
 test("fetchNetworkReportMarkdown returns markdown text on 200", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
-  const captured: { url: URL | RequestInfo }[] = [];
-  globalThis.fetch = (async (url: URL | RequestInfo) => {
-    captured.push({ url });
+  const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    captured.push({ url, init });
     return {
       ok: true,
       async text() {
@@ -155,9 +203,12 @@ test("fetchNetworkReportMarkdown returns markdown text on 200", async () => {
 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/network/result/network-abc123/report");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["X-Access-Token"], "dev-token");
     assert.ok(markdown.startsWith("# Qiyan Nexus"));
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 

@@ -3,6 +3,7 @@ import time
 from datetime import UTC, datetime
 
 from app.core.config import get_settings
+from app.repositories.protocols import ChunkRepository, LiteratureRepository
 from app.repositories.runtime_storage import (
     get_chunk_repository,
     get_literature_repository,
@@ -71,18 +72,23 @@ def answer_question(
     *,
     llm_provider_name: str | None = None,
     retrieval_provider_name: str | None = None,
+    literature_repository: LiteratureRepository | None = None,
+    chunk_repository: ChunkRepository | None = None,
+    request_id: str | None = None,
 ) -> RagAnswerResponse:
     normalized_question = question.strip()
     preferred_source_type = (
         "cn_literature" if detect_query_language(normalized_question) == "zh" else "pubmed"
     )
+    active_literature_repository = literature_repository or _REPOSITORY
+    active_chunk_repository = chunk_repository or _CHUNK_REPOSITORY
 
-    items = _REPOSITORY.list_items()
+    items = active_literature_repository.list_items()
     if source != "all":
         items = [item for item in items if item.source_type == source]
 
     chunks_by_item = {
-        item.id: _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id) for item in items
+        item.id: active_chunk_repository.list_chunks_by_literature_id(item.id) for item in items
     }
 
     retrieval_provider = select_retrieval_provider(retrieval_provider_name)
@@ -191,7 +197,7 @@ def answer_question(
     # Secret-free structured SLI line for ops observability.
     _LOGGER.info(
         "rag_sli provider=%s grounding=%s latency_ms=%s input_tokens=%s "
-        "output_tokens=%s cost_usd=%s strategy=%s",
+        "output_tokens=%s cost_usd=%s strategy=%s request_id=%s",
         draft.provider_name,
         grounding.status,
         provider_latency_ms,
@@ -199,6 +205,7 @@ def answer_question(
         draft.output_tokens,
         estimated_cost_usd,
         retrieval_provider.name,
+        request_id,
     )
     return RagAnswerResponse(
         question=normalized_question,

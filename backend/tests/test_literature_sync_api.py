@@ -210,11 +210,13 @@ def test_literature_sync_inserts_new_pubmed_items_and_refreshes_existing(
     assert refreshed["title"].endswith("(refreshed)")
     assert refreshed["year"] == 2025
     assert refreshed["source"] == "PubMed live sync"
+    assert refreshed["record_origin"] == "pubmed_live"
     assert refreshed["pdf_upload_id"] == "pdf-pmid-40100001-keep-pdf"
     assert refreshed["pdf_parse_status"] == "parsed"
     new_item = items_by_id["pmid-39000003"]
     assert new_item["title"] == "JAK inhibitors for atopic dermatitis"
     assert new_item["source"] == "PubMed live sync"
+    assert new_item["record_origin"] == "pubmed_live"
     assert new_item["pubmed_id"] == "39000003"
 
 
@@ -248,6 +250,7 @@ def test_literature_sync_sqlite_backend_inserts_and_refreshes_existing(
     assert refreshed.title.endswith("(refreshed)")
     assert refreshed.year == 2025
     assert refreshed.source == "PubMed live sync"
+    assert refreshed.record_origin == "pubmed_live"
     assert refreshed.pdf_upload_id == "pdf-pmid-40100001-keep-pdf"
     assert refreshed.pdf_parse_status == "parsed"
 
@@ -255,6 +258,7 @@ def test_literature_sync_sqlite_backend_inserts_and_refreshes_existing(
     assert new_item is not None
     assert new_item.title == "JAK inhibitors for atopic dermatitis"
     assert new_item.source == "PubMed live sync"
+    assert new_item.record_origin == "pubmed_live"
     assert new_item.pubmed_id == "39000003"
 
 

@@ -16,6 +16,7 @@ correct embedding backend.
 Usage:
     python scripts/eval_multilingual_bge_m3.py                  # all four
     python scripts/eval_multilingual_bge_m3.py vector_bge       # single config
+    python scripts/eval_multilingual_bge_m3.py --corpus runtime # opt into local state
     python scripts/eval_multilingual_bge_m3.py --json out.json  # also dump JSON
 """
 
@@ -38,6 +39,7 @@ def _run_config(
     label: str,
     retrieval_strategy: str,
     embedding_backend: str,
+    corpus: str,
 ) -> dict[str, Any]:
     """Set env, import the eval harness fresh, run it, capture metrics."""
     os.environ["QIYAN_RETRIEVAL_PROVIDER"] = retrieval_strategy
@@ -56,12 +58,13 @@ def _run_config(
     from app.services.retrieval_eval import run_cross_lingual_retrieval_eval
 
     start = time.perf_counter()
-    report = run_cross_lingual_retrieval_eval(strategy=retrieval_strategy)
+    report = run_cross_lingual_retrieval_eval(strategy=retrieval_strategy, corpus=corpus)
     elapsed_s = time.perf_counter() - start
 
     summary = report.summary
     return {
         "label": label,
+        "corpus": summary.corpus,
         "retrieval_strategy": summary.retrieval_strategy,
         "embedding_backend": embedding_backend,
         "total_questions": summary.total_questions,
@@ -109,6 +112,12 @@ def main(argv: list[str]) -> int:
         default=None,
         help="optional path to dump full per-item JSON",
     )
+    parser.add_argument(
+        "--corpus",
+        choices=["seed", "runtime"],
+        default="seed",
+        help="evaluation corpus: immutable seed benchmark or runtime local state; default seed",
+    )
     args = parser.parse_args(argv[1:])
 
     requested = list(_CONFIGS) if "all" in args.configs or not args.configs else args.configs
@@ -117,7 +126,8 @@ def main(argv: list[str]) -> int:
     for label in requested:
         cfg = _CONFIGS[label]
         print(
-            f"\n=== {label} (retrieval={cfg['retrieval']}, embedding={cfg['embedding']}) ===",
+            f"\n=== {label} (corpus={args.corpus}, retrieval={cfg['retrieval']}, "
+            f"embedding={cfg['embedding']}) ===",
             flush=True,
         )
         try:
@@ -125,6 +135,7 @@ def main(argv: list[str]) -> int:
                 label=label,
                 retrieval_strategy=cfg["retrieval"],
                 embedding_backend=cfg["embedding"],
+                corpus=args.corpus,
             )
         except Exception as exc:  # noqa: BLE001 — surface all failures, downloads can flake
             print(f"  FAILED: {type(exc).__name__}: {exc}", flush=True)
@@ -133,7 +144,7 @@ def main(argv: list[str]) -> int:
 
         results.append(result)
         print(
-            f"  N={result['total_questions']} top_k={result['top_k']} "
+            f"  corpus={result['corpus']} N={result['total_questions']} top_k={result['top_k']} "
             f"mono={result['avg_monolingual_recall']:.4f} "
             f"cross={result['avg_cross_lingual_recall']:.4f} "
             f"div={result['avg_language_diversity']:.4f} "
@@ -143,14 +154,14 @@ def main(argv: list[str]) -> int:
         )
 
     print("\n## Summary table\n")
-    print("| label | strategy | embedding | N | mono | cross | div | MRR | elapsed |")
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("| label | corpus | strategy | embedding | N | mono | cross | div | MRR | elapsed |")
+    print("|---|---|---|---|---|---|---|---|---|---|")
     for r in results:
         if "error" in r:
-            print(f"| {r['label']} | — | — | — | — | — | — | — | ERROR: {r['error']} |")
+            print(f"| {r['label']} | — | — | — | — | — | — | — | — | ERROR: {r['error']} |")
             continue
         print(
-            f"| {r['label']} | {r['retrieval_strategy']} | {r['embedding_backend']} "
+            f"| {r['label']} | {r['corpus']} | {r['retrieval_strategy']} | {r['embedding_backend']} "
             f"| {r['total_questions']} "
             f"| {r['avg_monolingual_recall']:.4f} "
             f"| {r['avg_cross_lingual_recall']:.4f} "

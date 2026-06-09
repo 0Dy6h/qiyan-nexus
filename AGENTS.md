@@ -4,7 +4,7 @@
 
 ## 仓库性质
 
-项目已从纯规划阶段切换到开发骨架启动阶段。
+项目已从纯规划阶段切换到可运行开发阶段。MVP-A 证据工作台已完成收尾；MVP-B 网络药理学 mock 起步链路已落地；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。
 
 当前代码目录：
 - `frontend/` — Next.js 前端应用
@@ -20,7 +20,7 @@
 |------|------|-------------|
 | 当前事实源 | `docs/current-state.md` | 当前能力边界、事实源优先级、标准验证命令 |
 | 入口 | `README.md` | 每个已实现 endpoint 的 curl 示例 |
-| 命令与架构细节 | `CLAUDE.md` | 后端分层、RAG 管线、PDF 流、前端测试机制（注意其命令用 Linux 路径，本机需换成下方 PowerShell 写法） |
+| 命令与架构细节 | `CLAUDE.md` | 后端分层、RAG 管线、PDF 流、前端测试机制；若命令冲突，以本文件的 Windows PowerShell 写法为准 |
 | 领域语言 | `CONTEXT.md` | TCM 术语表、共享语言 |
 | 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留 |
 | 最近交接 | `docs/handoffs/` | 越新的 handoff 越接近当前事实，用于跨会话续接 |
@@ -30,7 +30,19 @@
 
 ## 命令（本机是 Windows + pwsh，照抄）
 
-后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。CLAUDE.md 里的 `.venv/bin/...` 是 Linux 写法，本机会失败。
+后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。
+
+```powershell
+# 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
+.\scripts\verify-local.ps1
+
+# reviewer 走查或分支收口前追加 Playwright E2E
+.\scripts\verify-local.ps1 -IncludeE2E
+
+# 单侧门禁
+.\scripts\verify-local.ps1 -BackendOnly
+.\scripts\verify-local.ps1 -FrontendOnly
+```
 
 ```powershell
 # 后端验证门禁（提交前 4 项全绿）— 顺序：format -> lint -> type -> test
@@ -58,7 +70,7 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 ```
 
 - `pnpm e2e`（Playwright）不在每次提交门禁内，需先 `pnpm exec playwright install chromium` 及系统库，按 `frontend/e2e/README.md`。
-- 没有 CI、没有 `opencode.json`、没有 `.cursor` 规则；门禁靠本地手跑上述命令。
+- 没有 CI、没有 `.cursor` 规则；仓库有 `opencode.json`，但当前提交门禁仍靠本地手跑上述 PowerShell / pnpm 命令。
 
 ## 改代码前必看的硬约束（测试会卡）
 
@@ -70,11 +82,11 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
 - 前端 4 个测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
 - 后端 mypy `strict=true` 仅作用于 `app/`（tests 排除）；`B008` 全局忽略，因为 FastAPI 用 `Body()`/`Form()`/`File()`/`Query()` 当默认值。
-- eval 数据集是 50 题（`backend/data/evals/rag_ad_eval_questions.json`），CLAUDE.md 里写的 "20-question" 已过时。
+- eval 数据集是 50 题（`backend/data/evals/rag_ad_eval_questions.json`），不要按历史文档里的 20 题口径规划。
 
 ## 已冻结的技术决策
 
-项目当前采用小步可验证的 MVP-A 边界：前端是 Next.js / React / Ant Design，后端是 FastAPI / Pydantic；本阶段使用本地 JSON seed、runtime state 与 deterministic retrieval，不提前接入 PostgreSQL、pgvector、Neo4j、Celery、Redis、MinIO、真实 LLM 或 embedding。上述重依赖保留为后续阶段的架构方向，而不是当前实现要求。
+项目当前采用小步可验证的内部预览边界：前端是 Next.js / React / Ant Design，后端是 FastAPI / Pydantic；默认使用本地 JSON seed、runtime state、可选 SQLite runtime backend 与 deterministic retrieval，不提前接入 PostgreSQL、pgvector、Neo4j、Celery、Redis、MinIO、真实 LLM 或真实 embedding。上述重依赖保留为后续阶段的架构方向或显式 spike，而不是当前默认实现要求。
 
 ## 产品边界
 
@@ -92,4 +104,4 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 - TDD：行为代码先写测试，确认失败，再实现
 - 不提前接入真实 AI API、Embedding 模型、Neo4j、支付等重依赖
 - Secret 不进仓库，只写 `.env.example`
-- 长期科研模块按阶段推进：当前只做证据工作台 MVP-A；网络药理学为 MVP-B；分子对接/分子动力学模拟为 MVP-C；当前只做 herb、formula、compound、target、pathway、disease、protein、ligand、simulation_task 等概念预留，不接真实重计算
+- 长期科研模块按阶段推进：MVP-A 证据工作台已收尾；MVP-B 网络药理学当前是 mock / sample 数据链路，不接真实重计算；MVP-C 分子对接/分子动力学模拟目前只做 protein、ligand、simulation_task 等 schema 概念预留

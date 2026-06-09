@@ -2,26 +2,41 @@ import RagEvalReportClient from "../../../components/RagEvalReportClient";
 
 export default function RagAdEvalPage() {
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: 48 }}>
-      <section style={{ maxWidth: 1120, margin: "0 auto" }}>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
-          <a href="/" style={{ color: "#0d9488", fontWeight: 700, textDecoration: "none" }}>
-            返回首页
-          </a>
-          <a href="/rag" style={{ color: "#0d9488", fontWeight: 700, textDecoration: "none" }}>
-            查看 RAG 问答
-          </a>
-          <a href="/literature" style={{ color: "#0d9488", fontWeight: 700, textDecoration: "none" }}>
-            查看文献检索
-          </a>
+    <>
+        <article className="workbench-hero">
+          <div className="workbench-hero-main">
+            <p className="workbench-kicker">Evidence workbench</p>
+            <h1 className="workbench-title">RAG 评估</h1>
+            <p className="workbench-summary">
+              运行 50 个特应性皮炎评估问题，检查 deterministic RAG 的引用命中、chunk 命中、免责声明覆盖和禁用语风险。
+            </p>
+          </div>
+          <aside className="workbench-hero-aside" aria-label="RAG 评估边界">
+            <div className="workbench-stat">
+              <span>Dataset</span>
+              <strong>50 AD questions</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Checks</span>
+              <strong>citations / chunks</strong>
+            </div>
+            <div className="workbench-stat">
+              <span>Gate</span>
+              <strong>disclaimer / forbidden terms</strong>
+            </div>
+          </aside>
+        </article>
+
+        <div className="workbench-content-band">
+          <RagEvalReportClient />
         </div>
-        <h1 style={{ color: "#1e293b", fontSize: 36 }}>RAG 评估</h1>
-        <p style={{ color: "#475569", fontSize: 18, lineHeight: 1.7 }}>
-          运行 50 个特应性皮炎评估问题，检查 deterministic RAG 的引用命中、chunk 命中、免责声明覆盖和禁用语风险。
-        </p>
-        <RagEvalReportClient />
-        <p style={{ color: "#64748b", marginTop: 32 }}>非诊断结论、需结合临床。</p>
-      </section>
-    </main>
+
+        <section aria-label="使用提醒" className="workbench-reminder">
+          <p className="workbench-reminder-title">使用提醒</p>
+          <p className="workbench-reminder-copy">
+            非诊断结论、需结合临床。本评估仅用于产品回归与证据链路质量检查，不代表真实临床有效性结论。
+          </p>
+        </section>
+    </>
   );
 }

@@ -127,6 +127,7 @@ const _EXPORT_SAMPLE: RagAnswerResponse = {
 };
 
 test("fetchRagAnswerMarkdown posts answer payload and returns markdown text", async () => {
+  process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN = "dev-token";
   const originalFetch = globalThis.fetch;
   const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
   globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
@@ -146,12 +147,16 @@ test("fetchRagAnswerMarkdown posts answer payload and returns markdown text", as
     assert.equal(captured.length, 1);
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/rag/answer/export");
     assert.equal(captured[0].init?.method, "POST");
+    const headers = captured[0].init?.headers as Record<string, string>;
+    assert.equal(headers["Content-Type"], "application/json");
+    assert.equal(headers["X-Access-Token"], "dev-token");
     const body = JSON.parse(String(captured[0].init?.body ?? "{}"));
     assert.equal(body.question, "特应性皮炎和肠-脑-皮肤轴有什么关系？");
     assert.equal(body.provider_name, "deterministic");
     assert.ok(markdown.startsWith("# Qiyan Nexus"));
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN;
   }
 });
 
