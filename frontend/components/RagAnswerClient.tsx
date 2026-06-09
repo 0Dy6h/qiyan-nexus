@@ -409,8 +409,11 @@ export default function RagAnswerClient() {
             </div>
             {state.result.citations.length > 0 ? (
               <div style={{ display: "grid", gap: 16 }}>
-                {state.result.citations.map((citation) => (
-                  <CitationListItem key={citation.literature_id} citation={citation} />
+                {state.result.citations.map((citation, index) => (
+                  <CitationListItem
+                    key={`${citation.literature_id}:${citation.chunk_id ?? "doc"}:${index}`}
+                    citation={citation}
+                  />
                 ))}
               </div>
             ) : (
