@@ -20,7 +20,7 @@
    - Pytest（所有测试）
 
 2. **frontend** - 前端门禁
-   - Node.js 20 + pnpm 8
+   - Node.js 20 + pnpm 10
    - 单元测试（node:test）
    - TypeScript type check
    - Next.js build
