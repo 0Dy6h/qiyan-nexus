@@ -81,9 +81,7 @@ def answer_question(
     if source != "all":
         items = [item for item in items if item.source_type == source]
 
-    chunks_by_item = {
-        item.id: _CHUNK_REPOSITORY.list_chunks_by_literature_id(item.id) for item in items
-    }
+    chunks_by_item = _CHUNK_REPOSITORY.group_chunks_by_literature([item.id for item in items])
 
     retrieval_provider = select_retrieval_provider(retrieval_provider_name)
     ranked: list[ScoredCandidate] = retrieval_provider.rank(

@@ -16,9 +16,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.schemas.rag import CitationCard, GroundedClaim
-from app.services.llm.prompting import GROUNDING_SYSTEM_PROMPT, build_citation_text
+from app.services.llm.prompting import (
+    EMPTY_CITATIONS_FALLBACK,
+    GROUNDING_SYSTEM_PROMPT,
+    GROUNDING_TOOL_NAME,
+    build_citation_text,
+)
 from app.services.llm.provider import AnswerDraft
 
 if TYPE_CHECKING:
@@ -30,10 +35,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-_EMPTY_CITATIONS_FALLBACK = (
-    "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
-)
-GROUNDING_TOOL_NAME = "record_grounded_claims"
 GROUNDING_TOOL_SCHEMA = {
     "name": GROUNDING_TOOL_NAME,
     "description": "Record short grounded evidence claims using only the provided evidence IDs.",
@@ -146,6 +147,13 @@ class AnthropicProvider:
         else:
             self._fallback = fallback
 
+    def _ensure_client(self, settings: Settings) -> Anthropic:
+        if self._client is None:
+            from anthropic import Anthropic as _Anthropic
+
+            self._client = _Anthropic(api_key=settings.anthropic_api_key)
+        return self._client
+
     def _log_and_fallback(
         self, question: str, citations: list[CitationCard], error_type: str, message: str
     ) -> AnswerDraft:
@@ -162,7 +170,7 @@ class AnthropicProvider:
 
         if not citations:
             return AnswerDraft(
-                text=_EMPTY_CITATIONS_FALLBACK,
+                text=EMPTY_CITATIONS_FALLBACK,
                 provider_name=self.name,
             )
 
@@ -174,13 +182,8 @@ class AnthropicProvider:
                 "missing API key",
             )
 
-        if self._client is None:
-            from anthropic import Anthropic as _Anthropic
-
-            self._client = _Anthropic(api_key=settings.anthropic_api_key)
-
         try:
-            response = self._client.messages.create(
+            response = self._ensure_client(settings).messages.create(
                 model=settings.anthropic_model,
                 max_tokens=settings.anthropic_max_tokens,
                 system=GROUNDING_SYSTEM_PROMPT,

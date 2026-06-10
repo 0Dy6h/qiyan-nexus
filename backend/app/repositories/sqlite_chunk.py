@@ -126,6 +126,25 @@ class SqliteChunkRepository:
         ).fetchall()
         return [_row_to_chunk(row) for row in rows]
 
+    def group_chunks_by_literature(
+        self, literature_ids: list[str]
+    ) -> dict[str, list[LiteratureChunk]]:
+        """Group chunks by literature_id in a single query."""
+        from collections import defaultdict
+
+        if not literature_ids:
+            return {}
+        placeholders = ",".join("?" for _ in literature_ids)
+        rows = self._conn.execute(
+            f"SELECT * FROM chunk WHERE literature_id IN ({placeholders})",
+            literature_ids,
+        ).fetchall()
+        result: dict[str, list[LiteratureChunk]] = defaultdict(list)
+        for row in rows:
+            chunk = _row_to_chunk(row)
+            result[chunk.literature_id].append(chunk)
+        return dict(result)
+
     def get_chunk_by_id(self, chunk_id: str) -> LiteratureChunk | None:
         row = self._conn.execute(
             "SELECT * FROM chunk WHERE chunk_id = ?",

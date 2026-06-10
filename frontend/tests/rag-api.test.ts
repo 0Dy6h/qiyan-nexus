@@ -160,17 +160,33 @@ test("fetchRagAnswerMarkdown throws when the response is not ok", async () => {
   globalThis.fetch = (async () => {
     return {
       ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      headers: new Headers(),
+      redirected: false,
+      type: "basic",
+      url: "",
+      body: null,
+      bodyUsed: false,
+      clone: () => ({} as Response),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      bytes: async () => new Uint8Array(),
       async text() {
         return "boom";
       },
-    } as Response;
+      async json() {
+        throw new Error("not json");
+      },
+    } as unknown as Response;
   }) as typeof globalThis.fetch;
 
   try {
     const { fetchRagAnswerMarkdown } = await import(`../lib/api/rag?ts=${Date.now()}`);
     await assert.rejects(
       fetchRagAnswerMarkdown(_EXPORT_SAMPLE),
-      /RAG answer export request failed/,
+      /Request failed with status 500/,
     );
   } finally {
     globalThis.fetch = originalFetch;

@@ -82,41 +82,22 @@ function formatNliScore(grounding: GroundingMetadata) {
     : `${Math.round(grounding.min_entailment_score * 100)}%`;
 }
 
+const BLOCKED_REASON_LABELS: Record<string, string> = {
+  unsupported_evidence_ref: "存在未提供的证据 ID",
+  structured_claims_parse_error: "模型草稿没有按结构化 claims JSON 输出",
+  empty_structured_claims: "结构化 claims 为空",
+  missing_tool_use: "模型未调用受控引用工具",
+  tool_name_mismatch: "模型调用了非预期工具",
+  tool_input_schema_error: "引用工具参数不符合结构化 schema",
+  empty_tool_claims: "引用工具 claims 为空",
+  claim_without_evidence_ref: "存在未声明证据 ID 的结构化 claim",
+  blank_claim_text: "存在内容为空的结构化 claim",
+  semantic_low_support: "存在与引用证据语义支持度过低的 claim",
+  nli_low_entailment: "存在未被引用证据蕴含的结构化 claim",
+};
+
 function formatGroundingBlockedReason(reason: string | null | undefined) {
-  if (reason === "unsupported_evidence_ref") {
-    return "存在未提供的证据 ID";
-  }
-  if (reason === "structured_claims_parse_error") {
-    return "模型草稿没有按结构化 claims JSON 输出";
-  }
-  if (reason === "empty_structured_claims") {
-    return "结构化 claims 为空";
-  }
-  if (reason === "missing_tool_use") {
-    return "模型未调用受控引用工具";
-  }
-  if (reason === "tool_name_mismatch") {
-    return "模型调用了非预期工具";
-  }
-  if (reason === "tool_input_schema_error") {
-    return "引用工具参数不符合结构化 schema";
-  }
-  if (reason === "empty_tool_claims") {
-    return "引用工具 claims 为空";
-  }
-  if (reason === "claim_without_evidence_ref") {
-    return "存在未声明证据 ID 的结构化 claim";
-  }
-  if (reason === "blank_claim_text") {
-    return "存在内容为空的结构化 claim";
-  }
-  if (reason === "semantic_low_support") {
-    return "存在与引用证据语义支持度过低的 claim";
-  }
-  if (reason === "nli_low_entailment") {
-    return "存在未被引用证据蕴含的结构化 claim";
-  }
-  return "无";
+  return reason ? BLOCKED_REASON_LABELS[reason] ?? "无" : "无";
 }
 
 function CitationListItem({ citation }: { citation: CitationCard }) {

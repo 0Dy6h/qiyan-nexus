@@ -1,3 +1,4 @@
+import { fetchJson } from "./http";
 import { getBackendBaseUrl, type RagSource } from "./rag";
 
 export type RagEvalSummary = {
@@ -47,11 +48,5 @@ export function getEvalItemStatusLabel(passed: boolean) {
 }
 
 export async function getRagAdEvalReport(): Promise<RagEvalReport> {
-  const response = await fetch(buildRagAdEvalReportUrl());
-
-  if (!response.ok) {
-    throw new Error("RAG AD eval report request failed");
-  }
-
-  return response.json();
+  return fetchJson<RagEvalReport>(buildRagAdEvalReportUrl());
 }

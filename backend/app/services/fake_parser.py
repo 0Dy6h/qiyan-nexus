@@ -1,3 +1,5 @@
+"""MVP-A deterministic stub. Delete when real parser lands — see app.services.literature.extract_pdf_preview_text."""
+
 from app.repositories.runtime_storage import get_chunk_repository
 from app.schemas.literature import LiteratureItem
 from app.services.literature import update_pdf_parse_status

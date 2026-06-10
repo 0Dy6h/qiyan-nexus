@@ -8,15 +8,26 @@ from app.schemas.literature import LiteratureItem, PdfParseResult
 class InMemoryLiteratureRepository:
     def __init__(self, data_path: Path):
         self.data_path = data_path
+        self._items: list[dict[str, Any]] = self._load()
+
+    def _load(self) -> list[dict[str, Any]]:
+        """Load items from JSON file into memory."""
+        items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
+        return items
+
+    def _save(self) -> None:
+        """Persist in-memory items to JSON file."""
+        self.data_path.write_text(
+            json.dumps(self._items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
 
     def list_items(self) -> list[LiteratureItem]:
-        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        return [LiteratureItem(**item) for item in raw_items]
+        return [LiteratureItem(**item) for item in self._items]
 
     def get_item_by_id(self, item_id: str) -> LiteratureItem | None:
-        for item in self.list_items():
-            if item.id == item_id:
-                return item
+        for item in self._items:
+            if item["id"] == item_id:
+                return LiteratureItem(**item)
         return None
 
     def update_pdf_metadata(
@@ -26,8 +37,7 @@ class InMemoryLiteratureRepository:
         pdf_file_name: str,
         pdf_parse_status: str,
     ) -> LiteratureItem | None:
-        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        for item in raw_items:
+        for item in self._items:
             if item["id"] == literature_id:
                 item["pdf_upload_id"] = pdf_upload_id
                 item["pdf_file_name"] = pdf_file_name
@@ -38,9 +48,7 @@ class InMemoryLiteratureRepository:
                 item["pdf_parse_result"] = None
                 item["last_parse_trigger"] = None
                 item["parse_attempt_count"] = 0
-                self.data_path.write_text(
-                    json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-                )
+                self._save()
                 return LiteratureItem(**item)
         return None
 
@@ -54,8 +62,7 @@ class InMemoryLiteratureRepository:
         pdf_parse_result: PdfParseResult | None = None,
         last_parse_trigger: str | None = None,
     ) -> LiteratureItem | None:
-        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        for item in raw_items:
+        for item in self._items:
             if item["id"] == literature_id:
                 if not item.get("pdf_upload_id") or not item.get("pdf_file_name"):
                     return None
@@ -68,9 +75,7 @@ class InMemoryLiteratureRepository:
                 )
                 item["last_parse_trigger"] = last_parse_trigger
                 item["parse_attempt_count"] = int(item.get("parse_attempt_count") or 0) + 1
-                self.data_path.write_text(
-                    json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-                )
+                self._save()
                 return LiteratureItem(**item)
         return None
 
@@ -82,8 +87,7 @@ class InMemoryLiteratureRepository:
         PDF upload + parse fields are preserved on existing rows so user uploads
         are not clobbered by a sync.
         """
-        raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        index_by_id: dict[str, int] = {item["id"]: idx for idx, item in enumerate(raw_items)}
+        index_by_id: dict[str, int] = {item["id"]: idx for idx, item in enumerate(self._items)}
         pubmed_fields = {
             "title",
             "abstract",
@@ -104,16 +108,18 @@ class InMemoryLiteratureRepository:
         for incoming in incoming_items:
             item_id = incoming["id"]
             if item_id in index_by_id:
-                existing = raw_items[index_by_id[item_id]]
+                existing = self._items[index_by_id[item_id]]
                 for field_name, value in incoming.items():
                     if field_name in pubmed_fields:
                         existing[field_name] = value
                 updated += 1
             else:
-                raw_items.append(incoming)
-                index_by_id[item_id] = len(raw_items) - 1
+                self._items.append(incoming)
+                index_by_id[item_id] = len(self._items) - 1
                 created += 1
-        self.data_path.write_text(
-            json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        self._save()
         return created, updated
+
+    def close(self) -> None:
+        """No-op for protocol alignment with SQLite repository."""
+        pass

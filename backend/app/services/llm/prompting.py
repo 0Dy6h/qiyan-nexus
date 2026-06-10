@@ -1,5 +1,11 @@
 from app.schemas.rag import CitationCard
 
+EMPTY_CITATIONS_FALLBACK = (
+    "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
+)
+
+GROUNDING_TOOL_NAME = "record_grounded_claims"
+
 GROUNDING_SYSTEM_PROMPT = (
     "你是特应性皮炎（AD）证据综述助理。"
     "输出必须严格基于提供的引用片段；不得编造引用之外的事实。"

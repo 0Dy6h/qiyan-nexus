@@ -1,5 +1,6 @@
-export type RagSource = "all" | "cn_literature" | "pubmed";
+import { fetchText, postJson } from "./http";
 
+export type RagSource = "all" | "cn_literature" | "pubmed";
 export type CitationCard = {
   literature_id: string;
   chunk_id?: string | null;
@@ -102,33 +103,16 @@ export async function answerRagQuestion(
   source: RagSource = "all",
   topK = 2,
 ): Promise<RagAnswerResponse> {
-  const response = await fetch(buildRagAnswerUrl(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildRagAnswerRequest(question, source, topK)),
-  });
-
-  if (!response.ok) {
-    throw new Error("RAG answer request failed");
-  }
-
-  return response.json();
+  return postJson<RagAnswerResponse>(
+    buildRagAnswerUrl(),
+    buildRagAnswerRequest(question, source, topK),
+  );
 }
 
 export async function fetchRagAnswerMarkdown(answer: RagAnswerResponse): Promise<string> {
-  const response = await fetch(buildRagAnswerExportUrl(), {
+  return fetchText(buildRagAnswerExportUrl(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(answer),
   });
-
-  if (!response.ok) {
-    throw new Error("RAG answer export request failed");
-  }
-
-  return response.text();
 }

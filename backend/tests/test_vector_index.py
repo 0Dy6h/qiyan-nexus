@@ -32,6 +32,17 @@ class SubstringEmbeddingBackend:
         return vectors
 
 
+class RoleRecordingEmbeddingBackend(SubstringEmbeddingBackend):
+    name = "role-recording-test"
+
+    def __init__(self) -> None:
+        self.roles: list[str] = []
+
+    def encode(self, texts: list[str], *, role: str = "document") -> npt.NDArray[np.float32]:
+        self.roles.append(role)
+        return super().encode(texts)
+
+
 def _make_chunk(chunk_id: str, text: str) -> LiteratureChunk:
     return LiteratureChunk(
         chunk_id=chunk_id,
@@ -74,6 +85,20 @@ def test_search_returns_chunks_ranked_by_semantic_similarity():
     ] == ["c3", "c1"]
     assert hits[2][0] == "c2"
     assert hits[2][1] < hits[0][1]
+
+
+def test_index_uses_document_role_for_chunks_and_query_role_for_search():
+    backend = RoleRecordingEmbeddingBackend()
+    index = ChunkVectorIndex(backend, cache_path=None)
+    chunks = [
+        _make_chunk("c1", "alpha and beta together"),
+        _make_chunk("c2", "gamma alone in a corner"),
+    ]
+
+    index.build(chunks)
+    index.search("alpha", top_k=2)
+
+    assert backend.roles == ["document", "query"]
 
 
 def test_load_or_build_uses_cache_when_fingerprint_matches(tmp_path):

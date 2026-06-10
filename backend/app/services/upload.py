@@ -1,4 +1,4 @@
-from fastapi import UploadFile
+from typing import BinaryIO, Protocol
 
 from app.core.config import get_settings
 from app.schemas.upload import StoredUpload
@@ -6,7 +6,15 @@ from app.services.literature import attach_pdf_metadata, build_pdf_upload_id, ge
 from app.services.pdf_storage import build_storage_path
 
 
-def store_pdf_upload(file: UploadFile, literature_id: str) -> StoredUpload:
+class UploadLike(Protocol):
+    """Minimal upload protocol for service layer, decoupled from FastAPI."""
+
+    filename: str | None
+    content_type: str | None
+    file: BinaryIO
+
+
+def store_pdf_upload(file: UploadLike, literature_id: str) -> StoredUpload:
     if file.content_type != "application/pdf":
         raise ValueError("Only PDF uploads are supported")
     if get_literature_item(literature_id) is None:
@@ -29,7 +37,7 @@ def store_pdf_upload(file: UploadFile, literature_id: str) -> StoredUpload:
         literature_id=literature_id,
         pdf_upload_id=pdf_upload_id,
         file_name=file_name,
-        content_type=file.content_type,
+        content_type=file.content_type or "application/pdf",
         file_size=len(contents),
         storage_path=str(storage_path),
         pdf_parse_status=item.pdf_parse_status or "pending",

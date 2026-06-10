@@ -156,7 +156,7 @@ Grounding：
 - 若 OpenCode Go 网关或模型拒绝 tool/function calling，provider 会重试不带 tools 的 structured claims JSON 路径，后续仍由 structured claim grounding v3 校验：`{"claims":[{"text":"...","evidence_refs":["chunk-..."]}]}`。
 - `anthropic` 成功路径保留 provider-native strict tool use，但当前后置为可选 smoke，不作为优先路径。
 - 若 provider 未调用预期工具、工具参数不合法、claims 为空，或任一外部 provider 引用了本次 citations 未提供的证据 ID，`answer` 会被替换为拦截提示，`grounding.status="blocked"`，但 citations、provider name、token usage、`claim_count`、`cited_claim_count`、`structured_claims`、native grounding 与 tool metadata 会保留，便于排查。
-- 语义级 grounding（hallucination reject）：结构与证据 ID 校验通过后，外部 provider 的每条 claim 还会与其引用 chunk 文本（`quote`，缺失时回退 `snippet`）计算 cosine 相似度；任一 claim 低于阈值则 `grounding.status="blocked"`、`blocked_reason="semantic_low_support"`，`grounding.structured_claims[].semantic_score`、`min_semantic_score`、`semantic_threshold` 一并返回。阈值由 `QIYAN_GROUNDING_SEMANTIC_THRESHOLD` 控制（默认 `0.40`，`<=0` 关闭）。**默认 `hashing` embedding backend 下该分数是逐字符的词汇重叠代理（lexical proxy），不是真正的语义判定；`QIYAN_EMBEDDING_BACKEND="bge"` 可原地升级为真实语义。** 标注语料 `backend/data/evals/grounding_semantic_pairs.json` 上，默认阈值对忠实 claim 零误拦、配对分离 10/10；可通过 `run_grounding_semantic_separation` 复核混淆矩阵。
+- 语义级 grounding（hallucination reject）：结构与证据 ID 校验通过后，外部 provider 的每条 claim 还会与其引用 chunk 文本（`quote`，缺失时回退 `snippet`）计算 cosine 相似度；任一 claim 低于阈值则 `grounding.status="blocked"`、`blocked_reason="semantic_low_support"`，`grounding.structured_claims[].semantic_score`、`min_semantic_score`、`semantic_threshold` 一并返回。阈值由 `QIYAN_GROUNDING_SEMANTIC_THRESHOLD` 控制（默认 `0.40`，`<=0` 关闭）。**默认 `hashing` embedding backend 下该分数是逐字符的词汇重叠代理（lexical proxy），不是真正的语义判定；`QIYAN_EMBEDDING_BACKEND="bge"` 可原地升级为真实语义。** 2026-06-10 后还可显式 opt-in 到 `bge-m3` 或 `multilingual-e5-large` 做多语 embedding spike；真实 sentence-transformers 后端均懒加载，不改变默认离线路径。标注语料 `backend/data/evals/grounding_semantic_pairs.json` 上，默认阈值对忠实 claim 零误拦、配对分离 10/10；可通过 `run_grounding_semantic_separation` 复核混淆矩阵。
 - `deterministic` 与外部 provider fallback 到 deterministic 的路径不做后验拦截，`grounding.status="skipped"`（语义 gate 同样只作用于 `anthropic` / `opencode_go`）。
 - 当前 grounding 约束引用声明、工具调用、越界证据 ID 与上述语义支持度阈值；语义层为 lexical proxy（除非启用 `bge`），仍不等同于完整事实核验，也不代表真实 LLM 默认开放（隐私措辞、延迟/成本 SLI 为独立后续 slice）。
 
@@ -179,6 +179,7 @@ Grounding：
 - `QIYAN_RETRIEVAL_PROVIDER=keyword` 或未设置：默认 keyword + alias ranker。
 - `QIYAN_RETRIEVAL_PROVIDER=vector`：使用本地 chunk vector index；默认 hashing embedding backend 可离线运行。
 - `QIYAN_RETRIEVAL_PROVIDER=hybrid`：用 Reciprocal Rank Fusion 融合 keyword + vector。
+- `QIYAN_EMBEDDING_BACKEND`：默认 `hashing`；可显式设为 `bge`、`bge-m3`、`multilingual-e5-large`（别名 `multilingual-e5` / `e5-large`）驱动 vector/hybrid 或 semantic grounding。`multilingual-e5-large` 会按 document/query role 分别加 `passage: ` / `query: ` 前缀。
 - 当前默认不启用真实 embedding 模型；`vector` / `hybrid` 仅用于 opt-in ablation 与 smoke。
 
 PowerShell 本地 smoke 示例：

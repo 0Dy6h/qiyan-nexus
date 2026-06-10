@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -170,21 +169,30 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
     return score
 
 
+_canonical_cache: tuple[dict[str, Any], set[str]] | None = None
+
+
 def _canonical_token_set() -> set[str]:
     """Tokens eligible for the ``alias_tag_bonus`` substring-against-tag bonus.
 
     Union of the in-code ``_KEYWORD_ALIASES`` keys and every ``canonical`` declared
-    in ``cross_lingual_terms.json``. Recomputed each call — the set is ~25 items so
-    cost is negligible, and skipping memoisation keeps the existing monkeypatch
-    pattern (``setattr(provider_module, "_cross_lingual_cache", None)``) sufficient
-    for cache invalidation in tests.
+    in ``cross_lingual_terms.json``. Memoised against the identity of the loaded
+    alias map: ``rank`` calls this per ``(item, chunk)`` tag list, so recomputing
+    the ~25-entry union every call is pure waste, while keying on the map object
+    keeps the existing test pattern (``setattr(provider_module,
+    "_cross_lingual_cache", None)``) sufficient for invalidation — a reset cache
+    reloads a fresh dict, which fails the ``is`` check and recomputes.
     """
-    canonicals: set[str] = set(_KEYWORD_ALIASES.keys())
+    global _canonical_cache
     cross_map = _load_cross_lingual_aliases()
+    if _canonical_cache is not None and _canonical_cache[0] is cross_map:
+        return _canonical_cache[1]
+    canonicals: set[str] = set(_KEYWORD_ALIASES.keys())
     for entry in cross_map.get("alias_map", []):
         canonical = entry.get("canonical", "")
         if canonical:
             canonicals.add(canonical)
+    _canonical_cache = (cross_map, canonicals)
     return canonicals
 
 
@@ -294,24 +302,14 @@ def _resolve_provider_class(candidate: str) -> type[RetrievalProvider] | None:
 
 
 def select_retrieval_provider(name: str | None = None) -> RetrievalProvider:
-    """Return the configured retrieval provider, falling back to keyword on misconfig.
+    """Return the configured retrieval provider, falling back to keyword on misconfig."""
+    from app.services._provider_select import select_from_registry
 
-    Precedence: explicit ``name`` argument → ``QIYAN_RETRIEVAL_PROVIDER`` env →
-    ``KeywordRetrievalProvider``. Unknown names log a warning and fall back
-    rather than raise, mirroring ``select_provider`` in ``llm.provider``.
-    """
-
-    raw = name if name is not None else os.getenv(RETRIEVAL_PROVIDER_ENV_VAR, "")
-    candidate = raw.strip().lower()
-    if not candidate:
-        return KeywordRetrievalProvider()
-    provider_cls = _resolve_provider_class(candidate)
-    if provider_cls is None:
-        _LOGGER.warning(
-            "Unknown %s=%r; falling back to %s",
-            RETRIEVAL_PROVIDER_ENV_VAR,
-            raw,
-            DEFAULT_RETRIEVAL_PROVIDER_NAME,
-        )
-        return KeywordRetrievalProvider()
-    return provider_cls()
+    return select_from_registry(
+        RETRIEVAL_PROVIDER_ENV_VAR,
+        _PROVIDERS,
+        KeywordRetrievalProvider,
+        normalizer=str.lower,
+        lazy_resolver=_resolve_provider_class,
+        explicit_name=name,
+    )

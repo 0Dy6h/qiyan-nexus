@@ -72,13 +72,14 @@ test("syncLiteratureFromPubmed throws on non-OK response", async () => {
   globalThis.fetch = (async () =>
     ({
       ok: false,
+      status: 400,
       async json() {
         return {};
       },
     }) as Response) as typeof globalThis.fetch;
   try {
     const { syncLiteratureFromPubmed } = await import(`../lib/api/literature?ts=${Date.now()}`);
-    await assert.rejects(() => syncLiteratureFromPubmed("ad", 10), /Literature sync failed/);
+    await assert.rejects(() => syncLiteratureFromPubmed("ad", 10), /Request failed with status 400/);
   } finally {
     globalThis.fetch = originalFetch;
   }

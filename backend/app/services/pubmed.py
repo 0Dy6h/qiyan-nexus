@@ -15,6 +15,16 @@ from typing import Protocol
 import httpx
 
 NCBI_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+
+
+class PubmedServiceError(Exception):
+    """Raised when PubMed API calls fail."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 DEFAULT_TIMEOUT_SECONDS = 10.0
 DEFAULT_USER_AGENT = "qiyan-nexus/0.1 (research; contact: dev@local)"
 MAX_RESULTS_HARD_CAP = 50
@@ -188,24 +198,36 @@ class PubmedClient:
     def esearch(self, query: str, *, max_results: int) -> list[str]:
         capped = max(1, min(max_results, MAX_RESULTS_HARD_CAP))
         params = self._params(term=query, retmax=str(capped), retmode="xml")
-        with httpx.Client(
-            timeout=self._timeout, headers={"User-Agent": self._user_agent}
-        ) as client:
-            response = client.get(f"{self._base_url}/esearch.fcgi", params=params)
-            response.raise_for_status()
-            return parse_esearch_xml(response.text)
+        try:
+            with httpx.Client(
+                timeout=self._timeout, headers={"User-Agent": self._user_agent}
+            ) as client:
+                response = client.get(f"{self._base_url}/esearch.fcgi", params=params)
+                response.raise_for_status()
+                return parse_esearch_xml(response.text)
+        except httpx.HTTPError as exc:
+            status = (
+                getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
+            )
+            raise PubmedServiceError("NCBI API unavailable", status_code=status) from exc
 
     def efetch(self, pmids: list[str]) -> list[PubmedRecord]:
         cleaned = [pmid for pmid in pmids if pmid]
         if not cleaned:
             return []
         params = self._params(id=",".join(cleaned), rettype="abstract", retmode="xml")
-        with httpx.Client(
-            timeout=self._timeout, headers={"User-Agent": self._user_agent}
-        ) as client:
-            response = client.get(f"{self._base_url}/efetch.fcgi", params=params)
-            response.raise_for_status()
-            return parse_efetch_xml(response.text)
+        try:
+            with httpx.Client(
+                timeout=self._timeout, headers={"User-Agent": self._user_agent}
+            ) as client:
+                response = client.get(f"{self._base_url}/efetch.fcgi", params=params)
+                response.raise_for_status()
+                return parse_efetch_xml(response.text)
+        except httpx.HTTPError as exc:
+            status = (
+                getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
+            )
+            raise PubmedServiceError("NCBI API unavailable", status_code=status) from exc
 
 
 def fetch_pubmed_records(

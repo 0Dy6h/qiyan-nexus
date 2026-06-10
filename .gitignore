@@ -60,3 +60,11 @@ yarn-error.log*
 opencode.json
 opencode.jsonc
 .opencode/
+
+# Claude Code local artifacts (per-machine, never commit)
+.codex/
+.tmp/
+
+# 论文产出与项目实体临时目录（本地草稿，不纳入版本控制）
+论文产出/
+项目实体/

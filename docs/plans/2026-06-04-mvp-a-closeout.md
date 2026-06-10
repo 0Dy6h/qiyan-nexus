@@ -42,7 +42,7 @@
 | B3 网络药理学任务壳（前后端） | **已落地** | `/api/network/analyze` + `/api/network/result/{task_id}` + `/network` 页面全栈 |
 | B4 herb/compound/target/pathway sample 数据集 | **已落地** | `backend/data/network/sample_*.json` + `app/schemas/network_entities.py` |
 | B5 RAG citation ↔ network entity 双向跳转 | **已落地** | citation 含 `related_entity_ids` + `/network` 节点指回 |
-| B6 数据来源切换面板（合规） | 待补 | 当前 `/literature` 已隐式支持 source 切换，但合规 banner 文案随选择切换的部分未单独 slice |
+| B6 数据来源切换面板（合规） | **已落地（2026-06-10 复核）** | `fcf9ac4` 已新增 `/literature` 4 选项数据来源视图（全部来源 / PubMed 实时 / CNKI sample / 上传 PDF）、`LiteratureDataSourceBanner` 随 view 切换文案与 tone；前端 `frontend/tests/literature-data-source-switcher.test.ts` 锁定，后端 `has_pdf_upload` 过滤由 `backend/app/api/literature.py` + `backend/app/services/literature.py` + `backend/tests/test_literature_search.py` 覆盖 |
 
 **结论**：阶段 B 原 slice 大部分已在 cross-lingual / network 推进期间附带落地。
 
@@ -52,7 +52,7 @@
    - ① model 选型纯文档 sub-slice（bge-m3 vs e5-multilingual vs labse 静态对比）
    - ② 接 retrieval provider 最小可跑（代码 sub-slice）
    - ③ eval 复跑 sub-slice，目标突破 `avg_cross_lingual_recall=0.97` 天花板
-2. **B6 数据来源切换面板**（补回 B 阶段最后一颗 slice，1 工作日内）
+2. ~~**B6 数据来源切换面板**~~ → **2026-06-10 复核已落地**，不再作为待办
 3. **PostgreSQL/pgvector spike**（handoff-2026-06-03 候选）
 4. **L2 governance**（战略议题，先讨论再动手；见 ADR-0012）
 

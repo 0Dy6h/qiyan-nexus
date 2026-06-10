@@ -1,4 +1,5 @@
 import { getBackendBaseUrl } from "./rag";
+import { fetchJson } from "./http";
 
 export type EntityKind = "herb" | "formula" | "compound" | "target" | "pathway";
 
@@ -57,11 +58,7 @@ export async function fetchNetworkEntities(): Promise<NetworkEntitiesLookup> {
     return cachedLookupPromise;
   }
   cachedLookupPromise = (async () => {
-    const response = await fetch(buildNetworkEntitiesUrl());
-    if (!response.ok) {
-      throw new Error("Network entities request failed");
-    }
-    const raw = (await response.json()) as RawEntitiesPayload;
+    const raw = await fetchJson<RawEntitiesPayload>(buildNetworkEntitiesUrl());
     return buildLookup(raw);
   })();
   return cachedLookupPromise;

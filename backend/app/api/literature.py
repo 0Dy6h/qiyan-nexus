@@ -17,6 +17,7 @@ from app.services.literature import (
     sync_pubmed,
     update_pdf_parse_status,
 )
+from app.services.pubmed import PubmedServiceError
 
 router = APIRouter(prefix="/api/literature", tags=["literature"])
 
@@ -63,7 +64,10 @@ def update_pdf_parse_status_endpoint(
 
 @router.post("/sync", response_model=LiteratureSyncResponse)
 def sync_literature_endpoint(request: LiteratureSyncRequest = Body()) -> LiteratureSyncResponse:
-    return sync_pubmed(request.q, request.max_results)
+    try:
+        return sync_pubmed(request.q, request.max_results)
+    except PubmedServiceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/{item_id}", response_model=LiteratureItem)

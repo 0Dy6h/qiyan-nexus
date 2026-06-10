@@ -11,6 +11,7 @@ Token comparison is case-sensitive and whitespace-stripped at parse time.
 
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from collections.abc import Awaitable, Callable
@@ -58,7 +59,9 @@ class AccessTokenMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         token = request.headers.get(ACCESS_TOKEN_HEADER)
-        if token is None or token not in self._allowed_tokens:
+        if token is None or not any(
+            hmac.compare_digest(token, allowed) for allowed in self._allowed_tokens
+        ):
             return JSONResponse(
                 status_code=401,
                 content={"detail": "missing or invalid X-Access-Token"},

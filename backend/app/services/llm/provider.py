@@ -16,12 +16,12 @@ still being fully offline. The active provider is chosen by the
 from __future__ import annotations
 
 import logging
-import os
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
 from app.schemas.rag import CitationCard, GroundedClaim, GroundingPolicy
+from app.services._provider_select import select_from_registry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -159,6 +159,8 @@ _PROVIDERS: dict[str, type[LLMProvider]] = {
 ANTHROPIC_PROVIDER_NAME = "anthropic"
 OPENCODE_GO_PROVIDER_NAME = "opencode_go"
 
+_PROVIDER_INSTANCES: dict[str, LLMProvider] = {}
+
 
 def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
     if candidate == ANTHROPIC_PROVIDER_NAME:
@@ -175,22 +177,24 @@ def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
 def select_provider(name: str | None = None) -> LLMProvider:
     """Return the configured provider, falling back to deterministic on misconfig.
 
-    Precedence: explicit ``name`` argument → ``QIYAN_LLM_PROVIDER`` env →
-    ``DeterministicProvider``. Unknown names log a warning and fall back rather
-    than raise, so a typo in env never breaks the answer endpoint.
+    Provider instances are cached: repeated calls with the same name return the
+    same instance so that http_client pooling (OpenCodeGo, Anthropic) is reused.
     """
+    import os
 
     raw = name if name is not None else os.getenv(PROVIDER_ENV_VAR, "")
-    candidate = raw.strip().lower()
-    if not candidate:
-        return DeterministicProvider()
-    provider_cls = _PROVIDERS.get(candidate) or _resolve_extra_provider_class(candidate)
-    if provider_cls is None:
-        _LOGGER.warning(
-            "Unknown %s=%r; falling back to %s",
-            PROVIDER_ENV_VAR,
-            raw,
-            DEFAULT_PROVIDER_NAME,
-        )
-        return DeterministicProvider()
-    return provider_cls()
+    candidate = raw.strip().lower() or DEFAULT_PROVIDER_NAME
+
+    if candidate in _PROVIDER_INSTANCES:
+        return _PROVIDER_INSTANCES[candidate]
+
+    instance = select_from_registry(
+        PROVIDER_ENV_VAR,
+        _PROVIDERS,
+        DeterministicProvider,
+        normalizer=str.lower,
+        lazy_resolver=_resolve_extra_provider_class,
+        explicit_name=name,
+    )
+    _PROVIDER_INSTANCES[candidate] = instance
+    return instance

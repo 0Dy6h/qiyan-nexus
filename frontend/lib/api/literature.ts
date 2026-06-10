@@ -1,3 +1,6 @@
+import { fetchJson, postJson } from "./http";
+import { getBackendBaseUrl } from "./rag";
+
 export type LiteratureItem = {
   id: string;
   title: string;
@@ -77,10 +80,6 @@ export type LiteratureSyncResponse = {
   updated: number;
   items: LiteratureItem[];
 };
-
-export function getBackendBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
-}
 
 export function getLiteratureSourceLabel(source: LiteratureSource) {
   if (source === "cn_literature") {
@@ -244,25 +243,13 @@ export async function searchLiterature(
   sort: LiteratureSearchSort = "relevance",
   hasPdfUpload?: boolean,
 ): Promise<LiteratureSearchResponse> {
-  const response = await fetch(
+  return fetchJson<LiteratureSearchResponse>(
     buildLiteratureSearchUrl(query, source, page, pageSize, sort, hasPdfUpload),
   );
-
-  if (!response.ok) {
-    throw new Error("Literature search failed");
-  }
-
-  return response.json();
 }
 
 export async function getLiteratureDetail(itemId: string): Promise<LiteratureItem> {
-  const response = await fetch(buildLiteratureDetailUrl(itemId));
-
-  if (!response.ok) {
-    throw new Error("Literature detail request failed");
-  }
-
-  return response.json();
+  return fetchJson<LiteratureItem>(buildLiteratureDetailUrl(itemId));
 }
 
 export async function uploadLiteraturePdf(
@@ -273,51 +260,27 @@ export async function uploadLiteraturePdf(
   formData.set("literature_id", literatureId);
   formData.set("file", file);
 
-  const response = await fetch(buildPdfUploadUrl(), {
+  return fetchJson<PdfUploadResponse>(buildPdfUploadUrl(), {
     method: "POST",
     body: formData,
   });
-
-  if (!response.ok) {
-    throw new Error("PDF upload failed");
-  }
-
-  return response.json();
 }
 
 export async function runFakePdfAutoParse(literatureId: string, fileName: string): Promise<LiteratureItem> {
-  const response = await fetch(new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildFakePdfAutoParseRequest(literatureId, fileName)),
-  });
-
-  if (!response.ok) {
-    throw new Error("Fake PDF auto parse failed");
-  }
-
-  return response.json();
+  return postJson<LiteratureItem>(
+    new URL("/api/uploads/pdf/auto-parse", getBackendBaseUrl()).toString(),
+    buildFakePdfAutoParseRequest(literatureId, fileName),
+  );
 }
 
 export async function updatePdfParseStatus(
   literatureId: string,
   status: Exclude<PdfParseStatus, "pending">,
 ): Promise<LiteratureItem> {
-  const response = await fetch(new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildPdfParseStatusRequest(literatureId, status)),
-  });
-
-  if (!response.ok) {
-    throw new Error("PDF parse status update failed");
-  }
-
-  return response.json();
+  return postJson<LiteratureItem>(
+    new URL("/api/literature/pdf-parse-status", getBackendBaseUrl()).toString(),
+    buildPdfParseStatusRequest(literatureId, status),
+  );
 }
 
 export const LITERATURE_SYNC_MAX_RESULTS_CAP = 50;
@@ -340,17 +303,8 @@ export async function syncLiteratureFromPubmed(
   query: string,
   maxResults: number,
 ): Promise<LiteratureSyncResponse> {
-  const response = await fetch(buildLiteratureSyncUrl(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildLiteratureSyncRequest(query, maxResults)),
-  });
-
-  if (!response.ok) {
-    throw new Error("Literature sync failed");
-  }
-
-  return response.json();
+  return postJson<LiteratureSyncResponse>(
+    buildLiteratureSyncUrl(),
+    buildLiteratureSyncRequest(query, maxResults),
+  );
 }

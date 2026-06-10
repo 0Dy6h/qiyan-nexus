@@ -9,15 +9,16 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.schemas.rag import CitationCard, GroundedClaim
-from app.services.llm.prompting import GROUNDING_SYSTEM_PROMPT, build_citation_text
+from app.services.llm.prompting import (
+    EMPTY_CITATIONS_FALLBACK,
+    GROUNDING_SYSTEM_PROMPT,
+    GROUNDING_TOOL_NAME,
+    build_citation_text,
+)
 from app.services.llm.provider import AnswerDraft, DeterministicProvider
 
 _LOGGER = logging.getLogger(__name__)
 
-_EMPTY_CITATIONS_FALLBACK = (
-    "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
-)
-GROUNDING_TOOL_NAME = "record_grounded_claims"
 GROUNDING_FUNCTION_SCHEMA = {
     "type": "function",
     "function": {
@@ -194,18 +195,23 @@ class OpenCodeGoProvider:
         http_client: httpx.Client | None = None,
         fallback: DeterministicProvider | None = None,
     ) -> None:
-        # Keep an injected client as-is (caller owns its lifecycle). When none is
-        # injected we open a short-lived client per request and close it, so the
-        # per-call instantiation in select_provider() never leaks a pool.
+        # When an http_client is injected (tests), the caller owns its lifecycle.
+        # When none is provided, lazily create one on first use and keep it for
+        # the provider's lifetime so connection pooling is reused.
         self._http_client = http_client
         self._fallback = fallback or DeterministicProvider()
+
+    def _ensure_http_client(self) -> httpx.Client:
+        if self._http_client is None:
+            self._http_client = httpx.Client(timeout=30.0)
+        return self._http_client
 
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
         settings = get_settings()
 
         if not citations:
             return AnswerDraft(
-                text=_EMPTY_CITATIONS_FALLBACK,
+                text=EMPTY_CITATIONS_FALLBACK,
                 provider_name=self.name,
             )
 
@@ -216,10 +222,7 @@ class OpenCodeGoProvider:
             )
             return self._fallback.generate_answer(question, citations)
 
-        if self._http_client is not None:
-            return self._request_completion(self._http_client, settings, question, citations)
-        with httpx.Client(timeout=30.0) as client:
-            return self._request_completion(client, settings, question, citations)
+        return self._request_completion(self._ensure_http_client(), settings, question, citations)
 
     def _request_completion(
         self,

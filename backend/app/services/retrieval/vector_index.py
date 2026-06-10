@@ -23,7 +23,7 @@ import faiss  # type: ignore[import-untyped, import-not-found, unused-ignore]
 import numpy as np
 
 from app.schemas.chunk import LiteratureChunk
-from app.services.retrieval.embedding import EmbeddingBackend, EmbeddingMatrix
+from app.services.retrieval.embedding import EmbeddingBackend, EmbeddingMatrix, encode_with_role
 
 _META_SUFFIX = ".meta.json"
 _FINGERPRINT_TEXT_PREFIX = 64
@@ -80,7 +80,7 @@ class ChunkVectorIndex:
             return
 
         texts = [chunk.text for chunk in chunks]
-        vectors = self._backend.encode(texts)
+        vectors = encode_with_role(self._backend, texts, role="document")
         index = faiss.IndexFlatIP(self._backend.dim)
         index.add(vectors)
         self._index = index
@@ -97,7 +97,7 @@ class ChunkVectorIndex:
     def search(self, query: str, top_k: int) -> list[tuple[str, float]]:
         if self._index is None or self._index.ntotal == 0 or top_k <= 0:
             return []
-        query_vec = self._backend.encode([query])
+        query_vec = encode_with_role(self._backend, [query], role="query")
         effective = min(top_k, int(self._index.ntotal))
         scores, indices = self._index.search(query_vec, effective)
         results: list[tuple[str, float]] = []

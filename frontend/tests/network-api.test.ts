@@ -115,6 +115,7 @@ test("fetchNetworkResult throws when the response is not ok", async () => {
   globalThis.fetch = (async () => {
     return {
       ok: false,
+      status: 404,
       async json() {
         return { detail: "Network analysis task not found" };
       },
@@ -123,7 +124,7 @@ test("fetchNetworkResult throws when the response is not ok", async () => {
 
   try {
     const { fetchNetworkResult } = await import(`../lib/api/network?ts=${Date.now()}`);
-    await assert.rejects(fetchNetworkResult("network-missing-task"), /Network result request failed/);
+    await assert.rejects(fetchNetworkResult("network-missing-task"), /Network analysis task not found/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -166,6 +167,7 @@ test("fetchNetworkReportMarkdown throws when the response is not ok", async () =
   globalThis.fetch = (async () => {
     return {
       ok: false,
+      status: 404,
       async json() {
         return { detail: "Network analysis task not found" };
       },
@@ -176,7 +178,7 @@ test("fetchNetworkReportMarkdown throws when the response is not ok", async () =
     const { fetchNetworkReportMarkdown } = await import(`../lib/api/network?ts=${Date.now()}`);
     await assert.rejects(
       fetchNetworkReportMarkdown("network-missing-task"),
-      /Network report request failed/,
+      /Network analysis task not found/,
     );
   } finally {
     globalThis.fetch = originalFetch;

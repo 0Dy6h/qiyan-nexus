@@ -43,11 +43,14 @@ def score_claim_support(claim_text: str, reference_text: str, backend: Embedding
     not true semantics; ``QIYAN_EMBEDDING_BACKEND=bge`` upgrades it in place.
     True cosine is computed (not a raw dot product) so the score stays in
     ``[0, 1]`` regardless of whether the backend L2-normalises its output.
-    """
 
-    vectors = backend.encode([claim_text, reference_text])
-    claim_vec = vectors[0]
-    reference_vec = vectors[1]
+    Role-aware backends (E5) encode the claim as ``query`` and the reference as
+    ``document`` to match their training protocol.
+    """
+    from app.services.retrieval.embedding import encode_with_role
+
+    claim_vec = encode_with_role(backend, [claim_text], role="query")[0]
+    reference_vec = encode_with_role(backend, [reference_text], role="document")[0]
     denominator = float(np.linalg.norm(claim_vec) * np.linalg.norm(reference_vec))
     if denominator <= 1e-12:
         return 0.0
@@ -375,11 +378,15 @@ def evaluate_answer_grounding(
                 if score > claim_bests[idx]:
                     claim_bests[idx] = score
             for i, claim in enumerate(structured_claims):
-                claim.entailment_score = claim_bests[i] if pair_claim_idx else None
+                claim.entailment_score = claim_bests[i]
             min_entailment_score = min(claim_bests)
         else:
+            # Empty pair_claim_idx means all evidence_refs had empty/missing reference_text.
+            # This is a grounding failure: claims cite evidence but that evidence has no text.
+            # Set entailment_score=0.0 for each claim so the threshold check below blocks.
             for claim in structured_claims:
-                claim.entailment_score = None
+                claim.entailment_score = 0.0
+            min_entailment_score = 0.0
 
         if min_entailment_score is not None and min_entailment_score < nli_threshold:
             return (

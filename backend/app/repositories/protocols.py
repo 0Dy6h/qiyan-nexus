@@ -43,6 +43,10 @@ class ChunkRepository(Protocol):
 
     def list_chunks_by_literature_id(self, literature_id: str) -> list[LiteratureChunk]: ...
 
+    def group_chunks_by_literature(
+        self, literature_ids: list[str]
+    ) -> dict[str, list[LiteratureChunk]]: ...
+
     def get_chunk_by_id(self, chunk_id: str) -> LiteratureChunk | None: ...
 
     def upsert_uploaded_pdf_chunk(

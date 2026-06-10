@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from app.core.config import Settings
 from app.schemas.eval import GroundingSemanticPair, load_grounding_semantic_pairs
 from app.schemas.rag import CitationCard
@@ -19,6 +21,18 @@ _PAIRS_PATH = (
 _BGE_PAIRS_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "evals" / "grounding_semantic_pairs_bge.json"
 )
+
+
+class RoleRecordingEmbeddingBackend:
+    name = "role-recording-test"
+    dim = 2
+
+    def __init__(self) -> None:
+        self.roles: list[str] = []
+
+    def encode(self, texts: list[str], *, role: str = "document") -> np.ndarray:
+        self.roles.append(role)
+        return np.ones((len(texts), self.dim), dtype=np.float32)
 
 
 def _load_pairs() -> list[GroundingSemanticPair]:
@@ -76,6 +90,15 @@ def test_score_claim_support_returns_normalised_cosine():
     identical = score_claim_support("肠道菌群与皮肤屏障相关", "肠道菌群与皮肤屏障相关", backend)
     assert 0.0 <= identical <= 1.0
     assert identical > 0.99, "identical text should score near 1.0"
+
+
+def test_score_claim_support_uses_query_and_document_roles():
+    backend = RoleRecordingEmbeddingBackend()
+
+    score = score_claim_support("claim text", "reference text", backend)
+
+    assert score == 1.0
+    assert backend.roles == ["query", "document"]
 
 
 def test_score_claim_support_separates_faithful_from_hallucinated():
