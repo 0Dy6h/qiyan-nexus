@@ -1,7 +1,9 @@
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from app.repositories._json_helpers import read_json_list, write_json_list
 from app.schemas.chunk import LiteratureChunk
 
 
@@ -12,14 +14,11 @@ class InMemoryChunkRepository:
 
     def _load(self) -> list[dict[str, Any]]:
         """Load chunks from JSON file into memory."""
-        items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
-        return items
+        return read_json_list(self.data_path)
 
     def _save(self) -> None:
         """Persist in-memory chunks to JSON file."""
-        self.data_path.write_text(
-            json.dumps(self._items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        write_json_list(self.data_path, self._items)
 
     def list_chunks(self) -> list[LiteratureChunk]:
         return [LiteratureChunk(**item) for item in self._items]
@@ -35,8 +34,6 @@ class InMemoryChunkRepository:
         self, literature_ids: list[str]
     ) -> dict[str, list[LiteratureChunk]]:
         """Group chunks by literature_id in a single pass. O(M) instead of O(N×M)."""
-        from collections import defaultdict
-
         result: dict[str, list[LiteratureChunk]] = defaultdict(list)
         id_set = set(literature_ids)
         for item in self._items:

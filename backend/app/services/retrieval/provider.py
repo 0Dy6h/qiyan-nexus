@@ -172,6 +172,12 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
 _canonical_cache: tuple[dict[str, Any], set[str]] | None = None
 
 
+def clear_canonical_cache() -> None:
+    """Clear the canonical token cache. Used for test isolation."""
+    global _canonical_cache
+    _canonical_cache = None
+
+
 def _canonical_token_set() -> set[str]:
     """Tokens eligible for the ``alias_tag_bonus`` substring-against-tag bonus.
 

@@ -12,6 +12,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from typing import NoReturn
+
 import httpx
 
 NCBI_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -206,10 +208,7 @@ class PubmedClient:
                 response.raise_for_status()
                 return parse_esearch_xml(response.text)
         except httpx.HTTPError as exc:
-            status = (
-                getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
-            )
-            raise PubmedServiceError("NCBI API unavailable", status_code=status) from exc
+            _raise_pubmed_error(exc)
 
     def efetch(self, pmids: list[str]) -> list[PubmedRecord]:
         cleaned = [pmid for pmid in pmids if pmid]
@@ -224,10 +223,13 @@ class PubmedClient:
                 response.raise_for_status()
                 return parse_efetch_xml(response.text)
         except httpx.HTTPError as exc:
-            status = (
-                getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
-            )
-            raise PubmedServiceError("NCBI API unavailable", status_code=status) from exc
+            _raise_pubmed_error(exc)
+
+
+def _raise_pubmed_error(exc: httpx.HTTPError) -> NoReturn:
+    """Convert httpx errors to PubmedServiceError with status code extraction."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    raise PubmedServiceError("NCBI API unavailable", status_code=status) from exc
 
 
 def fetch_pubmed_records(

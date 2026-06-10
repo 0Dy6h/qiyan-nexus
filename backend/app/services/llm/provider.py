@@ -162,6 +162,11 @@ OPENCODE_GO_PROVIDER_NAME = "opencode_go"
 _PROVIDER_INSTANCES: dict[str, LLMProvider] = {}
 
 
+def clear_provider_cache() -> None:
+    """Clear the provider instance cache. Used for test isolation."""
+    _PROVIDER_INSTANCES.clear()
+
+
 def _resolve_extra_provider_class(candidate: str) -> type[LLMProvider] | None:
     if candidate == ANTHROPIC_PROVIDER_NAME:
         from app.services.llm.anthropic_provider import AnthropicProvider

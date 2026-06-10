@@ -3,8 +3,20 @@ from app.services.llm.provider import (
     AnswerDraft,
     DeterministicProvider,
     MockClaudeProvider,
+    clear_provider_cache,
     select_provider,
 )
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_provider_cache():
+    """Clear provider cache before each test for isolation."""
+    clear_provider_cache()
+    yield
+    clear_provider_cache()
+
 
 _SAMPLE_CITATIONS: list[CitationCard] = [
     CitationCard(
