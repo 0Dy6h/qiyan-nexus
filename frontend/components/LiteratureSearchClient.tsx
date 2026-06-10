@@ -3,6 +3,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   getLiteratureDataSourceFilter,
   getPdfParseStatusLabel,
@@ -13,8 +17,6 @@ import {
   searchLiterature,
 } from "../lib/api/literature";
 import { getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
-import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
-import { CardBodyText, CardMetaRow } from "./CardMeta";
 import LiteratureDataSourceBanner from "./LiteratureDataSourceBanner";
 import StatusPanel from "./StatusPanel";
 
@@ -31,20 +33,6 @@ type SearchState = {
   isLoading: boolean;
   hasSearched: boolean;
 };
-
-const fieldLabelStyle = {
-  display: "grid",
-  gap: 8,
-  color: "#1e293b",
-  fontWeight: 700,
-} as const;
-
-const fieldControlStyle = {
-  border: "1px solid #cbd5e1",
-  borderRadius: 8,
-  fontSize: 16,
-  padding: "12px 14px",
-} as const;
 
 export default function LiteratureSearchClient() {
   const searchParams = useSearchParams();
@@ -163,165 +151,154 @@ export default function LiteratureSearchClient() {
   }, [searchParams, state.pageSize]);
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
+    <div className="grid gap-5">
       <LiteratureDataSourceBanner view={state.view} />
 
-      <section style={getSurfaceSectionStyle()}>
-        <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-          <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索条件</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+      <Card>
+        <CardHeader>
+          <CardTitle>检索条件</CardTitle>
+          <p className="text-gray-600 text-sm leading-relaxed">
             先明确关键词，再限定来源、排序与每页数量，随后进入结果核对与原文追踪。
           </p>
-        </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <label htmlFor="search-query" className="text-gray-900 font-semibold text-sm">
+                检索关键词
+              </label>
+              <Input
+                id="search-query"
+                name="q"
+                value={state.query}
+                onChange={(event) => setState((current) => ({ ...current, query: event.target.value }))}
+                className="border-gray-300 focus-visible:ring-primary-500"
+              />
+            </div>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 16 }}>
-          <label style={fieldLabelStyle}>
-            检索关键词
-            <input
-              name="q"
-              value={state.query}
-              onChange={(event) => setState((current) => ({ ...current, query: event.target.value }))}
-              aria-label="检索关键词"
-              style={{
-                ...fieldControlStyle,
-                width: "100%",
-                minWidth: 220,
-              }}
-            />
-          </label>
+            <div className="flex gap-3 items-end flex-wrap">
+              <div className="grid gap-2">
+                <label htmlFor="view" className="text-gray-900 font-semibold text-sm">
+                  文献来源
+                </label>
+                <select
+                  id="view"
+                  name="view"
+                  defaultValue={state.view}
+                  className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  <option value="all">全部来源</option>
+                  <option value="pubmed_live">PubMed 实时</option>
+                  <option value="cnki_sample">CNKI sample</option>
+                  <option value="uploaded_pdf">上传 PDF</option>
+                </select>
+              </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
-            <label style={fieldLabelStyle}>
-              文献来源
-              <select
-                name="view"
-                defaultValue={state.view}
-                aria-label="文献来源"
-                style={{ ...fieldControlStyle, minWidth: 180 }}
-              >
-                <option value="all">全部来源</option>
-                <option value="pubmed_live">PubMed 实时</option>
-                <option value="cnki_sample">CNKI sample</option>
-                <option value="uploaded_pdf">上传 PDF</option>
-              </select>
-            </label>
-            <label style={fieldLabelStyle}>
-              排序方式
-              <select name="sort" defaultValue={state.sort} aria-label="排序方式" style={fieldControlStyle}>
-                <option value="relevance">相关度</option>
-                <option value="year_desc">年份降序</option>
-                <option value="year_asc">年份升序</option>
-              </select>
-            </label>
-            <label style={fieldLabelStyle}>
-              每页数量
-              <select name="page_size" defaultValue={state.pageSize} aria-label="每页数量" style={fieldControlStyle}>
-                <option value="5">5 条/页</option>
-                <option value="10">10 条/页</option>
-                <option value="20">20 条/页</option>
-              </select>
-            </label>
-            <button
-              type="submit"
-              disabled={state.isLoading}
-              style={{
-                border: 0,
-                borderRadius: 8,
-                background: state.isLoading ? "#94a3b8" : "#0d9488",
-                color: "white",
-                fontSize: 16,
-                fontWeight: 700,
-                padding: "12px 20px",
-                minHeight: 44,
-              }}
-            >
-              {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
-            </button>
-          </div>
-        </form>
-      </section>
+              <div className="grid gap-2">
+                <label htmlFor="sort" className="text-gray-900 font-semibold text-sm">
+                  排序方式
+                </label>
+                <select
+                  id="sort"
+                  name="sort"
+                  defaultValue={state.sort}
+                  className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  <option value="relevance">相关度</option>
+                  <option value="year_desc">年份降序</option>
+                  <option value="year_asc">年份升序</option>
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="page_size" className="text-gray-900 font-semibold text-sm">
+                  每页数量
+                </label>
+                <select
+                  id="page_size"
+                  name="page_size"
+                  defaultValue={state.pageSize}
+                  className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  <option value="5">5 条/页</option>
+                  <option value="10">10 条/页</option>
+                  <option value="20">20 条/页</option>
+                </select>
+              </div>
+
+              <Button type="submit" disabled={state.isLoading} className="bg-primary-600 hover:bg-primary-700">
+                {state.isLoading ? statusCopy.loadingLabel : statusCopy.submitLabel}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {state.error ? <StatusPanel message={state.error} tone="error" /> : null}
 
       {!state.error && state.total > 0 ? (
-        <section style={getSurfaceSectionStyle()}>
-          <div
-            style={{
-              alignItems: "center",
-              color: "#475569",
-              display: "flex",
-              flexWrap: "wrap",
-              fontSize: 14,
-              gap: 12,
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ display: "grid", gap: 4 }}>
-              <h2 style={{ color: "#1e293b", fontSize: 24, margin: 0 }}>检索结果</h2>
-              <p style={{ color: "#64748b", margin: 0, lineHeight: 1.6 }}>
-                共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页；请优先核对来源、年份与解析状态。
-              </p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="grid gap-1">
+                <CardTitle>检索结果</CardTitle>
+                <p className="text-gray-600 text-sm">
+                  共 {state.total} 条结果，第 {state.page} / {state.totalPages} 页；请优先核对来源、年份与解析状态。
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={state.isLoading || state.page <= 1}
+                  onClick={() => runSearch(state.query, state.view, state.page - 1, state.pageSize, state.sort)}
+                >
+                  上一页
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={state.isLoading || state.page >= state.totalPages}
+                  onClick={() => runSearch(state.query, state.view, state.page + 1, state.pageSize, state.sort)}
+                  className="bg-primary-600 hover:bg-primary-700"
+                >
+                  下一页
+                </Button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                disabled={state.isLoading || state.page <= 1}
-                onClick={() => runSearch(state.query, state.view, state.page - 1, state.pageSize, state.sort)}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 8,
-                  background: "white",
-                  color: "#334155",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  padding: "10px 14px",
-                  minHeight: 44,
-                }}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                disabled={state.isLoading || state.page >= state.totalPages}
-                onClick={() => runSearch(state.query, state.view, state.page + 1, state.pageSize, state.sort)}
-                style={{
-                  border: 0,
-                  borderRadius: 8,
-                  background: state.isLoading || state.page >= state.totalPages ? "#94a3b8" : "#0d9488",
-                  color: "white",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  padding: "10px 14px",
-                  minHeight: 44,
-                }}
-              >
-                下一页
-              </button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {state.items.map((item) => (
+                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-2 flex-wrap mb-3">
+                      <Badge variant="secondary" className="text-xs">
+                        语言 {item.language === "zh" ? "中文" : "英文"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        来源 {getLiteratureSourceLabel(item.source_type)}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        期刊 {item.source}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        年份 {String(item.year)}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        解析状态 {getPdfParseStatusLabel(item.pdf_parse_status ?? null)}
+                      </Badge>
+                    </div>
+                    <h3 className="text-gray-900 text-xl font-semibold mb-3">{item.title}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed mb-3">{item.snippet}</p>
+                    <a href={`/literature/${encodeURIComponent(item.id)}`} className="text-primary-600 font-semibold hover:underline text-sm">
+                      查看详情 →
+                    </a>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 16 }}>
-            {state.items.map((item) => (
-              <article key={item.id} style={getSurfaceCardStyle()}>
-                <CardMetaRow
-                  items={[
-                    `语言 ${item.language === "zh" ? "中文" : "英文"}`,
-                    `来源 ${getLiteratureSourceLabel(item.source_type)}`,
-                    `期刊 ${item.source}`,
-                    `年份 ${String(item.year)}`,
-                    `解析状态 ${getPdfParseStatusLabel(item.pdf_parse_status ?? null)}`,
-                  ]}
-                />
-                <h3 style={{ color: "#1e293b", fontSize: 22, marginBottom: 12 }}>{item.title}</h3>
-                <CardBodyText>{item.snippet}</CardBodyText>
-                <a href={`/literature/${encodeURIComponent(item.id)}`} style={{ color: "#0d9488", fontWeight: 700 }}>
-                  查看详情 →
-                </a>
-              </article>
-            ))}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ) : null}
 
       {state.items.length > 0 || state.isLoading || state.error ? null : (

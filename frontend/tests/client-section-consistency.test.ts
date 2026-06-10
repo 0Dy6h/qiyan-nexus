@@ -14,7 +14,7 @@ test("literature and rag client forms share labeled hierarchy and primary action
   const literatureSource = getSource("components/LiteratureSearchClient.tsx");
   const ragSource = getSource("components/RagAnswerClient.tsx");
 
-  assert.match(literatureSource, /<form onSubmit=\{onSubmit\} style=\{\{ display: "grid", gap: 16 \}\}>/);
+  assert.match(literatureSource, /<form onSubmit=\{onSubmit\} className="grid gap-4">/);
   assert.match(ragSource, /<form onSubmit=\{onSubmit\} style=\{\{ display: "grid", gap: 16 \}\}>/);
 
   assert.match(literatureSource, /检索关键词/);
@@ -24,9 +24,8 @@ test("literature and rag client forms share labeled hierarchy and primary action
   assert.match(ragSource, /文献来源/);
   assert.match(ragSource, /引用数量 top_k/);
 
-  assert.match(literatureSource, /minHeight: 44/);
+  assert.match(literatureSource, /className="bg-primary-600 hover:bg-primary-700"/);
   assert.match(ragSource, /minHeight: 44/);
-  assert.match(literatureSource, /background: state\.isLoading \|\| state\.page >= state\.totalPages \? "#94a3b8" : "#0d9488"/);
 });
 
 test("literature detail and rag evidence sections share review-first supporting copy", () => {
@@ -45,11 +44,11 @@ test("literature detail and rag evidence sections share review-first supporting 
 test("literature result cards use explicit labeled metadata copy", () => {
   const literatureSource = getSource("components/LiteratureSearchClient.tsx");
 
-  assert.match(literatureSource, /语言 \$\{item\.language === "zh" \? "中文" : "英文"\}/);
-  assert.match(literatureSource, /来源 \$\{getLiteratureSourceLabel\(item\.source_type\)\}/);
-  assert.match(literatureSource, /期刊 \$\{item\.source\}/);
-  assert.match(literatureSource, /年份 \$\{String\(item\.year\)\}/);
-  assert.match(literatureSource, /解析状态 \$\{getPdfParseStatusLabel\(item\.pdf_parse_status \?\? null\)\}/);
+  assert.match(literatureSource, /语言 \{item\.language === "zh" \? "中文" : "英文"\}/);
+  assert.match(literatureSource, /来源 \{getLiteratureSourceLabel\(item\.source_type\)\}/);
+  assert.match(literatureSource, /期刊 \{item\.source\}/);
+  assert.match(literatureSource, /年份 \{String\(item\.year\)\}/);
+  assert.match(literatureSource, /解析状态 \{getPdfParseStatusLabel\(item\.pdf_parse_status \?\? null\)\}/);
 });
 
 test("rag citation cards use explicit labeled metadata copy", () => {

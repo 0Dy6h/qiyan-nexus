@@ -1,106 +1,41 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
 export default function HomePage() {
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: 48 }}>
-      <section
-        style={{
-          maxWidth: 960,
-          margin: "0 auto",
-          borderRadius: 16,
-          background: "white",
-          border: "1px solid #e2e8f0",
-          padding: 40,
-        }}
-      >
-        <p style={{ color: "#0d9488", fontWeight: 700 }}>Qiyan Nexus · AD 专病科研工作台</p>
-        <h1 style={{ color: "#1e293b", fontSize: 40, lineHeight: 1.2 }}>
-          面向特应性皮炎的中医药证据与科研工作台
-        </h1>
-        <p style={{ color: "#475569", fontSize: 18 }}>
-          面向医生与科研人员，围绕特应性皮炎提供文献检索、RAG 问答、网络药理学分析与知识图谱能力。
-        </p>
-        <p style={{ color: "#64748b" }}>非诊断结论、需结合临床。</p>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <a
-            href="/literature"
-            style={{
-              display: "inline-block",
-              borderRadius: 8,
-              background: "#0d9488",
-              color: "white",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              textDecoration: "none",
-            }}
-          >
-            进入文献检索
-          </a>
-          <a
-            href="/rag"
-            style={{
-              display: "inline-block",
-              borderRadius: 8,
-              background: "#ecfeff",
-              border: "1px solid #99f6e4",
-              color: "#115e59",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              textDecoration: "none",
-            }}
-          >
-            进入 RAG 问答
-          </a>
-          <a
-            href="/network"
-            style={{
-              display: "inline-block",
-              borderRadius: 8,
-              background: "#ecfeff",
-              border: "1px solid #99f6e4",
-              color: "#115e59",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              textDecoration: "none",
-            }}
-          >
-            进入网络药理学
-          </a>
-          <a
-            href="/compliance"
-            style={{
-              display: "inline-block",
-              borderRadius: 8,
-              background: "#f8fafc",
-              border: "1px solid #cbd5e1",
-              color: "#334155",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              textDecoration: "none",
-            }}
-          >
-            查看合规说明
-          </a>
-          <a
-            href="/evals/rag-ad"
-            style={{
-              display: "inline-block",
-              borderRadius: 8,
-              background: "#f8fafc",
-              border: "1px solid #cbd5e1",
-              color: "#334155",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 20px",
-              textDecoration: "none",
-            }}
-          >
-            运行 RAG 评估
-          </a>
-        </div>
-      </section>
+    <main className="min-h-screen bg-gray-50 px-5 md:px-8 lg:px-12 py-12">
+      <Card className="max-w-4xl mx-auto">
+        <CardContent className="pt-10 grid gap-6">
+          <div className="grid gap-3">
+            <p className="text-primary-600 font-bold text-sm">Qiyan Nexus · AD 专病科研工作台</p>
+            <h1 className="text-gray-900 text-5xl font-semibold leading-tight">
+              面向特应性皮炎的中医药证据与科研工作台
+            </h1>
+            <p className="text-gray-600 text-lg leading-relaxed">
+              面向医生与科研人员，围绕特应性皮炎提供文献检索、RAG 问答、网络药理学分析与知识图谱能力。
+            </p>
+            <p className="text-gray-500 text-sm">非诊断结论、需结合临床。</p>
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button asChild className="bg-primary-600 hover:bg-primary-700">
+              <a href="/literature">进入文献检索</a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/rag">进入 RAG 问答</a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/network">进入网络药理学</a>
+            </Button>
+            <Button asChild variant="secondary">
+              <a href="/compliance">查看合规说明</a>
+            </Button>
+            <Button asChild variant="secondary">
+              <a href="/evals/rag-ad">运行 RAG 评估</a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </main>
   );
 }

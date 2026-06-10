@@ -7,9 +7,9 @@ const detailPageSource = readFileSync(new URL("../app/literature/[id]/page.tsx",
 const uploadClientSource = readFileSync(new URL("../components/LiteraturePdfUploadClient.tsx", import.meta.url), "utf8");
 
 test("literature detail metadata line stays concise and labeled", () => {
-  assert.match(detailPageSource, /语言 \$\{item\.language === "zh" \? "中文" : "英文"\}/);
-  assert.match(detailPageSource, /来源 \$\{getLiteratureSourceLabel\(item\.source_type\)\}/);
-  assert.match(detailPageSource, /文献 ID \$\{item\.id\}/);
+  assert.match(detailPageSource, /语言 \{item\.language === "zh" \? "中文" : "英文"\}/);
+  assert.match(detailPageSource, /来源 \{getLiteratureSourceLabel\(item\.source_type\)\}/);
+  assert.match(detailPageSource, /文献 ID \{item\.id\}/);
 });
 
 test("pdf upload panel uses unified review-first labels for file identity and parse process metadata", () => {

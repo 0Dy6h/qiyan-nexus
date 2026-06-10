@@ -1,77 +1,58 @@
 import { Suspense } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import NetworkAnalysisClient from "../../components/NetworkAnalysisClient";
 import StatusPanel from "../../components/StatusPanel";
 import { getComplianceNavigationLinks } from "../../lib/compliance-page";
-import { getSurfaceSectionStyle } from "../../lib/ui/surfaces";
 
 export default function NetworkPage() {
   const navigationLinks = getComplianceNavigationLinks();
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "clamp(20px, 4vw, 48px)" }}>
-      <section style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gap: 20 }}>
-        <nav aria-label="工作台导航" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+    <main className="min-h-screen bg-gray-50 px-5 md:px-8 lg:px-12 py-8">
+      <section className="max-w-5xl mx-auto grid gap-5">
+        <nav aria-label="工作台导航" className="flex gap-3 flex-wrap">
           {navigationLinks.map((link) => {
             const isCurrent = link.href === "/network";
-
             return (
-              <a
+              <Button
                 key={link.href}
-                href={link.href}
-                aria-current={isCurrent ? "page" : undefined}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  borderRadius: 999,
-                  background: isCurrent ? "#ecfeff" : "transparent",
-                  border: `1px solid ${isCurrent ? "#99f6e4" : "#cbd5e1"}`,
-                  color: isCurrent ? "#115e59" : "#475569",
-                  fontSize: 14,
-                  fontWeight: isCurrent ? 700 : 600,
-                  padding: "10px 14px",
-                  textDecoration: "none",
-                  minHeight: 44,
-                }}
+                asChild
+                variant={isCurrent ? "default" : "outline"}
+                size="sm"
+                className={isCurrent ? "bg-primary-600 hover:bg-primary-700" : ""}
               >
-                {link.label}
-              </a>
+                <a href={link.href} aria-current={isCurrent ? "page" : undefined}>
+                  {link.label}
+                </a>
+              </Button>
             );
           })}
         </nav>
 
-        <article style={getSurfaceSectionStyle()}>
-          <div style={{ display: "grid", gap: 8 }}>
-            <p style={{ color: "#0d9488", fontWeight: 700, margin: 0 }}>Evidence workbench</p>
-            <h1 style={{ color: "#1e293b", fontSize: 36, lineHeight: 1.3, margin: 0 }}>
-              网络药理学（mock）
-            </h1>
-            <p style={{ color: "#64748b", fontSize: 17, lineHeight: 1.7, margin: 0 }}>
-              当前页面调用后端 <code>/api/network/analyze</code> 与 <code>/api/network/result</code>，用于验证「成分-靶点-通路-疾病」链路与异步任务壳的第一条前后端链路。
+        <Card>
+          <CardContent className="pt-6 grid gap-2">
+            <p className="text-primary-600 font-bold text-sm">Evidence workbench</p>
+            <h1 className="text-gray-900 text-4xl font-semibold">网络药理学（mock）</h1>
+            <p className="text-gray-600 text-base leading-relaxed">
+              当前页面调用后端 <code className="bg-gray-100 px-1 rounded text-sm">/api/network/analyze</code> 与 <code className="bg-gray-100 px-1 rounded text-sm">/api/network/result</code>，用于验证「成分-靶点-通路-疾病」链路与异步任务壳的第一条前后端链路。
             </p>
-          </div>
-        </article>
+          </CardContent>
+        </Card>
 
         <Suspense fallback={<StatusPanel message="加载网药分析面板..." />}>
           <NetworkAnalysisClient />
         </Suspense>
 
-        <section
-          aria-label="使用提醒"
-          style={{
-            ...getSurfaceSectionStyle(),
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            padding: 20,
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <p style={{ color: "#334155", fontSize: 14, fontWeight: 700, margin: 0 }}>使用提醒</p>
-            <p style={{ color: "#64748b", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+        <Card className="bg-gray-50 border-gray-200">
+          <CardContent className="pt-5 grid gap-1.5">
+            <p className="text-gray-700 text-sm font-semibold">使用提醒</p>
+            <p className="text-gray-600 text-sm leading-relaxed">
               本页面信息仅用于研究与产品能力说明，不构成诊断或治疗建议；实际判断仍需结合临床指南、原始文献与专业医生意见。
             </p>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </section>
     </main>
   );
