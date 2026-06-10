@@ -383,10 +383,27 @@ def evaluate_answer_grounding(
         else:
             # Empty pair_claim_idx means all evidence_refs had empty/missing reference_text.
             # This is a grounding failure: claims cite evidence but that evidence has no text.
-            # Set entailment_score=0.0 for each claim so the threshold check below blocks.
+            # Always block regardless of threshold.
             for claim in structured_claims:
                 claim.entailment_score = 0.0
-            min_entailment_score = 0.0
+            return (
+                BLOCKED_ANSWER_TEXT,
+                _blocked_structured_metadata(
+                    reason="nli_low_entailment",
+                    allowed_refs=allowed_refs,
+                    policy=policy,
+                    structured_claims=structured_claims,
+                    matched_refs=matched_refs,
+                    unsupported_refs=unsupported_refs,
+                    provider_native_grounding=provider_native_grounding,
+                    tool_name=tool_name,
+                    tool_call_count=tool_call_count,
+                    semantic_threshold=semantic_threshold,
+                    min_semantic_score=min_semantic_score,
+                    nli_threshold=nli_threshold,
+                    min_entailment_score=0.0,
+                ),
+            )
 
         if min_entailment_score is not None and min_entailment_score < nli_threshold:
             return (
