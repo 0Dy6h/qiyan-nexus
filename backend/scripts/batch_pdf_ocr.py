@@ -3,9 +3,9 @@
 为 backend/uploads/ 下扫描版PDF提取文本，输出到 data/runtime/ocr_results/。
 当前 MVP-A 用 pypdf 文本抽取，扫描版回退占位符；此脚本为未来RAG语料扩充。
 
-依赖安装：
-  pip install paddlepaddle-gpu paddleocr  # GPU版
-  # 或 pip install paddlepaddle paddleocr  # CPU版
+依赖安装（注意：脚本用 PaddleOCR 2.x API，3.x 改了参数名和返回结构，务必钉版本）：
+  pip install "paddleocr>=2.7,<3" "paddlepaddle-gpu" pymupdf  # GPU版
+  # 或 pip install "paddleocr>=2.7,<3" paddlepaddle pymupdf  # CPU版
 
 Usage（GPU）：
   cd backend
@@ -38,9 +38,11 @@ OUTPUT_DIR = BACKEND_ROOT / "data" / "runtime" / "ocr_results"
 def pdf_to_images(pdf_path: Path, dpi: int = 200):
     """将PDF每页转PIL Image"""
     doc = fitz.open(pdf_path)
+    zoom = dpi / 72.0
+    matrix = fitz.Matrix(zoom, zoom)
     for page_num in range(len(doc)):
         page = doc[page_num]
-        pix = page.get_pixmap(dpi=dpi)
+        pix = page.get_pixmap(matrix=matrix)
         img_data = pix.tobytes("png")
         yield page_num, img_data
 
