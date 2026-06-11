@@ -23,7 +23,7 @@ Usage（CPU）：
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -82,7 +82,7 @@ def ocr_pdf(pdf_path: Path, ocr_engine, lang: str = "ch") -> dict:
         "pdf_path": str(pdf_path.name),
         "page_count": len(pages_result),
         "total_chars": total_chars,
-        "ocr_at": datetime.now(UTC).isoformat(),
+        "ocr_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 (Python 3.10 compat)
         "pages": pages_result,
     }
 
@@ -137,7 +137,7 @@ def main():
     summary = {
         "total_pdfs": len(pdfs),
         "success_count": sum(1 for r in results if "error" not in r),
-        "processed_at": datetime.now(UTC).isoformat(),
+        "processed_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 (Python 3.10 compat)
         "results": results,
     }
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")

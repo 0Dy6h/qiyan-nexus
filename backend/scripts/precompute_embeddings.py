@@ -20,7 +20,7 @@ Usage（CPU fallback）：
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -80,7 +80,7 @@ def main():
     metadata = {
         "model": args.model,
         "device": args.device,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 (Python 3.10 compat)
         "literature_count": len(lit_ids),
         "chunk_count": len(chunk_ids),
         "embedding_dim": lit_embeddings.shape[1],
