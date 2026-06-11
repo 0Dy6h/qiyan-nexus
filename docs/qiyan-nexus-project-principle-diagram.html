@@ -202,11 +202,11 @@
           <h1>Qiyan Nexus 项目原理图</h1>
         </div>
         <p class="subtitle">
-          面向特应性皮炎医生与科研人员的中医药证据工作台：MVP-A 证据工作台已收尾，MVP-B 原始 slice 基本落地，C 阶段 provider、retrieval、grounding 与多语 embedding 底座部分提前完成；默认路径仍保持离线、可复现、可治理。
+          面向特应性皮炎医生与科研人员的中医药证据工作台：MVP-A 证据工作台已收尾，MVP-B 原始 slice 基本落地，C 阶段 provider、retrieval、grounding 与多语 embedding 底座部分提前完成；默认路径仍保持离线、可复现、可治理。2026-06-11 provider 切 DeepSeek 官方，T2 F5 采样落地 208 claims，P1 bge-m3 embedding 在英博云 GPU 跑通。
         </p>
       </div>
       <div class="badge">
-        Snapshot: 2026-06-10<br>
+        Snapshot: 2026-06-11<br>
         MVP-A: closed<br>
         L2: not flipped
       </div>
@@ -474,14 +474,14 @@
         </div>
         <ul>
           <li>• L2/default preview 不翻转；真实 LLM、BGE/NLI、多语 embedding 都只在显式 env/smoke 路径启用。</li>
-          <li>• 2026-06-10 已接 `bge-m3` 与 `multilingual-e5-large` 底座，但真实模型 cross-lingual eval 尚未运行。</li>
-          <li>• 产品只聚焦 AD 医生/科研端，所有 AI 输出保持“非诊断结论、需结合临床。”</li>
+          <li>• 2026-06-11 `bge-m3` embedding 已在英博云 GPU(4090D) 预计算（文献+chunk 各 20×1024）；向量检索接入 MVP-B 待做。</li>
+          <li>• 产品只聚焦 AD 医生/科研端，所有 AI 输出保持”非诊断结论、需结合临床。”</li>
         </ul>
       </article>
     </section>
 
     <footer class="footer">
-      Source snapshot: docs/current-state.md + README.md + docs/handoffs/2026-06-10-multilingual-embedding-spike-b6.md. Standalone HTML, no build step required.
+      Source snapshot: docs/current-state.md + README.md + docs/handoffs/2026-06-11-* + 论文产出/HANDOFF-2026-06-11.md. Standalone HTML, no build step required.
     </footer>
   </main>
 </body>
