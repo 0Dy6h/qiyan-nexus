@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import PlainTextResponse
 
 from app.schemas.rag import RagAnswerRequest, RagAnswerResponse
