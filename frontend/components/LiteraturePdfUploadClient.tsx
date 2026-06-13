@@ -181,7 +181,7 @@ export default function LiteraturePdfUploadClient({ item }: LiteraturePdfUploadC
         <a
           href={currentPdfDownloadUrl}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           style={{ color: "#0d9488", fontWeight: 700, width: "fit-content" }}
         >
           预览 PDF

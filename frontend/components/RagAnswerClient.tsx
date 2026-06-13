@@ -120,7 +120,7 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
           查看文献详情 →
         </a>
         {pdfPreviewUrl ? (
-          <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" style={{ color: "#0d9488", fontWeight: 700 }}>
+          <a href={pdfPreviewUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#0d9488", fontWeight: 700 }}>
             预览原文 PDF ↗
           </a>
         ) : null}

@@ -36,6 +36,36 @@ _PUBMED_FIELDS = frozenset(
     }
 )
 
+# Allowed column names for SQL query construction (security: prevent injection)
+_ALLOWED_COLUMNS = frozenset(
+    {
+        "id",
+        "title",
+        "language",
+        "source_type",
+        "source",
+        "year",
+        "snippet",
+        "authors",
+        "keywords",
+        "evidence_tags",
+        "abstract",
+        "citation_url",
+        "pubmed_id",
+        "doi",
+        "pdf_upload_id",
+        "pdf_file_name",
+        "pdf_parse_status",
+        "pdf_parse_message",
+        "pdf_parse_started_at",
+        "pdf_parse_finished_at",
+        "pdf_parse_result",
+        "last_parse_trigger",
+        "parse_attempt_count",
+        "related_entity_ids",
+    }
+)
+
 _CREATE_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS literature (
     id                    TEXT PRIMARY KEY,
@@ -77,6 +107,20 @@ def _row_to_item(row: sqlite3.Row) -> LiteratureItem:
     if data.get("pdf_parse_result") is not None:
         data["pdf_parse_result"] = PdfParseResult(**data["pdf_parse_result"])
     return LiteratureItem(**data)
+
+
+def _validate_column_names(columns: list[str]) -> None:
+    """Validate that all column names are in the allowed whitelist.
+
+    Raises ValueError if any column name is not in _ALLOWED_COLUMNS.
+    This prevents potential SQL injection if column names ever come from external input.
+    """
+    for col in columns:
+        if col not in _ALLOWED_COLUMNS:
+            raise ValueError(
+                f"Invalid column name: {col!r}. "
+                f"Column names must be from the fixed whitelist defined in _ALLOWED_COLUMNS."
+            )
 
 
 class SqliteLiteratureRepository:
@@ -156,6 +200,7 @@ class SqliteLiteratureRepository:
             "parse_attempt_count",
             "related_entity_ids",
         ]
+        _validate_column_names(columns)  # Security: validate before SQL construction
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)

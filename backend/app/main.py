@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,13 +10,42 @@ from app.api.network import router as network_router
 from app.api.rag import router as rag_router
 from app.api.upload import router as upload_router
 from app.core.access_control import install_access_token_middleware
+from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Qiyan Nexus API")
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Catch-all for unexpected exceptions to avoid leaking stack traces."""
+    """Catch-all for unexpected exceptions to avoid leaking stack traces.
+
+    Logs the full exception for debugging while returning a safe error to clients.
+    In development, returns detailed error information for easier debugging.
+    """
+    # Log the full exception with stack trace for troubleshooting
+    logger.exception(
+        "Unhandled exception during %s %s",
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+
+    settings = get_settings()
+
+    # In development, return detailed error information
+    if settings.environment == "dev":
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "内部错误",
+                "error": str(exc),
+                "type": type(exc).__name__,
+            },
+        )
+
+    # In production, return generic message
     return JSONResponse(
         status_code=500,
         content={"detail": "内部错误，请稍后重试。"},

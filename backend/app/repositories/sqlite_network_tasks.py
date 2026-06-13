@@ -31,6 +31,20 @@ CREATE TABLE IF NOT EXISTS network_task (
 )
 """
 
+# Allowed column names for SQL query construction (security: prevent injection)
+_ALLOWED_COLUMNS = frozenset(
+    {
+        "task_id",
+        "query",
+        "analysis_type",
+        "status",
+        "progress",
+        "poll_count",
+        "result",
+        "created_at",
+    }
+)
+
 
 def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
     """Convert a database row to a ``NetworkTaskRecord``."""
@@ -39,6 +53,20 @@ def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
     if data.get("result") is not None:
         data["result"] = NetworkAnalysisResult.model_validate(json.loads(data["result"]))
     return NetworkTaskRecord.model_validate(data)
+
+
+def _validate_column_names(columns: list[str]) -> None:
+    """Validate that all column names are in the allowed whitelist.
+
+    Raises ValueError if any column name is not in _ALLOWED_COLUMNS.
+    This prevents potential SQL injection if column names ever come from external input.
+    """
+    for col in columns:
+        if col not in _ALLOWED_COLUMNS:
+            raise ValueError(
+                f"Invalid column name: {col!r}. "
+                f"Column names must be from the fixed whitelist defined in _ALLOWED_COLUMNS."
+            )
 
 
 class SqliteNetworkTaskRepository:
@@ -97,6 +125,7 @@ class SqliteNetworkTaskRepository:
             "result",
             "created_at",
         ]
+        _validate_column_names(columns)  # Security: validate before SQL construction
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
