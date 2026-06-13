@@ -3,7 +3,9 @@ from pathlib import Path
 
 from app.core.config import get_settings
 
-_PDF_UPLOAD_ID_PATTERN = re.compile(r"^pdf-[a-zA-Z0-9][a-zA-Z0-9._-]*$")
+# PDF upload ID pattern: only alphanumeric, underscore, hyphen (no dots to prevent traversal)
+# Length limit: 1-100 characters after "pdf-" prefix
+_PDF_UPLOAD_ID_PATTERN = re.compile(r"^pdf-[a-zA-Z0-9_-]{1,100}$")
 
 
 def build_storage_path(storage_dir: Path, pdf_upload_id: str, file_name: str) -> Path:
