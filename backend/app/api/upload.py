@@ -9,12 +9,27 @@ from app.services.upload import store_pdf_upload
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
+# Maximum PDF file size: 20MB (sub-limit of global 50MB request limit)
+MAX_PDF_SIZE = 20 * 1024 * 1024
+
 
 @router.post("/pdf", response_model=StoredUpload, status_code=status.HTTP_201_CREATED)
 def upload_pdf_endpoint(
     literature_id: str = Form(),
     file: UploadFile = File(),
 ) -> StoredUpload:
+    # Check file size before processing
+    if file.file:
+        file.file.seek(0, 2)  # Seek to end
+        size = file.file.tell()
+        file.file.seek(0)  # Reset to beginning
+
+        if size > MAX_PDF_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"PDF 文件过大，最大允许 {MAX_PDF_SIZE // 1024 // 1024}MB",
+            )
+
     try:
         return store_pdf_upload(file, literature_id)
     except ValueError as exc:

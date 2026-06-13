@@ -37,6 +37,36 @@ def _bool_env(name: str, default: bool = False) -> bool:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
+    def __post_init__(self) -> None:
+        """Validate configuration after initialization.
+
+        In production environment, ensure critical settings are properly configured.
+        """
+        if self.environment == "production":
+            # At least one LLM provider must be configured
+            if not self.anthropic_api_key and not self.opencode_go_api_key:
+                raise ValueError(
+                    "Production environment requires at least one LLM provider API key: "
+                    "ANTHROPIC_API_KEY or QIYAN_OPENCODE_GO_API_KEY"
+                )
+
+            # Upload directory must be writable
+            upload_dir = Path(self.upload_storage_dir)
+            if not upload_dir.exists():
+                raise ValueError(
+                    f"Upload storage directory does not exist: {upload_dir}. "
+                    f"Create it before starting in production mode."
+                )
+            if not upload_dir.is_dir():
+                raise ValueError(f"Upload storage path is not a directory: {upload_dir}")
+
+            # Validate numeric thresholds
+            if not (0.0 <= self.grounding_semantic_threshold <= 1.0):
+                raise ValueError(
+                    f"QIYAN_GROUNDING_SEMANTIC_THRESHOLD must be between 0.0 and 1.0, "
+                    f"got {self.grounding_semantic_threshold}"
+                )
+
 
 @lru_cache
 def get_settings() -> Settings:
