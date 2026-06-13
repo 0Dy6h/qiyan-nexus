@@ -15,6 +15,21 @@ from app.schemas.chunk import LiteratureChunk
 
 _JSON_COLUMNS = frozenset({"evidence_tags", "related_entity_ids"})
 
+# Allowed column names for SQL query construction (security: prevent injection)
+_ALLOWED_COLUMNS = frozenset(
+    {
+        "chunk_id",
+        "literature_id",
+        "section",
+        "text",
+        "source_quote",
+        "evidence_tags",
+        "related_entity_ids",
+        "source_type",
+        "pdf_upload_id",
+    }
+)
+
 _CREATE_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS chunk (
     chunk_id          TEXT PRIMARY KEY,
@@ -38,6 +53,20 @@ def _row_to_chunk(row: sqlite3.Row) -> LiteratureChunk:
         if isinstance(val, str):
             data[col] = json.loads(val)
     return LiteratureChunk(**data)
+
+
+def _validate_column_names(columns: list[str]) -> None:
+    """Validate that all column names are in the allowed whitelist.
+
+    Raises ValueError if any column name is not in _ALLOWED_COLUMNS.
+    This prevents potential SQL injection if column names ever come from external input.
+    """
+    for col in columns:
+        if col not in _ALLOWED_COLUMNS:
+            raise ValueError(
+                f"Invalid column name: {col!r}. "
+                f"Column names must be from the fixed whitelist defined in _ALLOWED_COLUMNS."
+            )
 
 
 class SqliteChunkRepository:
@@ -94,6 +123,7 @@ class SqliteChunkRepository:
             "source_type",
             "pdf_upload_id",
         ]
+        _validate_column_names(columns)  # Security: validate before SQL construction
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
