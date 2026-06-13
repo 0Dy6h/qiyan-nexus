@@ -149,6 +149,7 @@ def get_literature_repository() -> "LiteratureRepository":
 
     - ``"json"`` (default) → InMemoryLiteratureRepository
     - ``"sqlite"``          → SqliteLiteratureRepository
+    - ``"postgres"``        → PostgresLiteratureRepository
 
     Results are cached at module level; call
     :func:`clear_literature_repository_cache` to reset (e.g. in tests).
@@ -168,6 +169,13 @@ def get_literature_repository() -> "LiteratureRepository":
         db_path = resolve_sqlite_db_path()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         _lit_repo_cache = SqliteLiteratureRepository(db_path)
+    elif backend == "postgres":
+        from app.repositories.postgres_literature import PostgresLiteratureRepository
+
+        postgres_url = os.environ.get("QIYAN_POSTGRES_URL")
+        if not postgres_url:
+            raise ValueError("QIYAN_POSTGRES_URL must be set when QIYAN_STATE_BACKEND=postgres")
+        _lit_repo_cache = PostgresLiteratureRepository(postgres_url)
     else:
         from app.repositories.literature import InMemoryLiteratureRepository
 
@@ -190,6 +198,7 @@ def get_chunk_repository() -> "ChunkRepository":
 
     - ``"json"`` (default) → InMemoryChunkRepository
     - ``"sqlite"``          → SqliteChunkRepository
+    - ``"postgres"``        → PostgresChunkRepository
 
     Results are cached at module level; call
     :func:`clear_chunk_repository_cache` to reset (e.g. in tests).
@@ -209,6 +218,13 @@ def get_chunk_repository() -> "ChunkRepository":
         db_path = resolve_sqlite_db_path()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         _chunk_repo_cache = SqliteChunkRepository(db_path)
+    elif backend == "postgres":
+        from app.repositories.postgres_chunk import PostgresChunkRepository
+
+        postgres_url = os.environ.get("QIYAN_POSTGRES_URL")
+        if not postgres_url:
+            raise ValueError("QIYAN_POSTGRES_URL must be set when QIYAN_STATE_BACKEND=postgres")
+        _chunk_repo_cache = PostgresChunkRepository(postgres_url)
     else:
         from app.repositories.chunk import InMemoryChunkRepository
 
@@ -231,6 +247,7 @@ def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
 
     - ``"json"`` (default) → NetworkTaskRepository (InMemory)
     - ``"sqlite"``          → SqliteNetworkTaskRepository
+    - ``"postgres"``        → PostgresNetworkTaskRepository
 
     Results are cached at module level; call
     :func:`clear_network_task_repository_cache` to reset (e.g. in tests).
@@ -250,6 +267,13 @@ def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
         db_path = resolve_sqlite_db_path()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         _nt_repo_cache = SqliteNetworkTaskRepository(db_path)
+    elif backend == "postgres":
+        from app.repositories.postgres_network_tasks import PostgresNetworkTaskRepository
+
+        postgres_url = os.environ.get("QIYAN_POSTGRES_URL")
+        if not postgres_url:
+            raise ValueError("QIYAN_POSTGRES_URL must be set when QIYAN_STATE_BACKEND=postgres")
+        _nt_repo_cache = PostgresNetworkTaskRepository(postgres_url)
     else:
         from app.repositories.network_tasks import NetworkTaskRepository
 

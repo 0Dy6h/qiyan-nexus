@@ -1,3 +1,5 @@
+import pytest
+
 from app.schemas.rag import CitationCard
 from app.services.llm.provider import (
     AnswerDraft,
@@ -6,8 +8,6 @@ from app.services.llm.provider import (
     clear_provider_cache,
     select_provider,
 )
-
-import pytest
 
 
 @pytest.fixture(autouse=True)

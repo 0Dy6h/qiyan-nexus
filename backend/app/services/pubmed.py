@@ -10,9 +10,7 @@ import os
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Protocol
-
-from typing import NoReturn
+from typing import NoReturn, Protocol
 
 import httpx
 

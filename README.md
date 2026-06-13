@@ -10,11 +10,13 @@
 
 - `frontend/` — Next.js 前端应用
 - `backend/` — FastAPI 后端应用
-- `infra/` — 本地基础设施说明与后续 Docker Compose 入口
+- `infra/` — 本地开发基础设施（PostgreSQL + pgvector Docker setup）
 - `docs/` — 当前状态、ADR、计划、交接与历史归档
 - `docs/archive/pre-dev-planning/` — 早期 AI 工具链规划、Word 文档与 HTML 原型，仅作历史参考
 
 ## 后端
+
+### 基础设置
 
 首次安装（Windows PowerShell）：
 
@@ -45,7 +47,37 @@ cd backend
 curl http://127.0.0.1:8000/health
 ```
 
-访问控制（可选，A2）：
+### Runtime State Backend（可选）
+
+默认使用 JSON 文件存储（`backend/data/runtime/`），可选切换到 SQLite 或 PostgreSQL：
+
+**SQLite:**
+```env
+QIYAN_STATE_BACKEND=sqlite
+QIYAN_SQLITE_DB_PATH=backend/data/runtime/qiyan_state.sqlite3
+```
+
+**PostgreSQL（需要 Docker）:**
+```bash
+# 1. 启动 PostgreSQL
+cd infra
+docker compose up -d postgres
+
+# 2. 配置环境变量（backend/.env）
+QIYAN_STATE_BACKEND=postgres
+QIYAN_POSTGRES_URL=postgresql://qiyan:qiyan_dev_password@127.0.0.1:5432/qiyan_dev
+
+# 3. 导入 seed 数据
+cd backend
+.venv/Scripts/python.exe scripts/postgres_seed.py --reset
+
+# 4. （可选）验证 pgvector
+.venv/Scripts/python.exe scripts/postgres_pgvector_smoke.py
+```
+
+详细说明见 `infra/README.md`。
+
+### 访问控制（可选，A2）
 
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
