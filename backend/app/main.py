@@ -86,13 +86,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # the stack with `reversed(middleware)`, so the LAST one added is OUTERMOST.
 # We want CORS outermost so that 401 responses from the access-control middleware
 # still carry Access-Control-Allow-Origin headers for browser callers.
-<<<<<<< HEAD
 # RequestLoggingMiddleware goes before access control so it captures all requests
 # (including 401s) and can log request_id for debugging.
 app.add_middleware(RequestLoggingMiddleware)
-=======
 # Request size limit is added after access control to reject large bodies early.
->>>>>>> 642c17c (fix(security): address HIGH priority production risks)
 install_access_token_middleware(app)
 app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(
