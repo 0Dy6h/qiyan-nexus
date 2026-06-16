@@ -46,7 +46,7 @@ Preflight verification:
 
 ## 使用说明
 
-本文件用于正式医生/科研 reviewer 走查记录。请按 `docs/checklists/internal-preview-reviewer-walkthrough.md` 完成流程，并把每个问题按 P0/P1/P2/P3 分级。
+本文件用于正式医生/科研 reviewer 走查记录。请先按 `docs/checklists/reviewer-walkthrough-task-card.md` 完成 S1-S4 精简任务单；需要展开步骤时，再查 `docs/checklists/internal-preview-reviewer-walkthrough.md` 对应场景。每个问题按 P0/P1/P2/P3 分级。
 
 本轮默认不启用真实 LLM，不向外部 provider 发送问题或证据片段。所有 AI/RAG 输出仍必须出现：
 
@@ -74,7 +74,7 @@ Preflight verification:
 #### Issue E-1
 
 - `reviewer_role`: engineering pre-review
-- `flow`: 文献检索与数据来源切换
+- `flow`: S1 文献四来源检索
 - `severity`: P1
 - `description`: `/literature` 默认结果包含 seed 演示文献，其中部分中文/英文标题、作者、PMID/DOI 与 `example.org` citation URL 不是外部数据库可检索的真实记录；原 UI 虽有 sample banner，但卡片层没有逐条标明记录来源，`PubMed 实时` 文案也容易让 reviewer 误以为 PubMed seed 样本都是实时真实记录。
 - `steps_to_reproduce`: 访问 `/literature`，搜索 `特应性皮炎` 或切换 PubMed 视图，尝试用外部网站检索页面展示的 seed 标题。
@@ -98,9 +98,9 @@ Preflight verification:
 
 ### 必走流程
 
-- [ ] 文献检索与详情页
-- [ ] RAG 问答与引用核对
-- [ ] PDF 上传、自动解析与预览
+- [ ] S1 文献四来源检索
+- [ ] S2 PDF 上传 → 解析 → RAG 引用
+- [ ] S3 RAG 答案 + 免责声明
 - [ ] 合规说明页
 
 ### 评分
@@ -148,10 +148,10 @@ Preflight verification:
 
 ### 必走流程
 
-- [ ] 文献检索与数据来源切换
-- [ ] RAG citation cards 与 Markdown 导出
-- [ ] 网络药理学链路、网络图与富集分析
-- [ ] 网络分析 Markdown 报告导出
+- [ ] S1 文献四来源检索
+- [ ] S2 PDF 上传 → 解析 → RAG 引用
+- [ ] S3 RAG 答案 + 免责声明
+- [ ] S4 网络药理学 mock 边界
 
 ### 评分
 
@@ -197,15 +197,15 @@ Preflight verification:
 
 - AI 技术预审未发现 P0/P1 问题。
 - AI 技术预审建议可进入小范围试用准备，但仍需真实临床与科研 reviewer 现场走查后才能 close out。
-- 预审发现的 P2 `网络药理学 mock 边界标注可增强` 已在本轮补强：`/network` 页面新增演示数据边界 note，后端 network Markdown 报告头部新增数据说明。
+- 预审发现的 P2 `S4 网络药理学 mock 边界标注可增强` 已在本轮补强：`/network` 页面新增演示数据边界 note，后端 network Markdown 报告头部新增数据说明。
 - 预审发现的 P3 `英文样本作者姓名可优化` 仍作为 backlog，不阻塞小范围试用准备。
 
 ## Consolidated Triage
 
 | ID | Reviewer | Flow | Priority | Blocks Trial | Disposition |
 |---|---|---|---|---|---|
-| E-1 | engineering pre-review | 文献检索与数据来源切换 | P1 | no after fix | fixed-before-formal-review |
-| E-2 | AI technical pre-review | 网络药理学 mock 边界标注 | P2 | no after fix | fixed-before-human-review |
+| E-1 | engineering pre-review | S1 文献四来源检索 | P1 | no after fix | fixed-before-formal-review |
+| E-2 | AI technical pre-review | S4 网络药理学 mock 边界 | P2 | no after fix | fixed-before-human-review |
 | A-1 | clinician |  |  |  | pending-human-review |
 | B-1 | research |  |  |  | pending-human-review |
 
