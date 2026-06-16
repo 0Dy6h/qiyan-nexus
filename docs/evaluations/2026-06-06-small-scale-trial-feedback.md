@@ -17,10 +17,10 @@ profile: default offline preview (`deterministic` provider + `keyword` retrieval
 
 默认包含：
 
-- 文献检索与四数据源切换。
-- 文献详情与 PDF 上传、自动解析、预览。
-- RAG 问答、citation cards 与 Markdown 导出。
-- 网络药理学 mock 分析、网络图、富集分析表格与 Markdown 导出。
+- S1 文献四来源检索。
+- S2 PDF 上传 → 解析 → RAG 引用。
+- S3 RAG 答案 + 免责声明。
+- S4 网络药理学 mock 边界。
 - 合规说明页与免责声明核对。
 
 默认不包含：
@@ -78,16 +78,11 @@ Recommended pre-trial commands:
 
 #### Completed Flows
 
-- [ ] 文献检索与四数据源切换
-- [ ] 文献详情
-- [ ] PDF 上传、自动解析与预览
-- [ ] RAG 问答与 citation cards
-- [ ] RAG Markdown 导出
-- [ ] 网络药理学 mock 分析
-- [ ] 网络图交互
-- [ ] 富集分析表格
-- [ ] 网络报告 Markdown 导出
-- [ ] 合规说明页
+- [ ] S1 文献四来源检索
+- [ ] S2 PDF 上传 → 解析 → RAG 引用
+- [ ] S3 RAG 答案 + 免责声明
+- [ ] S4 网络药理学 mock 边界
+- [ ] 合规说明页与免责声明核对
 
 #### Ratings
 
@@ -138,16 +133,11 @@ Recommended pre-trial commands:
 
 #### Completed Flows
 
-- [ ] 文献检索与四数据源切换
-- [ ] 文献详情
-- [ ] PDF 上传、自动解析与预览
-- [ ] RAG 问答与 citation cards
-- [ ] RAG Markdown 导出
-- [ ] 网络药理学 mock 分析
-- [ ] 网络图交互
-- [ ] 富集分析表格
-- [ ] 网络报告 Markdown 导出
-- [ ] 合规说明页
+- [ ] S1 文献四来源检索
+- [ ] S2 PDF 上传 → 解析 → RAG 引用
+- [ ] S3 RAG 答案 + 免责声明
+- [ ] S4 网络药理学 mock 边界
+- [ ] 合规说明页与免责声明核对
 
 #### Ratings
 
