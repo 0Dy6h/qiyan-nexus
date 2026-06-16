@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from app.core.config import get_settings
+import pytest
+
+from app.core.config import Settings, get_settings
 
 
 def test_default_settings(monkeypatch):
@@ -121,3 +123,36 @@ def test_network_live_settings_from_env(monkeypatch):
     assert settings.network_http_timeout_seconds == 3.5
     assert settings.network_rate_limit_per_second == 0.5
     get_settings.cache_clear()
+
+
+def test_production_requires_at_least_one_llm_provider_key():
+    """HIGH-6: production must fail-fast when no LLM provider key is configured."""
+    with pytest.raises(ValueError, match="LLM provider API key"):
+        Settings(environment="production")
+
+
+def test_production_accepts_configured_provider_and_existing_upload_dir(tmp_path):
+    settings = Settings(
+        environment="production",
+        opencode_go_api_key="test-key",
+        upload_storage_dir=tmp_path,
+    )
+
+    assert settings.environment == "production"
+
+
+def test_production_rejects_out_of_range_grounding_threshold(tmp_path):
+    with pytest.raises(ValueError, match="GROUNDING_SEMANTIC_THRESHOLD"):
+        Settings(
+            environment="production",
+            opencode_go_api_key="test-key",
+            upload_storage_dir=tmp_path,
+            grounding_semantic_threshold=1.5,
+        )
+
+
+def test_dev_environment_skips_production_validation():
+    # Default dev path must not raise even with no provider keys configured.
+    settings = Settings(environment="dev")
+
+    assert settings.environment == "dev"

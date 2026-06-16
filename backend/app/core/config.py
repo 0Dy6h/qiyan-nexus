@@ -30,13 +30,6 @@ class Settings:
     network_http_timeout_seconds: float = 15.0
     network_rate_limit_per_second: float = 1.0
 
-
-def _bool_env(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
     def __post_init__(self) -> None:
         """Validate configuration after initialization.
 
@@ -66,6 +59,13 @@ def _bool_env(name: str, default: bool = False) -> bool:
                     f"QIYAN_GROUNDING_SEMANTIC_THRESHOLD must be between 0.0 and 1.0, "
                     f"got {self.grounding_semantic_threshold}"
                 )
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 @lru_cache
