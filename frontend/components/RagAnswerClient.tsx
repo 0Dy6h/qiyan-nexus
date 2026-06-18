@@ -34,6 +34,19 @@ function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function getRagGenerationModeLabel(providerName: string) {
+  if (providerName === "deterministic") {
+    return "本地生成";
+  }
+  if (providerName === "mock_claude") {
+    return "离线 mock 模型";
+  }
+  if (providerName === "opencode_go" || providerName === "anthropic") {
+    return "外部模型 opt-in";
+  }
+  return providerName;
+}
+
 function formatTokenUsage(value: number | null | undefined) {
   return value == null ? "未返回" : `${value}`;
 }
@@ -128,7 +141,7 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
         items={[
           `来源 ${citation.source}`,
           `置信度 ${formatConfidence(citation.confidence)}`,
-          isUploadedPdf ? "证据片段 来自上传 PDF" : null,
+          isUploadedPdf ? "用户上传 PDF 片段（来自上传 PDF）" : null,
         ]}
       />
       <h3 style={{ color: "var(--qiyan-ink)", fontSize: 22, marginBottom: 12 }}>{citation.title}</h3>
@@ -223,7 +236,7 @@ export default function RagAnswerClient() {
         <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
           <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>问答条件</h2>
           <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
-            先明确问题，再限定来源与引用数量，随后核对回答、检索元数据与引用证据。
+            先明确问题，再限定来源与引用数量，随后核对回答、技术审计信息与引用证据。
           </p>
         </div>
 
@@ -320,19 +333,17 @@ export default function RagAnswerClient() {
         <div style={{ display: "grid", gap: 20 }}>
           <section style={getSurfaceSectionStyle()}>
             <div style={{ display: "grid", gap: 4, marginBottom: 16 }}>
-              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>回答结果</h2>
+              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>证据简报</h2>
               <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
-                先阅读结论，再回到下方引用卡片核对证据来源与检索边界。
+                先阅读结论，再回到下方引用卡片核对证据来源与检索边界；技术细节保留在审计信息中。
               </p>
             </div>
             <CardMetaRow
               items={[
-                `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
-                `应用 top_k ${state.result.retrieval.applied_top_k}`,
-                `Provider ${state.result.provider_name}`,
-                `检索策略 ${state.result.retrieval.strategy}`,
-                `Grounding ${state.result.grounding.status}`,
-                `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
+                `回答模式 ${getRagGenerationModeLabel(state.result.provider_name)}`,
+                `证据范围 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
+                `引用卡片 ${state.result.citations.length}`,
+                `可用引用数 ${state.result.retrieval.available_citation_count}`,
                 `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
                 `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
               ]}
@@ -348,55 +359,95 @@ export default function RagAnswerClient() {
             ) : null}
             <CardBodyText>{state.result.answer}</CardBodyText>
             <p style={{ color: "var(--qiyan-muted-2)", marginBottom: 12, lineHeight: 1.6 }}>{state.result.disclaimer}</p>
-            <button
-              type="button"
-              onClick={onExportAnswer}
-              aria-label="导出答案为 Markdown"
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={onExportAnswer}
+                aria-label="导出答案为 Markdown"
+                style={{
+                  border: "1px solid #0d9488",
+                  borderRadius: 8,
+                  background: "var(--qiyan-surface)",
+                  color: "#0d9488",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  padding: "10px 18px",
+                  minHeight: 44,
+                  cursor: "pointer",
+                }}
+              >
+                导出答案为 Markdown ↓
+              </button>
+              <a href="/evals/rag-ad" style={{ color: "#0d9488", fontWeight: 700 }}>
+                运行 RAG 评估
+              </a>
+              <a href="/compliance" style={{ color: "#0d9488", fontWeight: 700 }}>
+                核对合规边界
+              </a>
+            </div>
+            <div
+              aria-label="证据简报后续动作"
               style={{
-                border: "1px solid #0d9488",
+                border: "1px solid var(--qiyan-line)",
                 borderRadius: 8,
-                background: "var(--qiyan-surface)",
-                color: "#0d9488",
-                fontSize: 15,
-                fontWeight: 700,
-                padding: "10px 18px",
-                minHeight: 44,
-                cursor: "pointer",
+                marginTop: 12,
+                padding: "10px 12px",
+                background: "var(--qiyan-surface-3)",
               }}
             >
-              导出答案为 Markdown ↓
-            </button>
-          </section>
-
-          <section style={getSurfaceSectionStyle()}>
-            <div style={{ display: "grid", gap: 4, marginBottom: 12 }}>
-              <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>检索元数据</h2>
-              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>用于确认当前回答实际使用的来源范围、引用上限与可核对证据数量。</p>
+              <p style={{ color: "var(--qiyan-kicker)", fontSize: 13, fontWeight: 800, margin: "0 0 4px" }}>下一步</p>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
+                导出后可运行 50 题回归评估，或核对合规边界，确认这份证据材料适合进入 reviewer 走查。
+              </p>
             </div>
-            <CardMetaRow
-              items={[
-                `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
-                `应用 top_k ${state.result.retrieval.applied_top_k}`,
-                `可用引用数 ${state.result.retrieval.available_citation_count}`,
-                `Provider ${state.result.provider_name}`,
-                `检索策略 ${state.result.retrieval.strategy}`,
-                `Grounding ${state.result.grounding.status}`,
-                `Grounding 策略 ${state.result.grounding.policy}`,
-                `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
-                `Grounding Tool ${formatGroundingTool(state.result.grounding)}`,
-                `Tool 调用数 ${state.result.grounding.tool_call_count}`,
-                `语义阈值 ${formatSemanticThreshold(state.result.grounding)}`,
-                `最小语义支持度 ${formatSemanticScore(state.result.grounding)}`,
-                `NLI 阈值 ${formatNliThreshold(state.result.grounding)}`,
-                `最小蕴含支持度 ${formatNliScore(state.result.grounding)}`,
-                `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
-                `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
-                `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,
-                `Token 输出 ${formatTokenUsage(state.result.output_tokens)}`,
-                `Provider 延迟 ${formatLatencyMs(state.result.sli)}`,
-                `预估成本 ${formatEstimatedCost(state.result.sli)}`,
-              ]}
-            />
+            <details
+              style={{
+                border: "1px solid var(--qiyan-line)",
+                borderRadius: 8,
+                marginTop: 16,
+                padding: "10px 12px",
+                background: "var(--qiyan-surface-3)",
+              }}
+            >
+              <summary
+                style={{
+                  color: "var(--qiyan-ink)",
+                  cursor: "pointer",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  lineHeight: 1.6,
+                }}
+              >
+                技术审计信息
+              </summary>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: "10px 0", lineHeight: 1.6 }}>
+                用于确认当前回答实际使用的来源范围、引用上限、可核对证据数量、provider、grounding 与成本/延迟。
+              </p>
+              <CardMetaRow
+                items={[
+                  `应用来源 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
+                  `应用 top_k ${state.result.retrieval.applied_top_k}`,
+                  `可用引用数 ${state.result.retrieval.available_citation_count}`,
+                  `Provider ${state.result.provider_name}`,
+                  `检索策略 ${state.result.retrieval.strategy}`,
+                  `Grounding ${state.result.grounding.status}`,
+                  `Grounding 策略 ${state.result.grounding.policy}`,
+                  `Native Grounding ${formatNativeGrounding(state.result.grounding)}`,
+                  `Grounding Tool ${formatGroundingTool(state.result.grounding)}`,
+                  `Tool 调用数 ${state.result.grounding.tool_call_count}`,
+                  `语义阈值 ${formatSemanticThreshold(state.result.grounding)}`,
+                  `最小语义支持度 ${formatSemanticScore(state.result.grounding)}`,
+                  `NLI 阈值 ${formatNliThreshold(state.result.grounding)}`,
+                  `最小蕴含支持度 ${formatNliScore(state.result.grounding)}`,
+                  `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
+                  `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
+                  `Token 输入 ${formatTokenUsage(state.result.input_tokens)}`,
+                  `Token 输出 ${formatTokenUsage(state.result.output_tokens)}`,
+                  `Provider 延迟 ${formatLatencyMs(state.result.sli)}`,
+                  `预估成本 ${formatEstimatedCost(state.result.sli)}`,
+                ]}
+              />
+            </details>
           </section>
 
           <section style={getSurfaceSectionStyle()}>

@@ -19,7 +19,7 @@ test("NetworkGraph renders SVG with role=img", () => {
 
   assert(source.includes("<svg"));
   assert(source.includes('role="img"'));
-  assert(source.includes('aria-label="网络药理学成分-靶点-通路-疾病链图"'));
+  assert(source.includes('aria-label="机制线索成分-靶点-通路-疾病链图"'));
 });
 
 test("NetworkGraph renders layer headers", () => {

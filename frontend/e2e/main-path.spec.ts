@@ -40,12 +40,14 @@ test("main path: literature search → detail → rag answer with citations + di
   await page.getByRole("textbox", { name: "RAG 问题" }).fill("特应性皮炎 肠皮轴");
   await page.getByRole("button", { name: /生成回答|生成中/ }).click();
 
-  // 5. Answer surface renders with disclaimer (byte-identical) and at least one citation card.
-  await expect(page.getByRole("heading", { name: "回答结果" })).toBeVisible({ timeout: 15_000 });
+  // 5. Evidence brief renders with disclaimer (byte-identical) and at least one citation card.
+  await expect(page.getByRole("heading", { name: "证据简报" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("非诊断结论、需结合临床。", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "引用卡片" })).toBeVisible();
   await expect(page.getByRole("link", { name: /查看文献详情/ }).first()).toBeVisible();
 
-  // 6. Export-as-markdown button is wired up (A3 surface stays visible).
+  // 6. Export and reviewer closeout actions stay visible.
   await expect(page.getByRole("button", { name: "导出答案为 Markdown" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "运行 RAG 评估" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "核对合规边界" })).toBeVisible();
 });

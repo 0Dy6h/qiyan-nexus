@@ -24,33 +24,33 @@ const taskCards: Array<{
   {
     href: "/literature",
     icon: <FileSearchOutlined aria-hidden="true" />,
-    eyebrow: "Evidence intake",
-    title: "文献检索",
-    body: "先核对来源、年份、摘要与 PDF 状态，再进入证据摘录和人工校正。",
-    metric: "Seed / PubMed / PDF",
+    eyebrow: "Step 1",
+    title: "查证据",
+    body: "检索 AD 中医药文献，核对演示样本、PubMed 实时同步与用户上传 PDF 的来源边界。",
+    metric: "文献 / PDF / 来源",
   },
   {
     href: "/rag",
     icon: <QuestionCircleOutlined aria-hidden="true" />,
-    eyebrow: "Citation QA",
-    title: "RAG 问答",
-    body: "围绕 AD 问题返回可追溯答案，显式展示检索边界与 citation cards。",
-    metric: "Answer + grounding",
+    eyebrow: "Step 2",
+    title: "问证据",
+    body: "围绕真实研究问题生成证据简报，默认先看答案、免责声明与引用卡片，再展开技术审计。",
+    metric: "答案 / 引用 / 导出",
   },
   {
     href: "/network",
     icon: <BranchesOutlined aria-hidden="true" />,
-    eyebrow: "Mechanism map",
-    title: "网络药理学",
-    body: "保留成分、靶点、通路、疾病概念边界，当前验证 mock 任务链路。",
-    metric: "Compound / target",
+    eyebrow: "Step 3",
+    title: "看机制线索",
+    body: "查看方药-成分-靶点-通路链条，默认作为探索性机制线索，不作为正式网络药理学结论。",
+    metric: "Mock / opt-in live",
   },
   {
     href: "/evals/rag-ad",
     icon: <ExperimentOutlined aria-hidden="true" />,
-    eyebrow: "Regression",
-    title: "RAG 评估",
-    body: "用 50 题评估集检查引用命中、chunk 命中、免责声明覆盖与禁用语。",
+    eyebrow: "Audit",
+    title: "回归评估",
+    body: "用 50 题评估集检查引用命中、chunk 命中、免责声明覆盖与禁用语，供内部收口使用。",
     metric: "50 questions",
   },
 ];
@@ -63,10 +63,10 @@ const controlRows = [
 ];
 
 const signalCards = [
-  { value: "Seed / PubMed", label: "文献证据信号" },
+  { value: "查文献", label: "定位 AD 中医药证据" },
   { value: "50", label: "AD RAG 评估问题" },
-  { value: "PDF pending", label: "上传解析状态追踪" },
-  { value: "Mock graph", label: "成分-靶点-通路链" },
+  { value: "上传/归档证据", label: "PDF 解析状态追踪" },
+  { value: "提问 / 核引用 / 导出", label: "可导出的证据材料" },
   { value: DISCLAIMER, label: "输出边界" },
 ];
 
@@ -106,19 +106,19 @@ export default function HomePage() {
           <article className="home-hero" aria-label="Qiyan Nexus 首页">
             <div className="home-hero-main">
               <p className="workbench-kicker">Clinical evidence operating layer</p>
-              <h1 className="home-title">你好，告诉我们你想核对的证据问题</h1>
+              <h1 className="home-title">AD 中医药证据工作台</h1>
               <p className="home-summary">
-                捕捉 AD 文献、上传 PDF、RAG 引用与网药 mock 信号，把研究问题送入可追溯、可评估、可声明边界的证据工作台。
+                从查文献、上传/归档证据，到提问、核引用、导出可导出的证据材料；先完成一条可追溯的核心工作流，再进入机制线索探索。
               </p>
               <div className="home-app-console">
                 <div className="home-mode-tabs" role="tablist" aria-label="研究工作模式">
                   <span className="home-mode-tab home-mode-tab-active" role="tab" aria-selected="true">
                     <QuestionCircleOutlined aria-hidden="true" />
-                    RAG 引用问答
+                    问证据
                   </span>
                   <span className="home-mode-tab" role="tab" aria-selected="false">
                     <BranchesOutlined aria-hidden="true" />
-                    网药机制链
+                    看机制线索
                   </span>
                 </div>
 
@@ -133,7 +133,7 @@ export default function HomePage() {
                       <a href="/literature" aria-label="进入文献检索">
                         <PaperClipOutlined aria-hidden="true" />
                       </a>
-                      <a href="/network" aria-label="进入网络药理学">
+                      <a href="/network" aria-label="进入机制线索探索">
                         <PictureOutlined aria-hidden="true" />
                       </a>
                     </span>
@@ -183,11 +183,11 @@ export default function HomePage() {
           <section className="workbench-content-band" aria-label="工作台任务入口">
             <div className="home-section-head">
               <div>
-                <p className="workbench-kicker">Workbench routes</p>
-                <h2>每个入口都对应一段可复核的科研动作</h2>
+                <p className="workbench-kicker">Core workflow</p>
+                <h2>先完成核心证据整理，再评价更多模块</h2>
               </div>
               <p>
-                首页展示当前能力、数据边界和审阅顺序，让使用者先理解证据来源，再进入具体工具。
+                首页只强调真实 reviewer 需要走通的主路径：查文献 → 上传/归档证据 → 提问 → 核引用 → 导出；其余能力作为审计或后续探索入口。
               </p>
             </div>
 

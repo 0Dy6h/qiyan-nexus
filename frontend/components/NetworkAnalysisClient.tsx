@@ -207,7 +207,7 @@ export default function NetworkAnalysisClient() {
               name="query"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              aria-label="网络药理学分析对象"
+              aria-label="机制线索分析对象"
               style={{
                 width: "100%",
                 border: "1px solid var(--qiyan-line)",
@@ -225,7 +225,7 @@ export default function NetworkAnalysisClient() {
                 name="analysis_type"
                 value={analysisType}
                 onChange={(event) => setAnalysisType(event.target.value as NetworkAnalysisType)}
-                aria-label="网络药理学对象类型"
+                aria-label="机制线索对象类型"
                 style={{
                   minWidth: 180,
                   border: "1px solid var(--qiyan-line)",

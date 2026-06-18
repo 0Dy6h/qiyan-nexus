@@ -266,7 +266,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
         <svg
           viewBox="0 0 1040 180"
           role="img"
-          aria-label="网络药理学成分-靶点-通路-疾病链图"
+          aria-label="机制线索成分-靶点-通路-疾病链图"
           style={{ width: "100%", minWidth: 720 }}
         >
           <rect x={0} y={0} width={1040} height={180} fill="#ffffff" />
@@ -416,7 +416,7 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
           ref={svgRef}
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           role="img"
-          aria-label="网络药理学成分-靶点-通路-疾病链图"
+          aria-label="机制线索成分-靶点-通路-疾病链图"
           style={{ width: "100%", minWidth: 820, display: "block" }}
         >
           <defs>

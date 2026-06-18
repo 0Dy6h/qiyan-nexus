@@ -13,7 +13,7 @@ import {
 const navItems = [
   { href: "/literature", label: "文献检索" },
   { href: "/rag", label: "RAG 问答" },
-  { href: "/network", label: "网络药理学" },
+  { href: "/network", label: "机制线索" },
   { href: "/evals/rag-ad", label: "RAG 评估" },
   { href: "/compliance", label: "合规边界" },
 ];
