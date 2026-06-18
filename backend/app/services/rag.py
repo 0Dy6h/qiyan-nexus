@@ -303,44 +303,25 @@ def _format_citation_block(citation: CitationCard, index: int) -> str:
 def build_answer_markdown(answer: RagAnswerResponse) -> str:
     """Build a Markdown export string for a RAG answer payload.
 
-    Output is field-aligned with ``frontend/lib/rag-export.ts:buildAnswerMarkdown``
-    so the server-rendered file is byte-identical to the legacy client-side build.
+    The export is reviewer-facing first, while preserving the previous metadata
+    labels for API smoke tests and technical auditability.
     """
 
     sections: list[str] = []
     grounding: GroundingMetadata = answer.grounding
+    source_label = _rag_source_label(answer.retrieval.applied_source)
+    cited_claim_coverage = f"{grounding.cited_claim_count}/{grounding.claim_count}"
     sections.append("# Qiyan Nexus RAG 答案导出")
     sections.append("")
+    sections.append("## 证据简报")
+    sections.append("")
     sections.append(f"- 导出时间（UTC）：{answer.answered_at}")
-    sections.append(f"- 应用来源：{_rag_source_label(answer.retrieval.applied_source)}")
-    sections.append(f"- 应用 top_k：{answer.retrieval.applied_top_k}")
+    sections.append(f"- 回答模式：{answer.provider_name} / {answer.retrieval.strategy}")
+    sections.append(f"- 证据范围：{source_label}")
+    sections.append(f"- 引用卡片：{len(answer.citations)}")
     sections.append(f"- 可用引用数：{answer.retrieval.available_citation_count}")
-    sections.append(f"- Provider：{answer.provider_name}")
-    sections.append(f"- 检索策略：{answer.retrieval.strategy}")
-    sections.append(f"- Grounding 状态：{grounding.status}")
-    sections.append(f"- Grounding 策略：{grounding.policy}")
-    sections.append(
-        f"- Provider-native grounding：{'true' if grounding.provider_native_grounding else 'false'}"
-    )
-    sections.append(f"- Grounding Tool：{grounding.tool_name or '无'}")
-    sections.append(f"- Tool 调用数：{grounding.tool_call_count}")
-    sections.append(f"- 语义阈值：{_format_semantic_threshold(grounding.semantic_threshold)}")
-    sections.append(f"- 最小语义支持度：{_format_semantic_score(grounding.min_semantic_score)}")
-    sections.append(f"- NLI 阈值：{_format_nli_threshold(grounding.nli_threshold)}")
-    sections.append(f"- 最小蕴含支持度：{_format_nli_score(grounding.min_entailment_score)}")
-    sections.append(f"- Grounding 拦截原因：{grounding.blocked_reason or '无'}")
-    sections.append(f"- 句级引用覆盖：{grounding.cited_claim_count}/{grounding.claim_count}")
-    sections.append(
-        f"- Grounding 命中证据：{_join_or_fallback(grounding.matched_evidence_refs, '无')}"
-    )
-    sections.append(
-        f"- Grounding 异常证据：{_join_or_fallback(grounding.unsupported_evidence_refs, '无')}"
-    )
-    sections.append(f"- 结构化声明数：{len(grounding.structured_claims)}")
-    sections.append(f"- Token 输入：{_format_token_usage(answer.input_tokens)}")
-    sections.append(f"- Token 输出：{_format_token_usage(answer.output_tokens)}")
-    sections.append(f"- Provider 延迟：{_format_latency_ms(answer.sli)}")
-    sections.append(f"- 预估成本：{_format_estimated_cost(answer.sli)}")
+    sections.append(f"- 句级引用覆盖：{cited_claim_coverage}")
+    sections.append(f"- 结构化声明：{len(grounding.structured_claims)}")
     sections.append("")
     sections.append("## 问题")
     sections.append("")
@@ -349,6 +330,14 @@ def build_answer_markdown(answer: RagAnswerResponse) -> str:
     sections.append("## 回答")
     sections.append("")
     sections.append(answer.answer)
+    sections.append("")
+    sections.append("## 使用边界")
+    sections.append("")
+    sections.append(f"- 本导出仅用于 AD 中医药证据整理和 reviewer 走查：{DISCLAIMER}")
+    sections.append("- 引用证据可能来自演示 seed、PubMed 同步记录或用户上传 PDF；请逐条核对来源。")
+    sections.append(
+        "- 当前网络/机制相关内容如被引用，应按探索性线索理解，不等同正式网络药理学结论。"
+    )
     sections.append("")
     sections.append("## 结构化声明")
     sections.append("")
@@ -373,8 +362,47 @@ def build_answer_markdown(answer: RagAnswerResponse) -> str:
         for idx, citation in enumerate(answer.citations):
             sections.append(_format_citation_block(citation, idx))
             sections.append("")
+    sections.append("## Reviewer 核对清单")
+    sections.append("")
+    sections.append(f"- [ ] 已核对免责声明：{DISCLAIMER}")
+    sections.append("- [ ] 已逐条打开引用文献详情或原文 PDF")
+    sections.append("- [ ] 已确认 seed / PubMed / 上传 PDF 来源边界")
+    sections.append("- [ ] 已确认当前回答不作为诊断或处方建议")
+    sections.append("")
+    sections.append("## 技术审计信息")
+    sections.append("")
+    sections.append(f"- 导出时间（UTC）：{answer.answered_at}")
+    sections.append(f"- 应用来源：{source_label}")
+    sections.append(f"- 应用 top_k：{answer.retrieval.applied_top_k}")
+    sections.append(f"- 可用引用数：{answer.retrieval.available_citation_count}")
+    sections.append(f"- Provider：{answer.provider_name}")
+    sections.append(f"- 检索策略：{answer.retrieval.strategy}")
+    sections.append(f"- Grounding 状态：{grounding.status}")
+    sections.append(f"- Grounding 策略：{grounding.policy}")
+    sections.append(
+        f"- Provider-native grounding：{'true' if grounding.provider_native_grounding else 'false'}"
+    )
+    sections.append(f"- Grounding Tool：{grounding.tool_name or '无'}")
+    sections.append(f"- Tool 调用数：{grounding.tool_call_count}")
+    sections.append(f"- 语义阈值：{_format_semantic_threshold(grounding.semantic_threshold)}")
+    sections.append(f"- 最小语义支持度：{_format_semantic_score(grounding.min_semantic_score)}")
+    sections.append(f"- NLI 阈值：{_format_nli_threshold(grounding.nli_threshold)}")
+    sections.append(f"- 最小蕴含支持度：{_format_nli_score(grounding.min_entailment_score)}")
+    sections.append(f"- Grounding 拦截原因：{grounding.blocked_reason or '无'}")
+    sections.append(f"- 句级引用覆盖：{cited_claim_coverage}")
+    sections.append(
+        f"- Grounding 命中证据：{_join_or_fallback(grounding.matched_evidence_refs, '无')}"
+    )
+    sections.append(
+        f"- Grounding 异常证据：{_join_or_fallback(grounding.unsupported_evidence_refs, '无')}"
+    )
+    sections.append(f"- 结构化声明数：{len(grounding.structured_claims)}")
+    sections.append(f"- Token 输入：{_format_token_usage(answer.input_tokens)}")
+    sections.append(f"- Token 输出：{_format_token_usage(answer.output_tokens)}")
+    sections.append(f"- Provider 延迟：{_format_latency_ms(answer.sli)}")
+    sections.append(f"- 预估成本：{_format_estimated_cost(answer.sli)}")
     sections.append("---")
     sections.append("")
-    sections.append(answer.disclaimer)
+    sections.append(DISCLAIMER)
     sections.append("")
     return "\n".join(sections)
