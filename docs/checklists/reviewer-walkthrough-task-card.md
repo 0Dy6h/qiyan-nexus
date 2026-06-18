@@ -1,6 +1,22 @@
 # Qiyan Nexus 正式 Reviewer 走查任务单
 
-用途：给医生 / 科研 reviewer 用 30-45 分钟完成正式 sign-off 走查。详细步骤不在本任务单重抄；需要展开操作时，按 `docs/checklists/internal-preview-reviewer-walkthrough.md` 的对应小节执行。
+用途：给医生 / 科研 reviewer 用 30-45 分钟完成正式 sign-off 走查。正式展开 S1-S4 前，先跑 10-15 分钟“核心证据整理任务”，验证真实用户是否愿意用 Qiyan Nexus 完成一次 AD 中医药证据整理，并认可引用可追溯性。详细步骤不在本任务单重抄；需要展开操作时，按 `docs/checklists/internal-preview-reviewer-walkthrough.md` 的对应小节执行。
+
+## 本轮产品验证目标
+
+不扩功能，先验证：
+
+> 真实医生 / 科研用户是否愿意用 Qiyan Nexus 完成一次 AD 中医药证据整理任务，并认可其证据可追溯性。
+
+判定信号：
+
+- reviewer 能在少量提示下完成“文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出”。
+- reviewer 没有把 seed / sample / uploaded PDF / network mock 数据误解为外部真实数据库结论。
+- reviewer 认为 citation cards 和文献详情跳转足以支持后续人工核查。
+- 所有 AI/RAG/network 输出都保留 `非诊断结论、需结合临床。`。
+- 若出现 P0/P1，先修复并复测，不进入更大范围试用。
+
+配套执行计划见 `docs/plans/2026-06-18-core-evidence-workflow-validation.md`。
 
 ## 走查前固定边界
 
@@ -22,6 +38,22 @@
 .\scripts\smoke-internal-preview.ps1
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\reviewer-card-open -Stop
 ```
+
+## 10-15 分钟核心证据整理任务
+
+先让 reviewer 独立完成这个短流程，再进入 S1-S4 完整走查：
+
+1. 访问 `/literature`，检索 `特应性皮炎` 或 reviewer 自己关心的 AD 中医药关键词。
+2. 打开一篇文献详情；如果要验证本地 PDF，使用主 PDF 样本完成上传和解析。
+3. 访问 `/rag`，提出一个真实证据问题，例如：`健脾养血祛风法治疗特应性皮炎的证据主要支持哪些观察指标？`
+4. 检查回答里的免责声明、引用卡片、记录来源和文献详情跳转。
+5. 导出 Markdown，并确认导出内容包含问题、答案、引用和免责声明。
+6. 回答三件事：
+   - 我是否愿意再次用它整理 AD 中医药证据？
+   - citation 是否足够可追溯，让我愿意把它当作科研/临床参考辅助？
+   - 是否有任何 seed、mock、uploaded PDF 或 AI 输出边界让我误解？
+
+记录位置：正式 reviewer 写入 `docs/evaluations/2026-06-05-reviewer-feedback.md`；小范围试用参与者写入 `docs/evaluations/2026-06-06-small-scale-trial-feedback.md`。
 
 ## 自动化覆盖对照表
 
