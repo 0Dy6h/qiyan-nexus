@@ -81,6 +81,10 @@ export function buildRagAnswerExportUrl() {
   return new URL("/api/rag/answer/export", getBackendBaseUrl()).toString();
 }
 
+export function buildRagAnswerDocxExportUrl() {
+  return new URL("/api/rag/answer/export/docx", getBackendBaseUrl()).toString();
+}
+
 export function buildRagAnswerRequest(question: string, source: RagSource = "all", topK = 2) {
   return {
     question: question.trim(),
@@ -133,4 +137,20 @@ export async function fetchRagAnswerMarkdown(answer: RagAnswerResponse): Promise
   }
 
   return response.text();
+}
+
+export async function fetchRagAnswerDocx(answer: RagAnswerResponse): Promise<Blob> {
+  const response = await apiFetch(buildRagAnswerDocxExportUrl(), {
+    method: "POST",
+    headers: buildApiHeaders({
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify(answer),
+  });
+
+  if (!response.ok) {
+    throw new Error("RAG answer docx export request failed");
+  }
+
+  return response.blob();
 }

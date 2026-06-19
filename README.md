@@ -2,6 +2,26 @@
 
 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
 
+## 这是什么
+
+Qiyan Nexus 把「查文献 → 上传/归档证据 → 提问 → 核对引用 → 导出可审阅材料 → 探索机制线索」整合成一条可追溯的工作流。**仅供医生/科研人员使用，不面向 C 端患者，不替代诊断**；所有 AI 输出均附带免责声明 `非诊断结论、需结合临床。`
+
+### 核心工作流
+
+1. **查证据**（`/literature`）：检索 AD 中医药文献，区分演示样本 / PubMed 同步 / 上传 PDF 来源。
+2. **问证据**（`/rag`）：基于检索到的文献证据提问，返回附引用来源的证据简报；问题超出语料范围时如实返回「未检索到匹配证据」，不强行作答。
+3. **看机制线索**（`/network`）：探索「方药-成分-靶点-通路-疾病」关联（演示数据，非正式网络药理学结论）。
+
+### 当前能力边界（请如实告知试用者）
+
+- RAG 默认走**本地确定性检索**（deterministic + keyword），不接真实 LLM；答案是检索到的原文证据片段，**不是模型综合生成的结论**。
+- 文献库为**小型构造演示样本集（约数十篇）**，不可当作外部可检索的真实文献引用；真实 PubMed 同步为显式 opt-in 入口。需要更大的真实语料时，运行 `backend/scripts/seed_pubmed_corpus.py` 一键拉取真实 PubMed 记录写入 runtime（gitignored，不污染 seed）。
+- 网络药理学默认为 **mock 演示链路**，富集分析为本地字典模拟，**不代表科研级 TCMSP/STRING/KEGG 或真实 FDR 校正**。
+- 分子对接 / 分子动力学（MVP-C）**仅有 schema 预留，无实际功能**。
+- 默认路径不外发数据、不接真实 embedding / 生产数据库；外部 provider 仅作本地显式 smoke。
+
+> 详细 API 示例、env 配置、本地门禁与状态事实源见下文与 `docs/current-state.md`。
+
 当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成优先正文/摘要窗口的预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
 
 当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
@@ -193,6 +213,21 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
 
 当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata 与 `sli`，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
 
+RAG 导出 API：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/rag/answer/export" \
+  -H "Content-Type: application/json" \
+  -d @rag-answer.json
+
+curl -X POST "http://127.0.0.1:8000/api/rag/answer/export/docx" \
+  -H "Content-Type: application/json" \
+  -d @rag-answer.json \
+  --output qiyan-rag-answer.docx
+```
+
+Markdown 导出用于纯文本证据简报；`.docx` 导出使用后端标准库生成最小 OOXML 包，保留多行回答换行并剥离 XML 非法控制字符，适合在 Word / WPS 中继续编辑。
+
 SLI（成本/延迟可观测）：
 
 - response 顶层 `sli` 返回 `provider_latency_ms`（仅包住 provider 生成调用）与 `estimated_cost_usd`。
@@ -277,6 +312,8 @@ curl "http://127.0.0.1:8000/api/network/entities"
 默认模式下，网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。mock 模式不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
 
 真实网络药理学链路是显式 opt-in，不进入默认路径：
+
+> 注意：live 链路是 `TCMSP/cache → PubChem → ChEMBL → UniProt → STRING → KEGG` 的多步外部调用，且 `QIYAN_NETWORK_ALLOW_TCMSP_SCRAPE` 默认 `false`、预测靶点需本地 artifact，未预先准备缓存/靶点文件时大概率跑不通。**内部预览与 reviewer 走查请直接用默认 mock 模式**，不要为走查临时开 live。
 
 - 设置 `QIYAN_NETWORK_DATA_PROVIDER="live"` 后，`POST /api/network/analyze` 与轮询 response 会返回 `data_mode="live"`，并输出 `data_sources`、`pipeline_steps`、`warnings`、`error`、`target_evidence_type`、`evidence_refs` 与可选 `ppi_edges`。
 - live 链路按 `TCMSP/cache → PubChem CID → ChEMBL known activity → UniProt 标准化 → STRING PPI → KEGG pathway/enrichment → report provenance` 执行；外部响应只写入 `backend/data/runtime/network_cache/`，不会回写 seed fixture。
@@ -405,7 +442,7 @@ pnpm build
 当前前端能力：
 
 - `/literature`：支持 query 输入、4 类数据来源视图（全部来源 / PubMed 记录 / CNKI sample / 上传 PDF）、加载/错误/空结果状态、结果卡片跳转详情页，并展示演示数据提示与随来源切换的合规 banner；每条结果会标明记录来源，演示 seed 不可当作外部数据库真实文献引用。
-- `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 导出。
+- `/rag`：支持 question、source、top_k 输入，展示 answer、provider、retrieval strategy、token usage、grounding status、native grounding、tool metadata、句级引用覆盖、结构化声明数、citation cards 与免责声明；当外部 provider 草稿未通过 grounding 时展示拦截提示；支持 Markdown 和 Word `.docx` 导出。
 - `/literature/[id]`：服务端读取文献详情，展示统一 meta/body 样式，并提供 PDF 上传入口、PDF 预览链接、parse status、parse message、时间戳、触发来源、尝试次数、解析方式与解析结果预览。
 - `/evals/rag-ad`：客户端触发 `/api/evals/rag-ad/report`，展示 50 题 RAG 评估的语料范围、通过率、引用命中、chunk 命中、免责声明覆盖、禁用语检查与 grounding 拦截计数。
 - `/network`：提交 mock 网络药理学分析任务，展示 seed chain、entity chips、相关文献与 RAG/network 互链，并可把当前完成结果导出为 Markdown 报告。

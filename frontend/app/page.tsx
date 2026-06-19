@@ -111,16 +111,16 @@ export default function HomePage() {
                 从查文献、上传/归档证据，到提问、核引用、导出可导出的证据材料；先完成一条可追溯的核心工作流，再进入机制线索探索。
               </p>
               <div className="home-app-console">
-                <div className="home-mode-tabs" role="tablist" aria-label="研究工作模式">
-                  <span className="home-mode-tab home-mode-tab-active" role="tab" aria-selected="true">
+                <nav className="home-mode-tabs" aria-label="研究工作模式">
+                  <a className="home-mode-tab home-mode-tab-active" href="/rag">
                     <QuestionCircleOutlined aria-hidden="true" />
                     问证据
-                  </span>
-                  <span className="home-mode-tab" role="tab" aria-selected="false">
+                  </a>
+                  <a className="home-mode-tab" href="/network">
                     <BranchesOutlined aria-hidden="true" />
                     看机制线索
-                  </span>
-                </div>
+                  </a>
+                </nav>
 
                 <form className="home-prompt-card" action="/rag" method="get">
                   <textarea

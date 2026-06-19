@@ -20,7 +20,7 @@ test("root layout uses a persistent app-style left rail navigation and reserves 
   assert.match(shellSource, /className="home-app-rail"/);
   assert.match(shellSource, /aria-label="工作台侧栏"/);
   assert.match(shellSource, /className="home-account-entry"/);
-  assert.match(shellSource, /登录 \/ 注册/);
+  assert.match(shellSource, /内部预览版/);
   assert.match(shellSource, /className="meteor-shower"/);
   assert.match(shellSource, /aria-hidden="true"/);
   assert.match(shellSource, /next\/link/);

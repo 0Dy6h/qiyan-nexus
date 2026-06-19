@@ -62,7 +62,7 @@ test("buildLiteratureSearchUrl omits has_pdf_upload when undefined", () => {
 test("getLiteratureDataSourceLabel surfaces compliance-friendly copy for the 4 views", () => {
   assert.equal(getLiteratureDataSourceLabel("all"), "全部来源");
   assert.equal(getLiteratureDataSourceLabel("pubmed_live"), "PubMed 记录");
-  assert.equal(getLiteratureDataSourceLabel("cnki_sample"), "CNKI sample");
+  assert.equal(getLiteratureDataSourceLabel("cnki_sample"), "CNKI 样本");
   assert.equal(getLiteratureDataSourceLabel("uploaded_pdf"), "上传 PDF");
 });
 

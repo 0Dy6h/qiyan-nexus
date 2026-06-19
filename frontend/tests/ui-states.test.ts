@@ -19,14 +19,14 @@ test("getStatusCopy returns unified submit/loading labels for rag page", () => {
 
 test("getEmptyStateCopy returns unified empty and error copy for literature page", () => {
   assert.deepEqual(getEmptyStateCopy("literature"), {
-    idle: "提交检索后，从后端 API 获取文献结果。",
+    idle: "输入中医药或疾病相关关键词，检索 AD 证据文献。例如：特应性皮炎、消风散、肠道菌群。",
     error: "检索失败，请确认后端服务已启动。",
   });
 });
 
 test("getEmptyStateCopy returns unified empty and error copy for rag page", () => {
   assert.deepEqual(getEmptyStateCopy("rag"), {
-    idle: "提交问题后，从后端 /api/rag/answer 获取 mock 回答与 citation cards。",
+    idle: "基于已检索到的文献证据提问，系统会给出附引用来源的证据简报。例如：消风散对特应性皮炎皮肤屏障功能有什么影响？",
     error: "请求失败，请确认后端服务已启动。",
   });
 });

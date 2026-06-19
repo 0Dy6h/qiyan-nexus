@@ -328,8 +328,9 @@ export default function NetworkAnalysisClient() {
             {result.chains.map((chain, index) => (
               <article key={`${chain.compound}-${index}`} style={getSurfaceCardStyle()}>
                 <p style={{ color: "#0d9488", fontWeight: 700, margin: 0, fontSize: 13 }}>
-                  链 #{index + 1} · 置信度 {formatScore(chain.score)}
-                  {isLiveResult ? ` · ${getNetworkTargetEvidenceTypeLabel(chain.target_evidence_type)}` : ""}
+                  {isLiveResult
+                    ? `链 #${index + 1} · 置信度 ${formatScore(chain.score)} · ${getNetworkTargetEvidenceTypeLabel(chain.target_evidence_type)}`
+                    : `链 #${index + 1} · 演示链路（mock 占位，非真实置信度）`}
                 </p>
                 <p style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "8px 0 0", lineHeight: 1.6 }}>
                   {chain.herb} → {chain.compound} → {chain.target} → {chain.pathway} → {chain.disease}
@@ -529,7 +530,7 @@ export default function NetworkAnalysisClient() {
           </p>
         </section>
       ) : phase === "idle" ? (
-        <StatusPanel message="提交分析任务后，从后端 /api/network/analyze 获取 mock 链。" />
+        <StatusPanel message="输入复方或单味中药名称开始分析，系统会返回「成分-靶点-通路-疾病」机制线索链（当前为演示数据，非正式网络药理学结论）。例如：消风散、黄芪。" />
       ) : isBusy ? (
         <StatusPanel message={`分析任务运行中... 当前进度 ${progress}%。`} />
       ) : null}

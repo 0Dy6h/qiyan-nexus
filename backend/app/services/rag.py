@@ -24,6 +24,7 @@ from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import (
     CONFIDENCE_BY_SOURCE_TYPE,
     ScoredCandidate,
+    domain_vocabulary,
     select_retrieval_provider,
     tokenize_query,
 )
@@ -32,6 +33,67 @@ DISCLAIMER = "非诊断结论、需结合临床。"
 _LOGGER = logging.getLogger(__name__)
 _REPOSITORY = get_literature_repository()
 _CHUNK_REPOSITORY = get_chunk_repository()
+
+# Off-topic guard: the sample corpus is atopic-dermatitis-scoped. A positive
+# top score alone is not enough (single common CJK chars like 的/是/药 match many
+# AD docs), so an on-topic query must also carry a recognized, non-generic
+# domain/entity term.
+RELEVANCE_MIN_TOP_SCORE = 3
+_GENERIC_INTENT_TOKENS = {
+    "therapy",
+    "treatment",
+    "intervention",
+    "acupuncture",
+    "topical",
+    "external",
+}
+_ENTITY_TOKEN_PREFIXES = ("formula-", "herb-", "compound-", "target-", "pathway-")
+
+
+def _query_entity_tokens(query_tokens: set[str]) -> set[str]:
+    return {token for token in query_tokens if token.startswith(_ENTITY_TOKEN_PREFIXES)}
+
+
+def _entity_token_variants(entity_token: str) -> set[str]:
+    variants = {entity_token}
+    prefix, separator, rest = entity_token.partition("-")
+    if separator and rest:
+        variants.add(f"{prefix}:{rest}")
+    return variants
+
+
+def _candidate_entity_ids(candidate: ScoredCandidate) -> set[str]:
+    entity_ids = {entity_id.lower() for entity_id in candidate.item.related_entity_ids}
+    if candidate.chunk is not None:
+        entity_ids.update(entity_id.lower() for entity_id in candidate.chunk.related_entity_ids)
+    return entity_ids
+
+
+def _candidate_matches_query_entity(candidate: ScoredCandidate, entity_tokens: set[str]) -> bool:
+    candidate_ids = _candidate_entity_ids(candidate)
+    for entity_token in entity_tokens:
+        if candidate_ids & _entity_token_variants(entity_token):
+            return True
+    return False
+
+
+def _query_has_topical_signal(question: str, ranked: list[ScoredCandidate]) -> bool:
+    """Whether ``question`` is in-domain for the AD evidence corpus.
+
+    True iff retrieval found a positive top match AND the query contains at
+    least one domain-vocabulary token. Off-topic queries (e.g. a hypertension
+    or weather question) only accumulate single-CJK-char noise — no domain
+    token and a near-zero top score — so ``answer_question`` returns an honest
+    "no matching evidence" answer instead of confidently surfacing mismatched
+    AD literature (product fix P0-1).
+    """
+
+    if not ranked or ranked[0].score < RELEVANCE_MIN_TOP_SCORE:
+        return False
+    query_tokens = set(tokenize_query(question))
+    topical_tokens = query_tokens & domain_vocabulary()
+    strong_topical_tokens = topical_tokens - _GENERIC_INTENT_TOKENS
+    return bool(strong_topical_tokens)
 
 
 def _estimate_cost_usd(
@@ -109,33 +171,50 @@ def answer_question(
             reverse=True,
         )
 
-    available_citation_count = sum(1 for c in ranked if c.score > 0)
-    if available_citation_count == 0:
-        available_citation_count = len(ranked)
+    available_citation_count: int
+    selected: list[ScoredCandidate]
+    if _query_has_topical_signal(normalized_question, ranked):
+        query_tokens = set(tokenize_query(normalized_question))
+        entity_tokens = _query_entity_tokens(query_tokens)
+        positive_ranked = [c for c in ranked if c.score > 0]
+        entity_ranked = [
+            c for c in positive_ranked if _candidate_matches_query_entity(c, entity_tokens)
+        ]
+        citation_pool = entity_ranked or positive_ranked
+        available_citation_count = len(citation_pool)
+        if available_citation_count == 0:
+            available_citation_count = len(ranked)
 
-    selected = [c for c in ranked if c.score > 0][:top_k]
-    if not selected:
-        selected = ranked[:top_k]
+        selected = citation_pool[:top_k]
+        if not selected:
+            selected = ranked[:top_k]
 
-    if (
-        top_k >= 3
-        and source == "all"
-        and len(selected) == top_k
-        and all(c.language_bonus == 1 for c in selected)
-    ):
-        cross_chunk = next(
-            (
-                c
-                for c in ranked
-                if c.score > 0
-                and c.language_bonus == 0
-                and c.chunk is not None
-                and c not in selected
-            ),
-            None,
-        )
-        if cross_chunk is not None:
-            selected = selected[:-1] + [cross_chunk]
+        if (
+            top_k >= 3
+            and source == "all"
+            and len(selected) == top_k
+            and all(c.language_bonus == 1 for c in selected)
+        ):
+            cross_chunk = next(
+                (
+                    c
+                    for c in ranked
+                    if c.score > 0
+                    and c.language_bonus == 0
+                    and c.chunk is not None
+                    and c not in selected
+                ),
+                None,
+            )
+            if cross_chunk is not None:
+                selected = selected[:-1] + [cross_chunk]
+    else:
+        # Off-topic query (P0-1): the sample corpus is AD-scoped, so an
+        # off-topic question only accumulates single-CJK-char noise. Return an
+        # honest "no matching evidence" answer with zero citations instead of
+        # confidently surfacing mismatched AD literature.
+        selected = []
+        available_citation_count = 0
 
     citations: list[CitationCard] = []
     for candidate in selected:

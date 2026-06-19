@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   answerRagQuestion,
   CitationCard,
+  fetchRagAnswerDocx,
   fetchRagAnswerMarkdown,
   getRagSourceLabel,
   GroundingMetadata,
@@ -14,7 +15,7 @@ import {
   RagSource,
 } from "../lib/api/rag";
 import { buildPdfDownloadUrl } from "../lib/api/literature";
-import { buildAnswerMarkdownFileName } from "../lib/rag-export";
+import { buildAnswerDocxFileName, buildAnswerMarkdownFileName } from "../lib/rag-export";
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
 import { getSurfaceCardStyle, getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import { CardBodyText, CardMetaRow } from "./CardMeta";
@@ -207,6 +208,17 @@ export default function RagAnswerClient() {
     }
   }
 
+  function downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
   async function onExportAnswer() {
     if (!state.result) {
       return;
@@ -218,16 +230,22 @@ export default function RagAnswerClient() {
       setState((current) => ({ ...current, error: "导出失败，请稍后重试。" }));
       return;
     }
-    const fileName = buildAnswerMarkdownFileName(state.result.answered_at);
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, buildAnswerMarkdownFileName(state.result.answered_at));
+  }
+
+  async function onExportDocx() {
+    if (!state.result) {
+      return;
+    }
+    let blob: Blob;
+    try {
+      blob = await fetchRagAnswerDocx(state.result);
+    } catch {
+      setState((current) => ({ ...current, error: "导出失败，请稍后重试。" }));
+      return;
+    }
+    downloadBlob(blob, buildAnswerDocxFileName(state.result.answered_at));
   }
 
   return (
@@ -344,8 +362,6 @@ export default function RagAnswerClient() {
                 `证据范围 ${getRagSourceLabel(state.result.retrieval.applied_source)}`,
                 `引用卡片 ${state.result.citations.length}`,
                 `可用引用数 ${state.result.retrieval.available_citation_count}`,
-                `句级引用覆盖 ${formatGroundingCoverage(state.result.grounding)}`,
-                `结构化声明 ${formatStructuredClaimCount(state.result.grounding)}`,
               ]}
             />
             <h3 style={{ color: "var(--qiyan-ink)", fontSize: 28, marginTop: 12, marginBottom: 12 }}>{state.result.question}</h3>
@@ -378,12 +394,33 @@ export default function RagAnswerClient() {
               >
                 导出答案为 Markdown ↓
               </button>
+              <button
+                type="button"
+                onClick={onExportDocx}
+                aria-label="导出答案为 Word 文档"
+                style={{
+                  border: "1px solid #0d9488",
+                  borderRadius: 8,
+                  background: "var(--qiyan-surface)",
+                  color: "#0d9488",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  padding: "10px 18px",
+                  minHeight: 44,
+                  cursor: "pointer",
+                }}
+              >
+                导出为 Word (.docx) ↓
+              </button>
               <a href="/evals/rag-ad" style={{ color: "#0d9488", fontWeight: 700 }}>
                 运行 RAG 评估
               </a>
               <a href="/compliance" style={{ color: "#0d9488", fontWeight: 700 }}>
                 核对合规边界
               </a>
+              <span style={{ color: "var(--qiyan-muted-2)", fontSize: 13 }}>
+                Markdown 适合纯文本归档；Word (.docx) 可直接在 Word / WPS 中编辑。
+              </span>
             </div>
             <div
               aria-label="证据简报后续动作"
@@ -418,10 +455,10 @@ export default function RagAnswerClient() {
                   lineHeight: 1.6,
                 }}
               >
-                技术审计信息
+                技术审计信息（开发者可选，临床核对可跳过）
               </summary>
               <p style={{ color: "var(--qiyan-muted-2)", margin: "10px 0", lineHeight: 1.6 }}>
-                用于确认当前回答实际使用的来源范围、引用上限、可核对证据数量、provider、grounding 与成本/延迟。
+                面向开发者与内部审计：用于确认当前回答实际使用的来源范围、引用上限、可核对证据数量、provider、grounding 与成本/延迟。临床/科研核对证据时可忽略本节。
               </p>
               <CardMetaRow
                 items={[

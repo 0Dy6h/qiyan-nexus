@@ -92,28 +92,34 @@ class DeterministicProvider:
     name = "deterministic"
 
     def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
-        del question  # deterministic text is question-agnostic
+        question_trim = question.strip()
         if not citations:
             return AnswerDraft(
                 text=(
-                    "当前样本文献中没有检索到足够匹配的证据片段。请调整问题关键词或切换来源后重试。"
+                    "当前特应性皮炎（AD）证据样本库中没有检索到足够匹配的证据片段。"
+                    "本工作台仅覆盖 AD 中医药相关文献，请确认问题属于该领域，"
+                    "或调整问题关键词、切换来源后重试。"
                 ),
                 provider_name=self.name,
             )
 
-        top_reasons = [citation.reason for citation in citations if citation.reason]
-        top_reasons_text = "；".join(top_reasons[:2]) if top_reasons else "当前命中的证据片段"
-        titles = "；".join(citation.title for citation in citations[:2])
+        lead = f"针对「{question_trim}」，" if question_trim else ""
+        evidence_lines: list[str] = []
+        for index, citation in enumerate(citations):
+            evidence = (citation.quote or citation.snippet or "").strip()
+            evidence_lines.append(
+                f"{index + 1}.《{citation.title}》（{citation.source}）：{evidence}"
+            )
+        evidence_block = "\n".join(evidence_lines)
         topics = collect_topic_phrases(citations)
         topics_text = "、".join(topics) if topics else "暂无主题映射"
         text = (
-            f"基于当前检索到的证据片段，已优先返回与问题最相关的文献。"
-            f"主要证据线索包括：{top_reasons_text}。"
-            f"代表性文献：{titles}。"
-            f"涉及的研究主题：{topics_text}。"
-            f"请结合引用来源逐条核对，相关结论仍属非诊断结论、需结合临床。"
-            f"此回答仍是基于样本文献的 deterministic retrieval 结果，"
-            f"用于验证引用卡片、证据片段与合规文案。"
+            f"{lead}在当前样本文献中检索到 {len(citations)} 条相关证据片段，按相关度排序：\n"
+            f"{evidence_block}\n"
+            f"涉及主题：{topics_text}。"
+            f"以上为系统检索命中的原文证据片段，未经真实模型综合改写"
+            f"（deterministic retrieval）；请结合引用来源逐条核对，"
+            f"相关结论仍属非诊断结论、需结合临床。"
         )
         return AnswerDraft(text=text, provider_name=self.name)
 

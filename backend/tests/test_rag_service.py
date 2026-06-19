@@ -89,15 +89,49 @@ def test_answer_question_returns_retrieval_metadata_for_positive_matches():
     assert response.retrieval.available_citation_count >= 2
 
 
-def test_answer_question_falls_back_when_no_positive_match_exists():
+def test_answer_question_off_topic_query_returns_no_citations():
+    """P0-1: an off-topic query (no AD-domain term, only single-CJK-char noise)
+    must be answered honestly with zero citations rather than confidently
+    surfacing mismatched AD literature."""
     response = answer_question("completely unrelated token", source="pubmed", top_k=1)
 
-    assert len(response.citations) == 1
-    assert response.retrieval.available_citation_count == 10
-    assert (
-        "没有检索到足够匹配的证据片段" in response.answer
-        or "deterministic retrieval" in response.answer
-    )
+    assert len(response.citations) == 0
+    assert response.retrieval.available_citation_count == 0
+    assert "没有检索到足够匹配的证据片段" in response.answer
+    assert response.disclaimer == DISCLAIMER
+
+
+def test_answer_question_allows_formula_name_query_without_ad_term():
+    """A formula-only query can still be in-domain when the seed corpus cites it.
+
+    The /rag UI suggests 消风散 as an example, so the topical guard must not require
+    the literal AD disease token when retrieval has a strong formula/entity match.
+    """
+    response = answer_question("消风散的组成有哪些", top_k=3)
+
+    assert response.retrieval.available_citation_count == 1
+    assert [citation.literature_id for citation in response.citations] == ["cn-ad-formula-002"]
+    assert "没有检索到足够匹配的证据片段" not in response.answer
+    assert response.disclaimer == DISCLAIMER
+
+
+def test_answer_question_allows_linked_herb_name_query_without_ad_term():
+    """A herb-only query should use curated entity links, not single-char noise."""
+    response = answer_question("黄芪的功效", top_k=3)
+
+    assert response.retrieval.available_citation_count == 1
+    assert [citation.literature_id for citation in response.citations] == ["cn-ad-formula-002"]
+    assert "herb-huangqi" in response.citations[0].related_entity_ids
+    assert "没有检索到足够匹配的证据片段" not in response.answer
+
+
+def test_answer_question_blocks_gut_obstruction_query_despite_single_gut_character():
+    """肠 alone is too broad to make a gastrointestinal condition an AD query."""
+    response = answer_question("肠梗阻怎么治疗", top_k=3)
+
+    assert response.retrieval.available_citation_count == 0
+    assert response.citations == []
+    assert "没有检索到足够匹配的证据片段" in response.answer
 
 
 def test_build_answer_translates_evidence_tags_to_cn_topics():

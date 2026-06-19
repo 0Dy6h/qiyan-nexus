@@ -92,11 +92,11 @@ export default function WorkbenchShell({ children }: Readonly<{ children: ReactN
             ))}
           </section>
 
-          <div className="home-account-entry" aria-label="账户登录入口预留">
+          <div className="home-account-entry" aria-label="内部预览版说明">
             <UserOutlined aria-hidden="true" />
             <span>
-              <strong>登录 / 注册</strong>
-              <small>预留账户入口</small>
+              <strong>内部预览版</strong>
+              <small>当前未开放账户登录</small>
             </span>
           </div>
         </aside>

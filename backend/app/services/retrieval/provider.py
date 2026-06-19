@@ -33,7 +33,7 @@ CONFIDENCE_BY_SOURCE_TYPE: dict[str, float] = {
 }
 
 _KEYWORD_ALIASES: dict[str, list[str]] = {
-    "gut": ["肠", "肠道", "gut", "microbiome", "菌群"],
+    "gut": ["肠道", "gut", "microbiome", "菌群"],
     "skin_barrier": ["屏障", "barrier", "filaggrin"],
     "immune": ["免疫", "inflammation", "immune", "th2", "jak", "cytokine"],
     "targeted_therapy": ["后续", "线索", "therapeutic target", "targeted therapy"],
@@ -78,8 +78,10 @@ def _token_matches(token: str, haystack: str) -> bool:
 _CROSS_LINGUAL_TERMS_PATH = (
     Path(__file__).resolve().parents[3] / "data" / "retrieval" / "cross_lingual_terms.json"
 )
+_NETWORK_DATA_ROOT = Path(__file__).resolve().parents[3] / "data" / "network"
 
 _cross_lingual_cache: dict[str, Any] | None = None
+_network_entity_alias_cache: list[dict[str, Any]] | None = None
 
 
 def _load_cross_lingual_aliases() -> dict[str, Any]:
@@ -111,6 +113,74 @@ def _load_cross_lingual_aliases() -> dict[str, Any]:
         return _cross_lingual_cache
     _cross_lingual_cache = parsed
     return _cross_lingual_cache
+
+
+def _load_network_entity_aliases() -> list[dict[str, Any]]:
+    """Load formula/herb entity aliases used by retrieval.
+
+    RAG still answers only from literature chunks; these aliases simply let a
+    query such as "消风散" or "黄芪" match curated literature entity links instead
+    of being treated as off-topic CJK character noise.
+    """
+
+    global _network_entity_alias_cache
+    if _network_entity_alias_cache is not None:
+        return _network_entity_alias_cache
+
+    try:
+        formulas_raw = json.loads(
+            (_NETWORK_DATA_ROOT / "sample_formulas.json").read_text(encoding="utf-8")
+        )
+        herbs_raw = json.loads(
+            (_NETWORK_DATA_ROOT / "sample_herbs.json").read_text(encoding="utf-8")
+        )
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        _LOGGER.warning("network entity aliases unreadable (%s); using empty alias map", exc)
+        _network_entity_alias_cache = []
+        return _network_entity_alias_cache
+
+    formulas = formulas_raw if isinstance(formulas_raw, list) else []
+    herbs = herbs_raw if isinstance(herbs_raw, list) else []
+
+    herb_to_formula_ids: dict[str, list[str]] = {}
+    for formula in formulas:
+        if not isinstance(formula, dict):
+            continue
+        formula_id = str(formula.get("id", "")).strip()
+        if not formula_id:
+            continue
+        for herb_id in formula.get("herb_ids", []):
+            if isinstance(herb_id, str) and herb_id:
+                herb_to_formula_ids.setdefault(herb_id, []).append(formula_id)
+
+    aliases: list[dict[str, Any]] = []
+    for formula in formulas:
+        if not isinstance(formula, dict):
+            continue
+        formula_id = str(formula.get("id", "")).strip()
+        name = str(formula.get("name", "")).strip()
+        pinyin = str(formula.get("pinyin", "")).strip().lower()
+        if not formula_id or not name:
+            continue
+        tokens = {formula_id, "formula"}
+        tokens.update(str(herb_id).strip() for herb_id in formula.get("herb_ids", []) if herb_id)
+        aliases.append({"terms": {name, pinyin}, "tokens": tokens})
+
+    for herb in herbs:
+        if not isinstance(herb, dict):
+            continue
+        herb_id = str(herb.get("id", "")).strip()
+        name = str(herb.get("name", "")).strip()
+        pinyin = str(herb.get("pinyin", "")).strip().lower()
+        latin_name = str(herb.get("latin_name", "")).strip().lower()
+        if not herb_id or not name:
+            continue
+        tokens = {herb_id, "herb"}
+        tokens.update(herb_to_formula_ids.get(herb_id, []))
+        aliases.append({"terms": {name, pinyin, latin_name}, "tokens": tokens})
+
+    _network_entity_alias_cache = aliases
+    return _network_entity_alias_cache
 
 
 def tokenize_query(question: str) -> list[str]:
@@ -150,6 +220,12 @@ def tokenize_query(question: str) -> list[str]:
             if canonical:
                 tokens.add(canonical)
 
+    # Step 4: TCM formula/herb entity injection from the network seed.
+    for entry in _load_network_entity_aliases():
+        terms = [term for term in entry.get("terms", set()) if term]
+        if any(_token_matches(term, normalized) for term in terms):
+            tokens.update(entry.get("tokens", set()))
+
     return sorted(tokens)
 
 
@@ -160,8 +236,10 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
         (item.abstract or "").lower(),
         " ".join(item.keywords).lower(),
         " ".join(item.evidence_tags).lower(),
+        " ".join(item.related_entity_ids).lower(),
         chunk.text.lower() if chunk else "",
         " ".join(chunk.evidence_tags).lower() if chunk else "",
+        " ".join(chunk.related_entity_ids).lower() if chunk else "",
     ]
     score = 0
     for token in query_tokens:
@@ -186,6 +264,38 @@ def _canonical_token_set() -> set[str]:
         if canonical:
             canonicals.add(canonical)
     return canonicals
+
+
+def domain_vocabulary() -> set[str]:
+    """Tokens that signal an in-domain (AD) query.
+
+    Union of the in-code ``_KEYWORD_ALIASES`` keys and every cross-lingual
+    term/canonical. ``tokenize_query`` only emits these when a real domain term
+    matched, so their presence in a tokenized query separates an AD question
+    from off-topic input that merely accumulates single-CJK-char noise (e.g. a
+    hypertension question whose only "matches" are common characters like 的/是/药).
+    Used by ``answer_question`` to answer off-topic queries with an honest
+    "no evidence" message instead of confidently mismatched citations.
+    """
+
+    vocab: set[str] = {key.lower() for key in _KEYWORD_ALIASES}
+    cross_map = _load_cross_lingual_aliases()
+    for entry in cross_map.get("alias_map", []):
+        for keyword in entry.get("zh", []):
+            vocab.add(keyword.lower())
+        for keyword in entry.get("en", []):
+            vocab.add(keyword.lower())
+        canonical = entry.get("canonical", "")
+        if canonical:
+            vocab.add(canonical.lower())
+    for entry in _load_network_entity_aliases():
+        for term in entry.get("terms", set()):
+            if term:
+                vocab.add(str(term).lower())
+        for token in entry.get("tokens", set()):
+            if token:
+                vocab.add(str(token).lower())
+    return vocab
 
 
 def alias_tag_bonus(tags: list[str], query_tokens: list[str], weight: int) -> int:

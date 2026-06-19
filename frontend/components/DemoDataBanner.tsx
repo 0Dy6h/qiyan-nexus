@@ -38,7 +38,7 @@ export default function DemoDataBanner({ compact = false }: Props) {
         </p>
         {!compact && (
           <p style={{ color: "#f9d99a", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-            文献条目为合成构造，未对接知网/PubMed 真实库；上传 PDF 仅作解析链路演示，不进入正式索引。
+            文献条目为小型合成样本集（当前约数十篇构造文献），未对接知网/PubMed 真实库，不可作为外部可检索的真实文献引用；上传 PDF 仅作解析链路演示，不进入正式索引。
           </p>
         )}
       </div>

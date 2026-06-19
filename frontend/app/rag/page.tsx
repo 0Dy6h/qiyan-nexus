@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import DemoDataBanner from "../../components/DemoDataBanner";
 import RagAnswerClient from "../../components/RagAnswerClient";
 import StatusPanel from "../../components/StatusPanel";
 
@@ -31,6 +32,7 @@ export default function RagPage() {
         </article>
 
         <div className="workbench-content-band">
+          <DemoDataBanner />
           <Suspense fallback={<StatusPanel message="加载 RAG 问答面板..." />}>
             <RagAnswerClient />
           </Suspense>

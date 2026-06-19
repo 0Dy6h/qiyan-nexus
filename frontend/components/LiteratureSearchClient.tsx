@@ -202,7 +202,7 @@ export default function LiteratureSearchClient() {
               >
                 <option value="all">全部来源</option>
                 <option value="pubmed_live">PubMed 记录</option>
-                <option value="cnki_sample">CNKI sample</option>
+                <option value="cnki_sample">CNKI 样本</option>
                 <option value="uploaded_pdf">上传 PDF</option>
               </select>
             </label>
