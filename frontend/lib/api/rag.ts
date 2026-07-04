@@ -11,6 +11,7 @@ export type CitationCard = {
   quote?: string | null;
   reason?: string | null;
   confidence: number;
+  match_score?: number | null;
   source_type?: string | null;
   pdf_upload_id?: string | null;
   related_entity_ids?: string[];

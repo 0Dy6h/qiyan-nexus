@@ -46,7 +46,7 @@ test("literature data-source switcher sends scoped search params and updates com
   await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("PubMed 记录（含演示 seed）");
 
   await submitSearchForSource(page, "cnki_sample", { source: "cn_literature" });
-  await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("CNKI sample（演示）");
+  await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("CNKI 样本（演示）");
 
   await submitSearchForSource(page, "uploaded_pdf", { hasPdfUpload: "true" });
   await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("上传 PDF（仅本地）");

@@ -59,6 +59,58 @@ export function getComplianceHighlights() {
   ];
 }
 
+export function getComplianceTrustPrinciples() {
+  return [
+    {
+      title: "数据来源可追溯",
+      detail: "数据来自公开权威库或本地演示 seed，保留来源标识与记录来源。",
+      backing:
+        "文献带 record_origin 区分演示 seed 与 PubMed 实时同步；上传 PDF 只落本地 runtime；网络结果标注 data_mode 与证据分级。",
+    },
+    {
+      title: "分析流程可审计",
+      detail: "默认确定性流程，参数与中间结果可复现、可重复运行。",
+      backing:
+        "默认 deterministic 检索、request id、RAG SLI 结构化日志；网络证据分级由确定性纯函数推导。",
+    },
+    {
+      title: "模型输出保留证据链",
+      detail: "回答基于结构化证据上下文生成，引用可回溯。",
+      backing:
+        "每条 citation 的 literature_id 必须能被文献详情解析；启用真实模型时经结构化 claim + 证据 ID + 语义/NLI grounding gate 校验。",
+    },
+    {
+      title: "不替代实验/诊断结论",
+      detail: "平台输出为证据整理与线索优先级支持，最终结论仍以临床与实验为准。",
+      backing:
+        "所有 AI 输出附「非诊断结论、需结合临床。」；网络 mock 结果证据等级恒为「演示推断」；引用只给检索匹配度，不给疗效或概率。",
+    },
+    {
+      title: "大模型输出受控",
+      detail: "默认不启用真实大模型；启用时通过结构化约束与规则校验控制自由生成风险。",
+      backing:
+        "默认离线 deterministic，不外发；真实 provider 为显式 opt-in，未通过 grounding gate 的回答会被拦截替换，不展示未校验草稿。",
+    },
+  ];
+}
+
+export function getCompliancePlatformScope() {
+  return {
+    canDo: [
+      "汇总 AD 相关中医药文献证据，给出带引用、可导出的证据简报。",
+      "基于命中证据回答研究问题，保留引用来源、检索匹配度与免责声明。",
+      "提供「成分-靶点-通路-疾病」机制线索探索与确定性证据分级（演示数据）。",
+      "生成结构化、可追溯、可导出（Markdown / DOCX）的复核材料。",
+    ],
+    cannotReplace: [
+      "不替代临床诊断、处方、剂量或停药决策。",
+      "不替代药理与安全性评价、临床试验与药效学实验结论。",
+      "不替代专家审评与合规审查。",
+      "mock 网络药理学结果不作为正式网络药理学分析或科研结论。",
+    ],
+  };
+}
+
 export function getComplianceNavigationLinks() {
   return [
     { href: "/", label: "返回首页" },

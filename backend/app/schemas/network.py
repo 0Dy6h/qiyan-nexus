@@ -7,6 +7,12 @@ TaskStatus = Literal["queued", "running", "completed", "failed"]
 DataMode = Literal["mock", "live"]
 PipelineStepStatus = Literal["completed", "failed", "skipped", "degraded"]
 TargetEvidenceType = Literal["mock", "known_activity", "predicted", "mixed"]
+EvidenceLevel = Literal[
+    "mock_inferred",
+    "predicted",
+    "literature_supported",
+    "experimental",
+]
 
 
 class NetworkAnalyzeRequest(BaseModel):
@@ -51,6 +57,7 @@ class NetworkChain(BaseModel):
     related_entity_ids: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     target_evidence_type: TargetEvidenceType = "mock"
+    evidence_level: EvidenceLevel | None = None
 
 
 class NetworkPpiEdge(BaseModel):

@@ -16,6 +16,7 @@ class CitationCard(BaseModel):
     quote: str | None = None
     reason: str | None = None
     confidence: float
+    match_score: float | None = None
     source_type: str | None = None
     pdf_upload_id: str | None = None
     related_entity_ids: list[str] = Field(default_factory=list)

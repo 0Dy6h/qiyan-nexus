@@ -151,7 +151,8 @@ def test_build_answer_markdown_includes_citation_blocks() -> None:
     assert "### 引用 1 — 肠-脑-皮肤轴与特应性皮炎中医证候研究" in md
     assert "literature_id：cn-ad-gbs-001" in md
     assert "chunk_id：chunk-cn-ad-gbs-001-abstract" in md
-    assert "置信度：86%" in md
+    assert "来源类型先验：86%" in md
+    assert "检索匹配度：" in md
     assert "命中证据标签：gut_skin_axis, tcm_syndrome" in md
     assert "### 引用 2 — 上传 PDF：ad-evidence.pdf" in md
     assert "source_type：uploaded_pdf" in md

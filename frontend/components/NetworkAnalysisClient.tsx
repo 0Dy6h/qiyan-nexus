@@ -9,6 +9,7 @@ import {
   fetchNetworkResult,
   getNetworkAnalysisTypeLabel,
   getNetworkDataModeLabel,
+  getNetworkEvidenceLevelLabel,
   getNetworkTargetEvidenceTypeLabel,
   NetworkAnalysisResult,
   NetworkAnalysisType,
@@ -327,11 +328,28 @@ export default function NetworkAnalysisClient() {
           <div style={{ display: "grid", gap: 12 }}>
             {result.chains.map((chain, index) => (
               <article key={`${chain.compound}-${index}`} style={getSurfaceCardStyle()}>
-                <p style={{ color: "#0d9488", fontWeight: 700, margin: 0, fontSize: 13 }}>
-                  {isLiveResult
-                    ? `链 #${index + 1} · 置信度 ${formatScore(chain.score)} · ${getNetworkTargetEvidenceTypeLabel(chain.target_evidence_type)}`
-                    : `链 #${index + 1} · 演示链路（mock 占位，非真实置信度）`}
-                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <p style={{ color: "#0d9488", fontWeight: 700, margin: 0, fontSize: 13 }}>
+                    {isLiveResult
+                      ? `链 #${index + 1} · 置信度 ${formatScore(chain.score)} · ${getNetworkTargetEvidenceTypeLabel(chain.target_evidence_type)}`
+                      : `链 #${index + 1} · 演示链路（mock 占位，非真实置信度）`}
+                  </p>
+                  <span
+                    aria-label={`证据分级 ${getNetworkEvidenceLevelLabel(chain.evidence_level)}`}
+                    title="依据网络药理学评价方法指南的可靠性原则给出的确定性证据等级，不表示概率或疗效。"
+                    style={{
+                      border: "1px solid var(--qiyan-line)",
+                      borderRadius: 999,
+                      background: "var(--qiyan-surface-3)",
+                      color: "var(--qiyan-muted)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "2px 10px",
+                    }}
+                  >
+                    证据分级 · {getNetworkEvidenceLevelLabel(chain.evidence_level)}
+                  </span>
+                </div>
                 <p style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "8px 0 0", lineHeight: 1.6 }}>
                   {chain.herb} → {chain.compound} → {chain.target} → {chain.pathway} → {chain.disease}
                 </p>

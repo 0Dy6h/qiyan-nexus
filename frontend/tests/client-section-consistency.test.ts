@@ -56,7 +56,8 @@ test("rag citation cards use explicit labeled metadata copy", () => {
   const ragSource = getSource("components/RagAnswerClient.tsx");
 
   assert.match(ragSource, /来源 \$\{citation\.source\}/);
-  assert.match(ragSource, /置信度 \$\{formatConfidence\(citation\.confidence\)\}/);
+  assert.match(ragSource, /检索匹配度 \$\{formatMatchScore\(citation\.match_score\)\}/);
+  assert.match(ragSource, /来源类型先验 \$\{formatConfidence\(citation\.confidence\)\}/);
   assert.doesNotMatch(ragSource, /\["证据来源", citation\.source/);
 });
 

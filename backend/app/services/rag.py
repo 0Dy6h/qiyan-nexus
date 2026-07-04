@@ -220,11 +220,20 @@ def answer_question(
         available_citation_count = 0
 
     citations: list[CitationCard] = []
+    # Borrow ② (ADR-0016): expose a transparent, computed relevance instead of
+    # only the constant source-type prior. match_score normalises each selected
+    # candidate's real retrieval score against the best score in this result
+    # set, so the top hit saturates at 1.0. It is a relevance signal, NOT a
+    # probability or efficacy estimate.
+    max_selected_score = max((candidate.score for candidate in selected), default=0)
     for candidate in selected:
         item = candidate.item
         chunk = candidate.chunk
         chunk_tags = chunk.evidence_tags if chunk and chunk.evidence_tags else []
         reason_tags = chunk_tags or item.evidence_tags
+        match_score = (
+            round(candidate.score / max_selected_score, 4) if max_selected_score > 0 else 0.0
+        )
         citations.append(
             CitationCard(
                 literature_id=item.id,
@@ -235,6 +244,7 @@ def answer_question(
                 quote=chunk.source_quote if chunk else None,
                 reason=(", ".join(reason_tags[:2]) if reason_tags else None),
                 confidence=CONFIDENCE_BY_SOURCE_TYPE[item.source_type],
+                match_score=match_score,
                 source_type=chunk.source_type if chunk else None,
                 pdf_upload_id=chunk.pdf_upload_id if chunk else None,
                 related_entity_ids=list(item.related_entity_ids),
@@ -356,13 +366,18 @@ def _format_token_usage(value: int | None) -> str:
     return "未返回" if value is None else str(value)
 
 
+def _format_match_score(value: float | None) -> str:
+    return "未计算" if value is None else f"{round(value * 100)}%"
+
+
 def _format_citation_block(citation: CitationCard, index: int) -> str:
     lines: list[str] = []
     lines.append(f"### 引用 {index + 1} — {citation.title}")
     meta = [
         f"来源：{citation.source}",
         f"literature_id：{citation.literature_id}",
-        f"置信度：{round(citation.confidence * 100)}%",
+        f"检索匹配度：{_format_match_score(citation.match_score)}",
+        f"来源类型先验：{round(citation.confidence * 100)}%",
     ]
     if citation.chunk_id:
         meta.append(f"chunk_id：{citation.chunk_id}")
@@ -419,6 +434,10 @@ def build_answer_markdown(answer: RagAnswerResponse) -> str:
     sections.append("- 引用证据可能来自演示 seed、PubMed 同步记录或用户上传 PDF；请逐条核对来源。")
     sections.append(
         "- 当前网络/机制相关内容如被引用，应按探索性线索理解，不等同正式网络药理学结论。"
+    )
+    sections.append(
+        "- 引用「检索匹配度」为按检索得分归一的相对相关度启发式，非概率、非疗效或置信判断；"
+        "「来源类型先验」是按来源类型的固定基线权重。"
     )
     sections.append("")
     sections.append("## 结构化声明")

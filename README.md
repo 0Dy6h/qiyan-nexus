@@ -457,6 +457,19 @@ pnpm build
 
 本平台不替代医生诊断，不面向普通患者 C 端。
 
+### 可信原则（对齐 `/compliance` 页，均有代码落地）
+
+| 原则 | 落地方式 |
+|------|----------|
+| 数据来源可追溯 | 文献 `record_origin` 区分演示 seed / PubMed 实时同步；上传 PDF 只落本地 runtime；网络结果标注 `data_mode` 与证据分级 |
+| 分析流程可审计 | 默认 deterministic 检索、request id、RAG SLI 结构化日志；网络证据分级为确定性纯函数 |
+| 模型输出保留证据链 | 每条 citation 的 `literature_id` 必须能被 `/api/literature/{id}` 解析；真实模型经 grounding gate 校验 |
+| 不替代实验/诊断结论 | 输出附免责声明；网络 mock 证据等级恒为 `mock_inferred`；引用只给检索匹配度，不给疗效/概率 |
+| 大模型输出受控 | 默认离线 deterministic；真实 provider 显式 opt-in，未过 gate 的回答被拦截不外显 |
+
+**平台可以做什么**：证据简报、带引用的问答、机制线索探索（演示数据）、可导出复核材料。
+**平台不替代什么**：临床诊断/处方、药理与安全性评价、临床试验与药效学结论、专家审评与合规审查。mock 网络药理学结果不作为正式分析。
+
 ## MVP-C 概念对象（仅 schema 预留）
 
 `backend/app/schemas/molecular.py` 定义了分子对接与分子动力学模拟的概念对象，为未来 MVP-C 阶段预留类型定义，**当前不提供实际功能**。

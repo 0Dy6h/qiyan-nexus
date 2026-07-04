@@ -35,6 +35,10 @@ function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatMatchScore(value: number | null | undefined) {
+  return value == null ? "未计算" : `${Math.round(value * 100)}%`;
+}
+
 function getRagGenerationModeLabel(providerName: string) {
   if (providerName === "deterministic") {
     return "本地生成";
@@ -141,7 +145,8 @@ function CitationListItem({ citation }: { citation: CitationCard }) {
       <CardMetaRow
         items={[
           `来源 ${citation.source}`,
-          `置信度 ${formatConfidence(citation.confidence)}`,
+          `检索匹配度 ${formatMatchScore(citation.match_score)}`,
+          `来源类型先验 ${formatConfidence(citation.confidence)}`,
           isUploadedPdf ? "用户上传 PDF 片段（来自上传 PDF）" : null,
         ]}
       />

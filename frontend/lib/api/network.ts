@@ -6,6 +6,11 @@ export type NetworkAnalysisType = "formula" | "herb";
 export type NetworkTaskStatus = "queued" | "running" | "completed" | "failed";
 export type NetworkDataMode = "mock" | "live";
 export type NetworkTargetEvidenceType = "mock" | "known_activity" | "predicted" | "mixed";
+export type NetworkEvidenceLevel =
+  | "mock_inferred"
+  | "predicted"
+  | "literature_supported"
+  | "experimental";
 export type NetworkPipelineStepStatus = "completed" | "failed" | "skipped" | "degraded";
 
 export type NetworkChain = {
@@ -19,6 +24,7 @@ export type NetworkChain = {
   related_entity_ids: string[];
   evidence_refs?: string[];
   target_evidence_type?: NetworkTargetEvidenceType;
+  evidence_level?: NetworkEvidenceLevel | null;
 };
 
 export type NetworkDataSource = {
@@ -130,6 +136,19 @@ export function getNetworkTargetEvidenceTypeLabel(type: NetworkTargetEvidenceTyp
       return "已知+预测";
     default:
       return "Mock";
+  }
+}
+
+export function getNetworkEvidenceLevelLabel(level: NetworkEvidenceLevel | undefined | null) {
+  switch (level) {
+    case "experimental":
+      return "实验证据";
+    case "literature_supported":
+      return "文献支撑";
+    case "predicted":
+      return "预测证据";
+    default:
+      return "演示推断（未验证）";
   }
 }
 
