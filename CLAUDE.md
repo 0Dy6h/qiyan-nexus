@@ -131,7 +131,9 @@ Repositories bootstrap from seed JSON and write runtime state on update (e.g. `u
 
 ### RAG pipeline (deterministic default)
 
-`app/services/rag.py` does keyword tokenization with Chinese-char-per-token + alias / cross-lingual bridge terms. Scoring runs against `title + snippet + abstract + keywords + evidence_tags + chunk text + chunk evidence_tags`. Language detection picks a `preferred_source_type` tie-breaker (zh → `cn_literature`, otherwise `pubmed`). Confidence is a constant per source type, **not** computed.
+`app/services/rag.py` does keyword tokenization with Chinese-char-per-token + alias / cross-lingual bridge terms. Scoring runs against `title + snippet + abstract + keywords + evidence_tags + related_entity_ids + chunk text + chunk evidence_tags + chunk related_entity_ids`. Formula/herb names from `backend/data/network/` are injected as entity tokens so queries like `消风散` / `黄芪` can match linked literature without requiring the literal AD disease token. A single `肠` character is intentionally not a gut-axis alias; keep `肠道` / `肠-脑` for valid gut-axis bridge terms. Language detection picks a `preferred_source_type` tie-breaker (zh → `cn_literature`, otherwise `pubmed`). Confidence is a constant per source type, **not** computed.
+
+RAG export endpoints are `POST /api/rag/answer/export` for Markdown and `POST /api/rag/answer/export/docx` for Word `.docx`. DOCX rendering lives in `app/services/rag_docx.py`, uses only the standard library, preserves answer newlines with `<w:br/>`, and strips XML-illegal control characters before writing text nodes.
 
 Default path is `deterministic` provider + `keyword` retrieval. Optional providers / retrieval backends (`mock_claude`, `opencode_go`, `anthropic`, `vector`, `hybrid`, BGE/BGE-M3 embedding) are explicit env opt-ins for local smoke or spike work only; do not flip defaults without an ADR / governance decision.
 

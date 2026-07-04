@@ -10,6 +10,7 @@ from app.repositories.runtime_storage import get_network_task_repository
 from app.schemas.network import (
     AnalysisType,
     DataMode,
+    EvidenceLevel,
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkChain,
@@ -228,6 +229,11 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
         chains=chains,
         enrichment=enrichment,
     )
+    # ADR-0015: grade every chain's evidence level deterministically before
+    # it is persisted or returned. Mock chains are hard-pinned to the floor.
+    result_payload = result_payload.model_copy(
+        update={"chains": grade_chains_evidence(result_payload.chains, data_mode=record.data_mode)}
+    )
     if record.data_mode == "live" and not result_payload.chains:
         error_message = "No live target chains could be assembled."
         next_record = repo.upsert(
@@ -341,6 +347,51 @@ def _target_evidence_type_label(value: str) -> str:
     if value == "mixed":
         return "已知+预测"
     return "Mock"
+
+
+# ── Evidence grading (ADR-0015) ─────────────────────────────
+# A mechanism chain's trustworthiness is bounded by its weakest provenance
+# link, so mock chains are hard-pinned to the lowest level. Deterministic:
+# no randomness, no external calls, no probability/efficacy estimate.
+_EVIDENCE_LEVEL_ORDER: list[EvidenceLevel] = [
+    "experimental",
+    "literature_supported",
+    "predicted",
+    "mock_inferred",
+]
+_EVIDENCE_LEVEL_LABELS: dict[EvidenceLevel, str] = {
+    "experimental": "实验证据",
+    "literature_supported": "文献支撑",
+    "predicted": "预测证据",
+    "mock_inferred": "演示推断（未验证）",
+}
+
+
+def derive_chain_evidence_level(chain: NetworkChain, *, data_mode: DataMode) -> EvidenceLevel:
+    """Deterministically grade one chain's evidence support (ADR-0015)."""
+    # Honesty invariant: mock data can never claim real evidence strength.
+    if data_mode != "live":
+        return "mock_inferred"
+    if chain.target_evidence_type == "known_activity":
+        return "experimental"
+    if chain.target_evidence_type == "mixed" or chain.evidence_refs:
+        return "literature_supported"
+    # Live but only predicted / unresolved targets: weakest live tier.
+    return "predicted"
+
+
+def grade_chains_evidence(chains: list[NetworkChain], *, data_mode: DataMode) -> list[NetworkChain]:
+    """Return new chains with ``evidence_level`` filled (immutable copy)."""
+    return [
+        chain.model_copy(
+            update={"evidence_level": derive_chain_evidence_level(chain, data_mode=data_mode)}
+        )
+        for chain in chains
+    ]
+
+
+def _evidence_level_label(level: EvidenceLevel | None) -> str:
+    return _EVIDENCE_LEVEL_LABELS.get(level or "mock_inferred", "演示推断（未验证）")
 
 
 def build_network_report_markdown(
@@ -478,6 +529,29 @@ def build_network_report_markdown(
             escaped = [_escape_table_cell(c) for c in cells]
             lines.append(f"| {' | '.join(escaped)} |")
     lines.append("")
+
+    # ── Evidence grading section (ADR-0015) ─────────────────
+    lines.append("## 证据分级")
+    lines.append("")
+    lines.append(
+        "> 依据《网络药理学评价方法指南》的可靠性/规范性/可解释性原则，对每条机制链按其"
+        "最弱一环的来源给出确定性证据等级（不改变链路排序，不表示概率或疗效）。"
+    )
+    lines.append("")
+    grading_counts: dict[EvidenceLevel, int] = {level: 0 for level in _EVIDENCE_LEVEL_ORDER}
+    for graded_chain in result.chains:
+        grading_counts[graded_chain.evidence_level or "mock_inferred"] += 1
+    lines.append("| 证据等级 | Level | 链路数 |")
+    lines.append("|---|---|---:|")
+    for level in _EVIDENCE_LEVEL_ORDER:
+        lines.append(f"| {_evidence_level_label(level)} | `{level}` | {grading_counts[level]} |")
+    lines.append("")
+    if result.data_mode != "live":
+        lines.append(
+            "> **边界**：本报告为 mock 演示数据，所有链路证据等级恒为 `mock_inferred`，"
+            "不代表指南意义上的可靠性达标，也不可作为真实证据强度。"
+        )
+        lines.append("")
 
     # ── Enrichment section ──────────────────────────────────
     if result.enrichment and result.enrichment.terms:

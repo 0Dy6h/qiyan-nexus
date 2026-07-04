@@ -24,6 +24,7 @@ from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import (
     CONFIDENCE_BY_SOURCE_TYPE,
     ScoredCandidate,
+    domain_vocabulary,
     select_retrieval_provider,
     tokenize_query,
 )
@@ -32,6 +33,69 @@ DISCLAIMER = "非诊断结论、需结合临床。"
 _LOGGER = logging.getLogger(__name__)
 _REPOSITORY = get_literature_repository()
 _CHUNK_REPOSITORY = get_chunk_repository()
+
+# Off-topic guard: the sample corpus is atopic-dermatitis-scoped. A positive
+# top score alone is not enough (single common CJK chars like 的/是/药 match many
+# AD docs), so an on-topic query must also carry a recognized, non-generic
+# domain/entity term.
+RELEVANCE_MIN_TOP_SCORE = 3
+_GENERIC_INTENT_TOKENS = {
+    "therapy",
+    "treatment",
+    "intervention",
+    "acupuncture",
+    "topical",
+    "external",
+}
+_ENTITY_TOKEN_PREFIXES = ("formula-", "herb-", "compound-", "target-", "pathway-")
+
+
+def _query_entity_tokens(query_tokens: set[str]) -> set[str]:
+    return {token for token in query_tokens if token.startswith(_ENTITY_TOKEN_PREFIXES)}
+
+
+def _entity_token_variants(entity_token: str) -> set[str]:
+    variants = {entity_token}
+    prefix, separator, rest = entity_token.partition("-")
+    if separator and rest:
+        variants.add(f"{prefix}:{rest}")
+    return variants
+
+
+def _candidate_entity_ids(candidate: ScoredCandidate) -> set[str]:
+    entity_ids = {entity_id.lower() for entity_id in candidate.item.related_entity_ids}
+    if candidate.chunk is not None:
+        entity_ids.update(entity_id.lower() for entity_id in candidate.chunk.related_entity_ids)
+    return entity_ids
+
+
+def _candidate_matches_query_entity(candidate: ScoredCandidate, entity_tokens: set[str]) -> bool:
+    candidate_ids = _candidate_entity_ids(candidate)
+    for entity_token in entity_tokens:
+        if candidate_ids & _entity_token_variants(entity_token):
+            return True
+    return False
+
+
+def _query_has_topical_signal(question: str, ranked: list[ScoredCandidate]) -> bool:
+    """Whether ``question`` is in-domain for the AD evidence corpus.
+
+    True iff retrieval found a positive top match AND the query contains at
+    least one domain-vocabulary token. Off-topic queries (e.g. a hypertension
+    or weather question) only accumulate single-CJK-char noise — no domain
+    token and a near-zero top score — so ``answer_question`` returns an honest
+    "no matching evidence" answer instead of confidently surfacing mismatched
+    AD literature (product fix P0-1).
+    """
+
+    if not ranked:
+        return False
+    if max(candidate.score for candidate in ranked) < RELEVANCE_MIN_TOP_SCORE:
+        return False
+    query_tokens = set(tokenize_query(question))
+    topical_tokens = query_tokens & domain_vocabulary()
+    strong_topical_tokens = topical_tokens - _GENERIC_INTENT_TOKENS
+    return bool(strong_topical_tokens)
 
 
 def _estimate_cost_usd(
@@ -100,6 +164,7 @@ def answer_question(
         ranked = sorted(
             ranked,
             key=lambda c: (
+                c.item.record_origin != "seed_sample",
                 "network_pharmacology" in c.item.evidence_tags,
                 "targeted_therapy" in c.item.evidence_tags,
                 c.language_bonus,
@@ -109,40 +174,66 @@ def answer_question(
             reverse=True,
         )
 
-    available_citation_count = sum(1 for c in ranked if c.score > 0)
-    if available_citation_count == 0:
-        available_citation_count = len(ranked)
+    available_citation_count: int
+    selected: list[ScoredCandidate]
+    if _query_has_topical_signal(normalized_question, ranked):
+        query_tokens = set(tokenize_query(normalized_question))
+        entity_tokens = _query_entity_tokens(query_tokens)
+        positive_ranked = [c for c in ranked if c.score > 0]
+        entity_ranked = [
+            c for c in positive_ranked if _candidate_matches_query_entity(c, entity_tokens)
+        ]
+        citation_pool = entity_ranked or positive_ranked
+        available_citation_count = len(citation_pool)
+        if available_citation_count == 0:
+            available_citation_count = len(ranked)
 
-    selected = [c for c in ranked if c.score > 0][:top_k]
-    if not selected:
-        selected = ranked[:top_k]
+        selected = citation_pool[:top_k]
+        if not selected:
+            selected = ranked[:top_k]
 
-    if (
-        top_k >= 3
-        and source == "all"
-        and len(selected) == top_k
-        and all(c.language_bonus == 1 for c in selected)
-    ):
-        cross_chunk = next(
-            (
-                c
-                for c in ranked
-                if c.score > 0
-                and c.language_bonus == 0
-                and c.chunk is not None
-                and c not in selected
-            ),
-            None,
-        )
-        if cross_chunk is not None:
-            selected = selected[:-1] + [cross_chunk]
+        if (
+            top_k >= 3
+            and source == "all"
+            and len(selected) == top_k
+            and all(c.language_bonus == 1 for c in selected)
+        ):
+            cross_chunk = next(
+                (
+                    c
+                    for c in ranked
+                    if c.score > 0
+                    and c.language_bonus == 0
+                    and c.chunk is not None
+                    and c not in selected
+                ),
+                None,
+            )
+            if cross_chunk is not None:
+                selected = selected[:-1] + [cross_chunk]
+    else:
+        # Off-topic query (P0-1): the sample corpus is AD-scoped, so an
+        # off-topic question only accumulates single-CJK-char noise. Return an
+        # honest "no matching evidence" answer with zero citations instead of
+        # confidently surfacing mismatched AD literature.
+        selected = []
+        available_citation_count = 0
 
     citations: list[CitationCard] = []
+    # Borrow ② (ADR-0016): expose a transparent, computed relevance instead of
+    # only the constant source-type prior. match_score normalises each selected
+    # candidate's real retrieval score against the best score in this result
+    # set, so the top hit saturates at 1.0. It is a relevance signal, NOT a
+    # probability or efficacy estimate.
+    max_selected_score = max((candidate.score for candidate in selected), default=0)
     for candidate in selected:
         item = candidate.item
         chunk = candidate.chunk
         chunk_tags = chunk.evidence_tags if chunk and chunk.evidence_tags else []
         reason_tags = chunk_tags or item.evidence_tags
+        match_score = (
+            round(candidate.score / max_selected_score, 4) if max_selected_score > 0 else 0.0
+        )
         citations.append(
             CitationCard(
                 literature_id=item.id,
@@ -153,6 +244,7 @@ def answer_question(
                 quote=chunk.source_quote if chunk else None,
                 reason=(", ".join(reason_tags[:2]) if reason_tags else None),
                 confidence=CONFIDENCE_BY_SOURCE_TYPE[item.source_type],
+                match_score=match_score,
                 source_type=chunk.source_type if chunk else None,
                 pdf_upload_id=chunk.pdf_upload_id if chunk else None,
                 related_entity_ids=list(item.related_entity_ids),
@@ -274,13 +366,18 @@ def _format_token_usage(value: int | None) -> str:
     return "未返回" if value is None else str(value)
 
 
+def _format_match_score(value: float | None) -> str:
+    return "未计算" if value is None else f"{round(value * 100)}%"
+
+
 def _format_citation_block(citation: CitationCard, index: int) -> str:
     lines: list[str] = []
     lines.append(f"### 引用 {index + 1} — {citation.title}")
     meta = [
         f"来源：{citation.source}",
         f"literature_id：{citation.literature_id}",
-        f"置信度：{round(citation.confidence * 100)}%",
+        f"检索匹配度：{_format_match_score(citation.match_score)}",
+        f"来源类型先验：{round(citation.confidence * 100)}%",
     ]
     if citation.chunk_id:
         meta.append(f"chunk_id：{citation.chunk_id}")
@@ -303,44 +400,25 @@ def _format_citation_block(citation: CitationCard, index: int) -> str:
 def build_answer_markdown(answer: RagAnswerResponse) -> str:
     """Build a Markdown export string for a RAG answer payload.
 
-    Output is field-aligned with ``frontend/lib/rag-export.ts:buildAnswerMarkdown``
-    so the server-rendered file is byte-identical to the legacy client-side build.
+    The export is reviewer-facing first, while preserving the previous metadata
+    labels for API smoke tests and technical auditability.
     """
 
     sections: list[str] = []
     grounding: GroundingMetadata = answer.grounding
+    source_label = _rag_source_label(answer.retrieval.applied_source)
+    cited_claim_coverage = f"{grounding.cited_claim_count}/{grounding.claim_count}"
     sections.append("# Qiyan Nexus RAG 答案导出")
     sections.append("")
+    sections.append("## 证据简报")
+    sections.append("")
     sections.append(f"- 导出时间（UTC）：{answer.answered_at}")
-    sections.append(f"- 应用来源：{_rag_source_label(answer.retrieval.applied_source)}")
-    sections.append(f"- 应用 top_k：{answer.retrieval.applied_top_k}")
+    sections.append(f"- 回答模式：{answer.provider_name} / {answer.retrieval.strategy}")
+    sections.append(f"- 证据范围：{source_label}")
+    sections.append(f"- 引用卡片：{len(answer.citations)}")
     sections.append(f"- 可用引用数：{answer.retrieval.available_citation_count}")
-    sections.append(f"- Provider：{answer.provider_name}")
-    sections.append(f"- 检索策略：{answer.retrieval.strategy}")
-    sections.append(f"- Grounding 状态：{grounding.status}")
-    sections.append(f"- Grounding 策略：{grounding.policy}")
-    sections.append(
-        f"- Provider-native grounding：{'true' if grounding.provider_native_grounding else 'false'}"
-    )
-    sections.append(f"- Grounding Tool：{grounding.tool_name or '无'}")
-    sections.append(f"- Tool 调用数：{grounding.tool_call_count}")
-    sections.append(f"- 语义阈值：{_format_semantic_threshold(grounding.semantic_threshold)}")
-    sections.append(f"- 最小语义支持度：{_format_semantic_score(grounding.min_semantic_score)}")
-    sections.append(f"- NLI 阈值：{_format_nli_threshold(grounding.nli_threshold)}")
-    sections.append(f"- 最小蕴含支持度：{_format_nli_score(grounding.min_entailment_score)}")
-    sections.append(f"- Grounding 拦截原因：{grounding.blocked_reason or '无'}")
-    sections.append(f"- 句级引用覆盖：{grounding.cited_claim_count}/{grounding.claim_count}")
-    sections.append(
-        f"- Grounding 命中证据：{_join_or_fallback(grounding.matched_evidence_refs, '无')}"
-    )
-    sections.append(
-        f"- Grounding 异常证据：{_join_or_fallback(grounding.unsupported_evidence_refs, '无')}"
-    )
-    sections.append(f"- 结构化声明数：{len(grounding.structured_claims)}")
-    sections.append(f"- Token 输入：{_format_token_usage(answer.input_tokens)}")
-    sections.append(f"- Token 输出：{_format_token_usage(answer.output_tokens)}")
-    sections.append(f"- Provider 延迟：{_format_latency_ms(answer.sli)}")
-    sections.append(f"- 预估成本：{_format_estimated_cost(answer.sli)}")
+    sections.append(f"- 句级引用覆盖：{cited_claim_coverage}")
+    sections.append(f"- 结构化声明：{len(grounding.structured_claims)}")
     sections.append("")
     sections.append("## 问题")
     sections.append("")
@@ -349,6 +427,18 @@ def build_answer_markdown(answer: RagAnswerResponse) -> str:
     sections.append("## 回答")
     sections.append("")
     sections.append(answer.answer)
+    sections.append("")
+    sections.append("## 使用边界")
+    sections.append("")
+    sections.append(f"- 本导出仅用于 AD 中医药证据整理和 reviewer 走查：{DISCLAIMER}")
+    sections.append("- 引用证据可能来自演示 seed、PubMed 同步记录或用户上传 PDF；请逐条核对来源。")
+    sections.append(
+        "- 当前网络/机制相关内容如被引用，应按探索性线索理解，不等同正式网络药理学结论。"
+    )
+    sections.append(
+        "- 引用「检索匹配度」为按检索得分归一的相对相关度启发式，非概率、非疗效或置信判断；"
+        "「来源类型先验」是按来源类型的固定基线权重。"
+    )
     sections.append("")
     sections.append("## 结构化声明")
     sections.append("")
@@ -373,8 +463,47 @@ def build_answer_markdown(answer: RagAnswerResponse) -> str:
         for idx, citation in enumerate(answer.citations):
             sections.append(_format_citation_block(citation, idx))
             sections.append("")
+    sections.append("## Reviewer 核对清单")
+    sections.append("")
+    sections.append(f"- [ ] 已核对免责声明：{DISCLAIMER}")
+    sections.append("- [ ] 已逐条打开引用文献详情或原文 PDF")
+    sections.append("- [ ] 已确认 seed / PubMed / 上传 PDF 来源边界")
+    sections.append("- [ ] 已确认当前回答不作为诊断或处方建议")
+    sections.append("")
+    sections.append("## 技术审计信息")
+    sections.append("")
+    sections.append(f"- 导出时间（UTC）：{answer.answered_at}")
+    sections.append(f"- 应用来源：{source_label}")
+    sections.append(f"- 应用 top_k：{answer.retrieval.applied_top_k}")
+    sections.append(f"- 可用引用数：{answer.retrieval.available_citation_count}")
+    sections.append(f"- Provider：{answer.provider_name}")
+    sections.append(f"- 检索策略：{answer.retrieval.strategy}")
+    sections.append(f"- Grounding 状态：{grounding.status}")
+    sections.append(f"- Grounding 策略：{grounding.policy}")
+    sections.append(
+        f"- Provider-native grounding：{'true' if grounding.provider_native_grounding else 'false'}"
+    )
+    sections.append(f"- Grounding Tool：{grounding.tool_name or '无'}")
+    sections.append(f"- Tool 调用数：{grounding.tool_call_count}")
+    sections.append(f"- 语义阈值：{_format_semantic_threshold(grounding.semantic_threshold)}")
+    sections.append(f"- 最小语义支持度：{_format_semantic_score(grounding.min_semantic_score)}")
+    sections.append(f"- NLI 阈值：{_format_nli_threshold(grounding.nli_threshold)}")
+    sections.append(f"- 最小蕴含支持度：{_format_nli_score(grounding.min_entailment_score)}")
+    sections.append(f"- Grounding 拦截原因：{grounding.blocked_reason or '无'}")
+    sections.append(f"- 句级引用覆盖：{cited_claim_coverage}")
+    sections.append(
+        f"- Grounding 命中证据：{_join_or_fallback(grounding.matched_evidence_refs, '无')}"
+    )
+    sections.append(
+        f"- Grounding 异常证据：{_join_or_fallback(grounding.unsupported_evidence_refs, '无')}"
+    )
+    sections.append(f"- 结构化声明数：{len(grounding.structured_claims)}")
+    sections.append(f"- Token 输入：{_format_token_usage(answer.input_tokens)}")
+    sections.append(f"- Token 输出：{_format_token_usage(answer.output_tokens)}")
+    sections.append(f"- Provider 延迟：{_format_latency_ms(answer.sli)}")
+    sections.append(f"- 预估成本：{_format_estimated_cost(answer.sli)}")
     sections.append("---")
     sections.append("")
-    sections.append(answer.disclaimer)
+    sections.append(DISCLAIMER)
     sections.append("")
     return "\n".join(sections)

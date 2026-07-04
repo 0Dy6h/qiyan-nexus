@@ -13,10 +13,17 @@ profile: default offline preview (`deterministic` provider + `keyword` retrieval
 
 本轮目标是验证真实用户是否能理解产品边界、完成核心流程，并指出临床语境、科研工作流和 mock 数据认知上的问题。
 
+本轮核心产品假设：
+
+> 真实医生 / 科研用户愿意用 Qiyan Nexus 完成一次 AD 中医药证据整理任务，并认可其证据可追溯性。
+
+配套执行计划见 `docs/plans/2026-06-18-core-evidence-workflow-validation.md`。正式展开 S1-S4 前，先跑 `docs/checklists/reviewer-walkthrough-task-card.md` 中的 10-15 分钟“核心证据整理任务”。
+
 ## Trial Boundary
 
 默认包含：
 
+- 10-15 分钟核心证据整理任务：文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出。
 - S1 文献四来源检索。
 - S2 PDF 上传 → 解析 → RAG 引用。
 - S3 RAG 答案 + 免责声明。
@@ -42,10 +49,10 @@ profile: default offline preview (`deterministic` provider + `keyword` retrieval
 |---|---|
 | Frontend URL | `http://127.0.0.1:3000` |
 | Backend URL | `http://127.0.0.1:8000` |
-| Runtime root |  |
-| Access profile | open / shared-token |
-| Evidence package |  |
-| Verification before trial |  |
+| Runtime root | `.tmp\core-evidence-trial` |
+| Access profile | open |
+| Evidence package | `.tmp\core-evidence-trial\smoke.md` and `.tmp\core-evidence-trial\smoke.json` |
+| Verification before trial | 2026-06-18 smoke passed: 12 flows covered health, literature four-source checks, PDF upload + auto-parse, RAG answer/export, and network analyze/result/report |
 
 Recommended pre-trial commands:
 
@@ -64,6 +71,17 @@ Recommended pre-trial commands:
 | P2 | 影响体验、可信度或理解成本，但不阻塞小范围试用 | 下一 sprint 处理 |
 | P3 | 优化建议、新功能愿望或样本质量建议 | Backlog |
 
+## Success Metrics
+
+第一批 3-5 位真实用户的判定标准：
+
+- 至少 80% 能在无工程介入下完成核心证据整理任务。
+- 0 位用户把 seed / mock 数据误认为外部真实数据库结论。
+- 0 个 P0，且无未解决 P1。
+- 至少 2 位用户回答“愿意继续用它整理 AD 中医药证据”。
+- 至少 2 位用户给“引用/证据可追溯性”打 4 分或 5 分。
+- 每份 RAG Markdown 导出都包含完整免责声明字节串：`非诊断结论、需结合临床。`
+
 ## Participant Log
 
 ### Participant 1
@@ -78,6 +96,7 @@ Recommended pre-trial commands:
 
 #### Completed Flows
 
+- [ ] 核心证据整理任务：文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出
 - [ ] S1 文献四来源检索
 - [ ] S2 PDF 上传 → 解析 → RAG 引用
 - [ ] S3 RAG 答案 + 免责声明
@@ -98,6 +117,8 @@ Recommended pre-trial commands:
 
 #### Key Feedback
 
+- 是否愿意再次用它整理 AD 中医药证据：
+- citation 是否足够可追溯，让你愿意把它当作科研/临床参考辅助：
 - 最有价值的功能：
 - 最困惑的地方：
 - 是否误以为 seed/mock 数据是真实外部数据库结果：
@@ -133,6 +154,7 @@ Recommended pre-trial commands:
 
 #### Completed Flows
 
+- [ ] 核心证据整理任务：文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出
 - [ ] S1 文献四来源检索
 - [ ] S2 PDF 上传 → 解析 → RAG 引用
 - [ ] S3 RAG 答案 + 免责声明
@@ -153,6 +175,8 @@ Recommended pre-trial commands:
 
 #### Key Feedback
 
+- 是否愿意再次用它整理 AD 中医药证据：
+- citation 是否足够可追溯，让你愿意把它当作科研/临床参考辅助：
 - 最有价值的功能：
 - 最困惑的地方：
 - 是否误以为 seed/mock 数据是真实外部数据库结果：

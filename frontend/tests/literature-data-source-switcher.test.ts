@@ -29,7 +29,7 @@ test("LiteratureSearchClient drives the 4-option data-source view selector", () 
   assert.match(clientSource, /LiteratureDataSourceView/);
   assert.match(clientSource, /<option value="all">全部来源<\/option>/);
   assert.match(clientSource, /<option value="pubmed_live">PubMed 记录<\/option>/);
-  assert.match(clientSource, /<option value="cnki_sample">CNKI sample<\/option>/);
+  assert.match(clientSource, /<option value="cnki_sample">CNKI 样本<\/option>/);
   assert.match(clientSource, /<option value="uploaded_pdf">上传 PDF<\/option>/);
   assert.match(clientSource, /记录来源 \$\{getLiteratureRecordOriginLabel\(item\.record_origin\)\}/);
 

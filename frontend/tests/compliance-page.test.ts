@@ -5,6 +5,8 @@ import {
   getComplianceHighlights,
   getComplianceNavigationLinks,
   getCompliancePageIntro,
+  getCompliancePlatformScope,
+  getComplianceTrustPrinciples,
 } from "../lib/compliance-page";
 
 test("getCompliancePageIntro returns page title and boundary summary", () => {
@@ -68,12 +70,39 @@ test("getComplianceHighlights pdf-copyright section restricts redistribution and
   assert.match(joined, /研究/);
 });
 
+test("getComplianceTrustPrinciples maps the forum's five trust principles to enforced backing", () => {
+  const principles = getComplianceTrustPrinciples();
+  assert.deepEqual(
+    principles.map((p) => p.title),
+    ["数据来源可追溯", "分析流程可审计", "模型输出保留证据链", "不替代实验/诊断结论", "大模型输出受控"],
+  );
+  // Every principle must state concrete repo backing, not just an aspiration.
+  for (const principle of principles) {
+    assert.ok(principle.detail.length > 0);
+    assert.ok(principle.backing.length > 0);
+  }
+  // The evidence-chain principle must tie to the load-bearing citation contract.
+  const evidenceChain = principles.find((p) => p.title === "模型输出保留证据链");
+  assert.match(evidenceChain!.backing, /literature_id|grounding/);
+});
+
+test("getCompliancePlatformScope separates what the platform can do from what it cannot replace", () => {
+  const scope = getCompliancePlatformScope();
+  assert.ok(scope.canDo.length >= 3);
+  assert.ok(scope.cannotReplace.length >= 3);
+  const cannot = scope.cannotReplace.join("\n");
+  // Honest non-substitution boundaries from the forum "不替代" slide.
+  assert.match(cannot, /诊断|处方/);
+  assert.match(cannot, /临床试验|药效/);
+  assert.match(cannot, /网络药理学/);
+});
+
 test("getComplianceNavigationLinks includes literature and rag entry points", () => {
   assert.deepEqual(getComplianceNavigationLinks(), [
     { href: "/", label: "返回首页" },
     { href: "/literature", label: "查看文献检索" },
     { href: "/rag", label: "查看 RAG 问答" },
-    { href: "/network", label: "查看网络药理学" },
+    { href: "/network", label: "查看机制线索" },
     { href: "/evals/rag-ad", label: "运行 RAG 评估" },
   ]);
 });

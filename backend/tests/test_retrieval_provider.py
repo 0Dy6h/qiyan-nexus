@@ -138,6 +138,29 @@ def test_cross_language_tokenization_injects_zh_equivalents_for_en_query():
     assert len(cjk_tokens) > 0, f"No CJK tokens injected for en query, got: {tokens}"
 
 
+def test_single_gut_character_does_not_inject_gut_aliases():
+    """肠 by itself is too broad; 肠道/肠-脑 remain valid AD gut-axis signals."""
+    from app.services.retrieval.provider import tokenize_query
+
+    obstruction_tokens = set(tokenize_query("肠梗阻怎么治疗"))
+    assert "gut" not in obstruction_tokens
+    assert "microbiome" not in obstruction_tokens
+
+    gut_axis_tokens = set(tokenize_query("肠道菌群与特应性皮炎"))
+    assert {"gut", "microbiome"} <= gut_axis_tokens
+
+
+def test_tokenization_injects_formula_and_herb_entity_ids():
+    """Network seed entity names should bridge RAG queries to related_entity_ids."""
+    from app.services.retrieval.provider import tokenize_query
+
+    formula_tokens = set(tokenize_query("消风散的组成有哪些"))
+    assert {"formula-xiaofengsan", "herb-jingjie", "herb-fangfeng"} <= formula_tokens
+
+    herb_tokens = set(tokenize_query("黄芪的功效"))
+    assert {"herb-huangqi", "formula-danggui-yinzi"} <= herb_tokens
+
+
 def test_sort_key_uses_score_as_primary():
     """排序键应以 score 为主键，language_bonus 为次键"""
     from app.schemas.literature import LiteratureItem
@@ -321,3 +344,66 @@ def test_alias_tag_bonus_honours_cross_lingual_canonicals():
         weight=7,
     )
     assert bonus == 14
+
+
+# ---------------------------------------------------------------------------
+# Pillar ②: synthetic seed records must not suppress real evidence
+# ---------------------------------------------------------------------------
+
+
+def test_real_records_outrank_synthetic_seed_in_mixed_corpus():
+    """Synthetic ``seed_sample`` demo records must not outrank real ``pubmed_live``
+    evidence in a mixed corpus.
+
+    Seed records carry curated ``evidence_tags`` (earning the +2 item / +7 chunk
+    ``alias_tag_bonus``) and, being bilingual, match many cross-lingual tokens; a
+    real PubMed record has empty tags, no chunk, and matches fewer tokens. Before
+    the origin-aware sort a broad Chinese microbiome seed outscored a specific real
+    JAK paper for a JAK query (the real paper fell to rank #8 on the live corpus).
+    In any corpus that contains real evidence, real records rank ahead of the
+    synthetic demo scaffolding.
+    """
+    from app.schemas.chunk import LiteratureChunk
+    from app.schemas.literature import LiteratureItem
+    from app.services.retrieval.provider import KeywordRetrievalProvider
+
+    real = LiteratureItem(
+        id="pmid-99999999",
+        title="Targeting the JAK/STAT pathway in atopic dermatitis",
+        snippet="JAK inhibitors modulate the JAK-STAT axis in atopic dermatitis.",
+        source="PubMed live sync",
+        source_type="pubmed",
+        language="en",
+        record_origin="pubmed_live",
+        year=2025,
+        keywords=["JAK", "atopic dermatitis", "inhibitor"],
+    )
+    seed = LiteratureItem(
+        id="cn-ad-microbiome-003",
+        title="肠道菌群失衡与特应性皮炎发病关系研究进展",
+        snippet="肠道菌群 免疫 炎症 皮肤屏障 特应性皮炎",
+        source="CNKI curated AD sample",
+        source_type="cn_literature",
+        language="zh",
+        record_origin="seed_sample",
+        year=2024,
+        evidence_tags=["gut_skin_axis", "microbiome", "immune_pathway"],
+    )
+    seed_chunk = LiteratureChunk(
+        chunk_id="chunk-cn-ad-microbiome-003-abstract",
+        literature_id="cn-ad-microbiome-003",
+        section="abstract",
+        text="肠道菌群 免疫 皮肤屏障 特应性皮炎",
+        source_quote="肠道菌群失衡与特应性皮炎相关。",
+        evidence_tags=["gut_skin_axis", "microbiome", "immune_pathway"],
+    )
+
+    ranked = KeywordRetrievalProvider().rank(
+        "atopic dermatitis JAK inhibitor",
+        [seed, real],
+        {"cn-ad-microbiome-003": [seed_chunk]},
+        preferred_source_type="pubmed",
+    )
+
+    assert ranked[0].item.record_origin == "pubmed_live"
+    assert ranked[0].item.id == "pmid-99999999"

@@ -1,9 +1,16 @@
 import { CardBodyText } from "../../components/CardMeta";
-import { getComplianceHighlights, getCompliancePageIntro } from "../../lib/compliance-page";
+import {
+  getComplianceHighlights,
+  getCompliancePageIntro,
+  getCompliancePlatformScope,
+  getComplianceTrustPrinciples,
+} from "../../lib/compliance-page";
 
 export default function CompliancePage() {
   const intro = getCompliancePageIntro();
   const highlights = getComplianceHighlights();
+  const trustPrinciples = getComplianceTrustPrinciples();
+  const platformScope = getCompliancePlatformScope();
 
   return (
     <>
@@ -30,6 +37,49 @@ export default function CompliancePage() {
         </article>
 
         <div className="workbench-content-band">
+          <section aria-label="平台合规与可信原则" style={{ display: "grid", gap: 12 }}>
+            <h2 style={{ color: "var(--qiyan-ink)", fontSize: 22, margin: 0 }}>平台合规与可信原则</h2>
+            <div className="compliance-grid">
+              {trustPrinciples.map((principle) => (
+                <article key={principle.title} className="compliance-card">
+                  <h2>{principle.title}</h2>
+                  <p style={{ color: "var(--qiyan-muted-2)", margin: "0 0 8px", lineHeight: 1.6 }}>
+                    {principle.detail}
+                  </p>
+                  <p style={{ color: "var(--qiyan-muted)", margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+                    落地：{principle.backing}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section
+            aria-label="平台定位与应用边界"
+            style={{
+              display: "grid",
+              gap: 16,
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            }}
+          >
+            <article className="compliance-card">
+              <h2>平台可以做什么</h2>
+              <ul>
+                {platformScope.canDo.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+            <article className="compliance-card">
+              <h2>平台不替代什么</h2>
+              <ul>
+                {platformScope.cannotReplace.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+          </section>
+
           <div className="compliance-grid">
             {highlights.map((section) => (
               <article key={section.title} className="compliance-card">

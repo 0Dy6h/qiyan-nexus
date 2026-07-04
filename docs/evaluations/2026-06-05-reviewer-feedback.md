@@ -98,10 +98,18 @@ Preflight verification:
 
 ### 必走流程
 
+- [ ] 核心证据整理任务：文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出
 - [ ] S1 文献四来源检索
 - [ ] S2 PDF 上传 → 解析 → RAG 引用
 - [ ] S3 RAG 答案 + 免责声明
 - [ ] 合规说明页
+
+### 核心产品判断
+
+- 是否愿意再次用 Qiyan Nexus 整理 AD 中医药证据：yes / no / unsure
+- citation 是否足够可追溯，让你愿意把它当作科研/临床参考辅助：1 / 2 / 3 / 4 / 5
+- 是否有 seed、mock、uploaded PDF 或 AI 输出边界让你误解：yes / no
+- 说明：
 
 ### 评分
 
@@ -148,10 +156,18 @@ Preflight verification:
 
 ### 必走流程
 
+- [ ] 核心证据整理任务：文献或 PDF → RAG 提问 → citation 追溯 → Markdown 导出
 - [ ] S1 文献四来源检索
 - [ ] S2 PDF 上传 → 解析 → RAG 引用
 - [ ] S3 RAG 答案 + 免责声明
 - [ ] S4 网络药理学 mock 边界
+
+### 核心产品判断
+
+- 是否愿意再次用 Qiyan Nexus 整理 AD 中医药证据：yes / no / unsure
+- citation 是否足够可追溯，让你愿意把它当作科研/临床参考辅助：1 / 2 / 3 / 4 / 5
+- 是否有 seed、mock、uploaded PDF 或 AI 输出边界让你误解：yes / no
+- 说明：
 
 ### 评分
 

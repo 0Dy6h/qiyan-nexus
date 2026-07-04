@@ -34,7 +34,7 @@ test("network analysis client downloads the report through a browser blob", () =
 test("network page surfaces a prominent mock-data boundary note", () => {
   const pageSource = getSource("app/network/page.tsx");
 
-  assert.match(pageSource, /aria-label="网络药理学演示数据说明"/);
+  assert.match(pageSource, /aria-label="机制线索演示数据说明"/);
   assert.match(pageSource, /演示数据边界/);
   assert.match(pageSource, /不可作为科研发表、临床决策或真实数据库分析结果/);
 });

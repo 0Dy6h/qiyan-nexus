@@ -100,7 +100,7 @@ export function getLiteratureDataSourceLabel(view: LiteratureDataSourceView) {
     return "PubMed 记录";
   }
   if (view === "cnki_sample") {
-    return "CNKI sample";
+    return "CNKI 样本";
   }
   if (view === "uploaded_pdf") {
     return "上传 PDF";
@@ -133,7 +133,7 @@ export function getLiteratureDataSourceBanner(view: LiteratureDataSourceView): L
   if (view === "cnki_sample") {
     return {
       tone: "sample",
-      title: "CNKI sample（演示）",
+      title: "CNKI 样本（演示）",
       summary:
         "当前中文条目为合成 seed 样本，用于演示证据工作台骨架，未对接知网/万方真实授权数据库。",
     };

@@ -20,7 +20,7 @@ test("root layout uses a persistent app-style left rail navigation and reserves 
   assert.match(shellSource, /className="home-app-rail"/);
   assert.match(shellSource, /aria-label="工作台侧栏"/);
   assert.match(shellSource, /className="home-account-entry"/);
-  assert.match(shellSource, /登录 \/ 注册/);
+  assert.match(shellSource, /内部预览版/);
   assert.match(shellSource, /className="meteor-shower"/);
   assert.match(shellSource, /aria-hidden="true"/);
   assert.match(shellSource, /next\/link/);
@@ -89,4 +89,43 @@ test("literature detail page renders right-side content and review-first reminde
   assert.match(source, /先核对文献来源、摘要与年份，再进入 PDF 上传、解析状态与后续人工校正流程/);
   assert.match(source, /aria-label=\"使用提醒\"/);
   assert.doesNotMatch(source, /← 返回 RAG 问答/);
+});
+
+test("literature detail page offers a next-step path into evidence question answering", () => {
+  const source = getPageSource("app/literature/[id]/page.tsx");
+
+  assert.match(source, /aria-label="文献详情下一步"/);
+  assert.match(source, /下一步：带这篇文献去问证据/);
+  assert.match(source, /const literatureQuestion = encodeURIComponent\(/);
+  assert.match(source, /请基于证据概述《\$\{item\.title\}》与特应性皮炎中医药研究的关系，并列出可核对引用。/);
+  assert.match(source, /href=\{`\/rag\?question=\$\{literatureQuestion\}`\}/);
+  assert.match(source, /带这篇文献去问证据 →/);
+});
+
+test("home page presents the core evidence workflow instead of a module inventory", () => {
+  const source = getPageSource("app/page.tsx");
+
+  assert.match(source, /查证据/);
+  assert.match(source, /问证据/);
+  assert.match(source, /看机制线索/);
+  assert.match(source, /可导出的证据材料/);
+  assert.match(source, /查文献[\s\S]*上传\/归档证据[\s\S]*提问[\s\S]*核引用[\s\S]*导出/);
+  assert.doesNotMatch(source, /title: "网络药理学"/);
+});
+
+test("workbench navigation uses user-facing mechanism exploration language", () => {
+  const shellSource = getPageSource("components/WorkbenchShell.tsx");
+  const networkPageSource = getPageSource("app/network/page.tsx");
+  const networkClientSource = getPageSource("components/NetworkAnalysisClient.tsx");
+
+  assert.match(shellSource, /label: "机制线索"/);
+  assert.doesNotMatch(shellSource, /label: "网络药理学"/);
+  assert.match(networkPageSource, /机制线索探索（mock）/);
+  assert.match(networkPageSource, /不是正式网络药理学分析结论/);
+  assert.match(networkPageSource, /aria-label="机制线索能力边界"/);
+  assert.match(networkPageSource, /aria-label="机制线索演示数据说明"/);
+  assert.match(networkPageSource, /加载机制线索面板/);
+  assert.match(networkClientSource, /aria-label="机制线索分析对象"/);
+  assert.match(networkClientSource, /aria-label="机制线索对象类型"/);
+  assert.doesNotMatch(networkClientSource, /aria-label="网络药理学分析对象"/);
 });

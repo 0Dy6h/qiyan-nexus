@@ -56,7 +56,8 @@ test("rag citation cards use explicit labeled metadata copy", () => {
   const ragSource = getSource("components/RagAnswerClient.tsx");
 
   assert.match(ragSource, /来源 \$\{citation\.source\}/);
-  assert.match(ragSource, /置信度 \$\{formatConfidence\(citation\.confidence\)\}/);
+  assert.match(ragSource, /检索匹配度 \$\{formatMatchScore\(citation\.match_score\)\}/);
+  assert.match(ragSource, /来源类型先验 \$\{formatConfidence\(citation\.confidence\)\}/);
   assert.doesNotMatch(ragSource, /\["证据来源", citation\.source/);
 });
 
@@ -112,6 +113,39 @@ test("rag retrieval metadata surfaces provider latency and cost SLI", () => {
 
   assert.match(ragSource, /Provider 延迟 \$\{formatLatencyMs\(state\.result\.sli\)\}/);
   assert.match(ragSource, /预估成本 \$\{formatEstimatedCost\(state\.result\.sli\)\}/);
+});
+
+test("rag answer default view is evidence-first and keeps technical details in an audit disclosure", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /证据简报/);
+  assert.match(ragSource, /回答模式 \$\{getRagGenerationModeLabel\(state\.result\.provider_name\)\}/);
+  assert.match(ragSource, /证据范围 \$\{getRagSourceLabel\(state\.result\.retrieval\.applied_source\)\}/);
+  assert.match(ragSource, /引用卡片 \$\{state\.result\.citations\.length\}/);
+  assert.match(ragSource, /<details[\s\S]*<summary[\s\S]*技术审计信息/);
+  assert.match(ragSource, /Provider \$\{state\.result\.provider_name\}/);
+  assert.doesNotMatch(ragSource, /<h2[^>]*>检索元数据<\/h2>/);
+});
+
+test("rag answer result exposes reviewer closeout actions after export", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /aria-label="证据简报后续动作"/);
+  assert.match(ragSource, /下一步/);
+  assert.match(ragSource, /导出后可运行 50 题回归评估，或核对合规边界，确认这份证据材料适合进入 reviewer 走查。/);
+  assert.match(ragSource, /href="\/evals\/rag-ad"/);
+  assert.match(ragSource, /运行 RAG 评估/);
+  assert.match(ragSource, /href="\/compliance"/);
+  assert.match(ragSource, /核对合规边界/);
+  assert.doesNotMatch(ragSource, /随后核对回答、检索元数据与引用证据/);
+  assert.match(ragSource, /随后核对回答、技术审计信息与引用证据/);
+});
+
+test("rag citation cards identify uploaded pdf as user-provided evidence", () => {
+  const ragSource = getSource("components/RagAnswerClient.tsx");
+
+  assert.match(ragSource, /用户上传 PDF 片段/);
+  assert.doesNotMatch(ragSource, /证据片段 来自上传 PDF/);
 });
 
 test("rag eval report surfaces explicit corpus scope", () => {

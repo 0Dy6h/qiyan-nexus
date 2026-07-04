@@ -113,6 +113,26 @@ def test_build_answer_markdown_includes_header_and_metadata() -> None:
     assert "Token 输出：未返回" in md
 
 
+def test_build_answer_markdown_includes_reviewer_ready_evidence_brief_sections() -> None:
+    md = build_answer_markdown(_sample_answer())
+
+    assert "## 证据简报" in md
+    assert "- 回答模式：deterministic / keyword" in md
+    assert "- 证据范围：全部文献" in md
+    assert "- 引用卡片：2" in md
+    assert "- 可用引用数：16" in md
+    assert "- 句级引用覆盖：0/0" in md
+    assert "## 使用边界" in md
+    assert "## Reviewer 核对清单" in md
+    assert f"- [ ] 已核对免责声明：{DISCLAIMER}" in md
+    assert "- [ ] 已逐条打开引用文献详情或原文 PDF" in md
+    assert "- [ ] 已确认 seed / PubMed / 上传 PDF 来源边界" in md
+    assert "- [ ] 已确认当前回答不作为诊断或处方建议" in md
+    assert "## 技术审计信息" in md
+    assert md.index("## 证据简报") < md.index("## 问题") < md.index("## 回答")
+    assert md.index("## Reviewer 核对清单") < md.index("## 技术审计信息")
+
+
 def test_build_answer_markdown_includes_structured_claim_block() -> None:
     md = build_answer_markdown(_sample_answer())
 
@@ -131,7 +151,8 @@ def test_build_answer_markdown_includes_citation_blocks() -> None:
     assert "### 引用 1 — 肠-脑-皮肤轴与特应性皮炎中医证候研究" in md
     assert "literature_id：cn-ad-gbs-001" in md
     assert "chunk_id：chunk-cn-ad-gbs-001-abstract" in md
-    assert "置信度：86%" in md
+    assert "来源类型先验：86%" in md
+    assert "检索匹配度：" in md
     assert "命中证据标签：gut_skin_axis, tcm_syndrome" in md
     assert "### 引用 2 — 上传 PDF：ad-evidence.pdf" in md
     assert "source_type：uploaded_pdf" in md
@@ -332,3 +353,10 @@ def test_build_answer_markdown_disclaimer_is_byte_identical() -> None:
     """The disclaimer is referenced by tests/eval/frontend; must be byte-stable."""
     md = build_answer_markdown(_sample_answer())
     assert DISCLAIMER in md
+
+
+def test_build_answer_markdown_uses_server_disclaimer_constant() -> None:
+    md = build_answer_markdown(_sample_answer(disclaimer="不要使用这个客户端传入文案"))
+
+    assert DISCLAIMER in md
+    assert "不要使用这个客户端传入文案" not in md

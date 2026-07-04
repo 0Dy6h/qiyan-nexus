@@ -89,15 +89,49 @@ def test_answer_question_returns_retrieval_metadata_for_positive_matches():
     assert response.retrieval.available_citation_count >= 2
 
 
-def test_answer_question_falls_back_when_no_positive_match_exists():
+def test_answer_question_off_topic_query_returns_no_citations():
+    """P0-1: an off-topic query (no AD-domain term, only single-CJK-char noise)
+    must be answered honestly with zero citations rather than confidently
+    surfacing mismatched AD literature."""
     response = answer_question("completely unrelated token", source="pubmed", top_k=1)
 
-    assert len(response.citations) == 1
-    assert response.retrieval.available_citation_count == 10
-    assert (
-        "没有检索到足够匹配的证据片段" in response.answer
-        or "deterministic retrieval" in response.answer
-    )
+    assert len(response.citations) == 0
+    assert response.retrieval.available_citation_count == 0
+    assert "没有检索到足够匹配的证据片段" in response.answer
+    assert response.disclaimer == DISCLAIMER
+
+
+def test_answer_question_allows_formula_name_query_without_ad_term():
+    """A formula-only query can still be in-domain when the seed corpus cites it.
+
+    The /rag UI suggests 消风散 as an example, so the topical guard must not require
+    the literal AD disease token when retrieval has a strong formula/entity match.
+    """
+    response = answer_question("消风散的组成有哪些", top_k=3)
+
+    assert response.retrieval.available_citation_count == 1
+    assert [citation.literature_id for citation in response.citations] == ["cn-ad-formula-002"]
+    assert "没有检索到足够匹配的证据片段" not in response.answer
+    assert response.disclaimer == DISCLAIMER
+
+
+def test_answer_question_allows_linked_herb_name_query_without_ad_term():
+    """A herb-only query should use curated entity links, not single-char noise."""
+    response = answer_question("黄芪的功效", top_k=3)
+
+    assert response.retrieval.available_citation_count == 1
+    assert [citation.literature_id for citation in response.citations] == ["cn-ad-formula-002"]
+    assert "herb-huangqi" in response.citations[0].related_entity_ids
+    assert "没有检索到足够匹配的证据片段" not in response.answer
+
+
+def test_answer_question_blocks_gut_obstruction_query_despite_single_gut_character():
+    """肠 alone is too broad to make a gastrointestinal condition an AD query."""
+    response = answer_question("肠梗阻怎么治疗", top_k=3)
+
+    assert response.retrieval.available_citation_count == 0
+    assert response.citations == []
+    assert "没有检索到足够匹配的证据片段" in response.answer
 
 
 def test_build_answer_translates_evidence_tags_to_cn_topics():
@@ -673,3 +707,41 @@ def test_answer_question_hard_blocks_external_provider_answer_with_uncited_claim
     assert response.grounding.cited_claim_count == 0
     assert response.input_tokens == 12
     assert response.output_tokens == 6
+
+
+def test_query_has_topical_signal_uses_max_candidate_score():
+    """Off-topic guard must key off the best candidate score, not ``ranked[0]``.
+
+    Origin-aware ranking can place a score-0 real record at rank 0 (real evidence is
+    surfaced ahead of synthetic seeds) while a genuinely matching seed sits lower
+    with a high score. Keying the guard off ``ranked[0].score`` would then falsely
+    report "no evidence" for an in-domain query, so it must use the max score across
+    candidates.
+    """
+    from app.schemas.literature import LiteratureItem
+    from app.services.rag import RELEVANCE_MIN_TOP_SCORE, _query_has_topical_signal
+    from app.services.retrieval.provider import ScoredCandidate
+
+    def _item(item_id: str, origin: str) -> LiteratureItem:
+        return LiteratureItem(
+            id=item_id,
+            title="t",
+            language="en",
+            source_type="pubmed",
+            source="s",
+            record_origin=origin,
+            year=2025,
+            snippet="s",
+        )
+
+    ranked = [
+        ScoredCandidate(score=0, language_bonus=1, item=_item("pmid-1", "pubmed_live"), chunk=None),
+        ScoredCandidate(
+            score=RELEVANCE_MIN_TOP_SCORE + 5,
+            language_bonus=0,
+            item=_item("cn-1", "seed_sample"),
+            chunk=None,
+        ),
+    ]
+
+    assert _query_has_topical_signal("atopic dermatitis JAK inhibitor", ranked) is True
