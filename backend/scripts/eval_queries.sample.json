@@ -1,0 +1,11 @@
+{
+  "note": "Starter queries for blind relevance labeling. These are a seed only — replace/expand with expert-authored, held-out clinical/research questions the retriever was NOT tuned on. Questions only; no expected IDs (that is the whole point of a non-circular eval).",
+  "queries": [
+    "What is the current evidence for JAK inhibitors in atopic dermatitis?",
+    "Which Chinese herbal formulas have randomized controlled trial evidence for atopic dermatitis?",
+    "How does the gut microbiome relate to atopic dermatitis severity?",
+    "acupuncture for atopic dermatitis: what does the clinical evidence show?",
+    "特应性皮炎患者皮肤屏障修复有哪些外用干预证据？",
+    "IL-31 在特应性皮炎瘙痒中的作用机制是什么？"
+  ]
+}
