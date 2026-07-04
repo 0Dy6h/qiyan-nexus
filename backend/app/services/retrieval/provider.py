@@ -309,6 +309,20 @@ def alias_tag_bonus(tags: list[str], query_tokens: list[str], weight: int) -> in
     return matched * weight
 
 
+def _is_real_evidence(item: LiteratureItem) -> bool:
+    """Whether ``item`` is real ingested literature rather than synthetic seed data.
+
+    The seed corpus is hand-authored demo / offline-test data whose curated
+    ``evidence_tags`` earn the +2/+7 ``alias_tag_bonus``; in a mixed corpus that
+    lets a broad synthetic record outscore a specific real paper. In any corpus
+    that contains real records, real evidence must rank ahead of the demo
+    scaffolding. A seed-only corpus is unaffected — every candidate shares the
+    origin, so this key is constant and the ordering is unchanged.
+    """
+
+    return item.record_origin != "seed_sample"
+
+
 @dataclass(frozen=True)
 class ScoredCandidate:
     """One ``(item, chunk)`` ranking candidate.
@@ -376,7 +390,7 @@ class KeywordRetrievalProvider:
                     )
                 )
         ranked.sort(
-            key=lambda c: (c.score, c.language_bonus, c.item.year),
+            key=lambda c: (_is_real_evidence(c.item), c.score, c.language_bonus, c.item.year),
             reverse=True,
         )
         return ranked

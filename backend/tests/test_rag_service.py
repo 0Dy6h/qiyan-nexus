@@ -707,3 +707,41 @@ def test_answer_question_hard_blocks_external_provider_answer_with_uncited_claim
     assert response.grounding.cited_claim_count == 0
     assert response.input_tokens == 12
     assert response.output_tokens == 6
+
+
+def test_query_has_topical_signal_uses_max_candidate_score():
+    """Off-topic guard must key off the best candidate score, not ``ranked[0]``.
+
+    Origin-aware ranking can place a score-0 real record at rank 0 (real evidence is
+    surfaced ahead of synthetic seeds) while a genuinely matching seed sits lower
+    with a high score. Keying the guard off ``ranked[0].score`` would then falsely
+    report "no evidence" for an in-domain query, so it must use the max score across
+    candidates.
+    """
+    from app.schemas.literature import LiteratureItem
+    from app.services.rag import RELEVANCE_MIN_TOP_SCORE, _query_has_topical_signal
+    from app.services.retrieval.provider import ScoredCandidate
+
+    def _item(item_id: str, origin: str) -> LiteratureItem:
+        return LiteratureItem(
+            id=item_id,
+            title="t",
+            language="en",
+            source_type="pubmed",
+            source="s",
+            record_origin=origin,
+            year=2025,
+            snippet="s",
+        )
+
+    ranked = [
+        ScoredCandidate(score=0, language_bonus=1, item=_item("pmid-1", "pubmed_live"), chunk=None),
+        ScoredCandidate(
+            score=RELEVANCE_MIN_TOP_SCORE + 5,
+            language_bonus=0,
+            item=_item("cn-1", "seed_sample"),
+            chunk=None,
+        ),
+    ]
+
+    assert _query_has_topical_signal("atopic dermatitis JAK inhibitor", ranked) is True

@@ -88,7 +88,9 @@ def _query_has_topical_signal(question: str, ranked: list[ScoredCandidate]) -> b
     AD literature (product fix P0-1).
     """
 
-    if not ranked or ranked[0].score < RELEVANCE_MIN_TOP_SCORE:
+    if not ranked:
+        return False
+    if max(candidate.score for candidate in ranked) < RELEVANCE_MIN_TOP_SCORE:
         return False
     query_tokens = set(tokenize_query(question))
     topical_tokens = query_tokens & domain_vocabulary()
@@ -162,6 +164,7 @@ def answer_question(
         ranked = sorted(
             ranked,
             key=lambda c: (
+                c.item.record_origin != "seed_sample",
                 "network_pharmacology" in c.item.evidence_tags,
                 "targeted_therapy" in c.item.evidence_tags,
                 c.language_bonus,
