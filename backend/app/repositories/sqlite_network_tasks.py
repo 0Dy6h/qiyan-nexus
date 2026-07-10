@@ -8,7 +8,10 @@ creates its own table with ``CREATE TABLE IF NOT EXISTS``.
 
 import json
 import sqlite3
+from _thread import RLock as RLockType
+from collections.abc import Callable
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from app.schemas.network import (
@@ -22,6 +25,7 @@ from app.schemas.network import (
 _CREATE_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS network_task (
     task_id        TEXT PRIMARY KEY,
+    owner_id       TEXT,
     query          TEXT NOT NULL,
     analysis_type  TEXT NOT NULL,
     status         TEXT NOT NULL,
@@ -39,15 +43,49 @@ CREATE TABLE IF NOT EXISTS network_task (
 _ALLOWED_COLUMNS = frozenset(
     {
         "task_id",
+        "owner_id",
         "query",
         "analysis_type",
         "status",
         "progress",
         "poll_count",
+        "data_mode",
         "result",
+        "error",
+        "warnings",
         "created_at",
     }
 )
+
+_PATH_LOCKS_GUARD = RLock()
+_PATH_LOCKS: dict[Path, tuple[RLockType, int]] = {}
+
+
+def _acquire_path_lock(db_path: Path) -> tuple[Path, RLockType]:
+    """Return the process-wide lock for a canonical SQLite database path."""
+    canonical_path = db_path.expanduser().resolve()
+    with _PATH_LOCKS_GUARD:
+        entry = _PATH_LOCKS.get(canonical_path)
+        if entry is None:
+            lock = RLock()
+            _PATH_LOCKS[canonical_path] = (lock, 1)
+            return canonical_path, lock
+        lock, reference_count = entry
+        _PATH_LOCKS[canonical_path] = (lock, reference_count + 1)
+        return canonical_path, lock
+
+
+def _release_path_lock(db_path: Path) -> None:
+    """Release one repository reference and discard unused path locks."""
+    with _PATH_LOCKS_GUARD:
+        entry = _PATH_LOCKS.get(db_path)
+        if entry is None:
+            return
+        lock, reference_count = entry
+        if reference_count == 1:
+            del _PATH_LOCKS[db_path]
+        else:
+            _PATH_LOCKS[db_path] = (lock, reference_count - 1)
 
 
 def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
@@ -79,35 +117,50 @@ class SqliteNetworkTaskRepository:
     """Network task repository backed by a local SQLite database."""
 
     def __init__(self, db_path: Path, seed_path: Path | None = None) -> None:
-        self._db_path = db_path
-        self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
-        self._closed = False
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(_CREATE_TABLE_SQL)
-        self._ensure_columns()
-        self._conn.commit()
+        self._db_path, self._lock = _acquire_path_lock(db_path)
+        self._path_lock_registered = True
+        self._closed = True
+        try:
+            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            self._closed = False
+            with self._lock:
+                self._conn.row_factory = sqlite3.Row
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute(_CREATE_TABLE_SQL)
+                self._ensure_columns()
+                self._conn.commit()
 
-        # Bootstrap from seed JSON if the table is empty.
-        # Network tasks are mutation-only — seed is typically an empty list.
-        count = self._conn.execute("SELECT COUNT(*) FROM network_task").fetchone()[0]
-        if count == 0:
-            self._bootstrap_from_seed(seed_path)
+                # Bootstrap from seed JSON if the table is empty.
+                # Network tasks are mutation-only — seed is typically an empty list.
+                count = self._conn.execute("SELECT COUNT(*) FROM network_task").fetchone()[0]
+                if count == 0:
+                    self._bootstrap_from_seed(seed_path)
+        except BaseException:
+            with self._lock:
+                if not self._closed:
+                    self._conn.close()
+                    self._closed = True
+                self._path_lock_registered = False
+                _release_path_lock(self._db_path)
+            raise
 
     def _ensure_columns(self) -> None:
         """Add columns introduced after the first SQLite spike."""
-        rows = self._conn.execute("PRAGMA table_info(network_task)").fetchall()
-        existing = {row["name"] for row in rows}
-        if "data_mode" not in existing:
-            self._conn.execute(
-                "ALTER TABLE network_task ADD COLUMN data_mode TEXT NOT NULL DEFAULT 'mock'"
-            )
-        if "error" not in existing:
-            self._conn.execute("ALTER TABLE network_task ADD COLUMN error TEXT")
-        if "warnings" not in existing:
-            self._conn.execute(
-                "ALTER TABLE network_task ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'"
-            )
+        with self._lock:
+            rows = self._conn.execute("PRAGMA table_info(network_task)").fetchall()
+            existing = {row["name"] for row in rows}
+            if "owner_id" not in existing:
+                self._conn.execute("ALTER TABLE network_task ADD COLUMN owner_id TEXT")
+            if "data_mode" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE network_task ADD COLUMN data_mode TEXT NOT NULL DEFAULT 'mock'"
+                )
+            if "error" not in existing:
+                self._conn.execute("ALTER TABLE network_task ADD COLUMN error TEXT")
+            if "warnings" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE network_task ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'"
+                )
 
     # ------------------------------------------------------------------
     # Bootstrap
@@ -125,9 +178,10 @@ class SqliteNetworkTaskRepository:
             seed_path = resolve_network_tasks_storage_path()
 
         raw_items: list[dict[str, Any]] = json.loads(seed_path.read_text(encoding="utf-8"))
-        for item in raw_items:
-            self._insert_item(item)
-        self._conn.commit()
+        with self._lock:
+            for item in raw_items:
+                self._insert_item(item)
+            self._conn.commit()
 
     def _insert_item(self, item: dict[str, Any]) -> None:
         """Insert a single item dict into the database."""
@@ -139,6 +193,7 @@ class SqliteNetworkTaskRepository:
 
         columns = [
             "task_id",
+            "owner_id",
             "query",
             "analysis_type",
             "status",
@@ -150,6 +205,8 @@ class SqliteNetworkTaskRepository:
             "warnings",
             "created_at",
         ]
+        if item.get("data_mode") is None:
+            item["data_mode"] = "mock"
         if item.get("warnings") is None:
             item["warnings"] = []
         if not isinstance(item.get("warnings"), str):
@@ -158,10 +215,11 @@ class SqliteNetworkTaskRepository:
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
-        self._conn.execute(
-            f"INSERT INTO network_task ({col_names}) VALUES ({placeholders})",
-            values,
-        )
+        with self._lock:
+            self._conn.execute(
+                f"INSERT INTO network_task ({col_names}) VALUES ({placeholders})",
+                values,
+            )
 
     # ------------------------------------------------------------------
     # Public API
@@ -169,23 +227,99 @@ class SqliteNetworkTaskRepository:
 
     def close(self) -> None:
         """Close the underlying SQLite connection. Safe to call repeatedly."""
-        if not self._closed:
-            self._conn.close()
-            self._closed = True
+        with self._lock:
+            if not self._closed:
+                self._conn.close()
+                self._closed = True
+                if self._path_lock_registered:
+                    self._path_lock_registered = False
+                    _release_path_lock(self._db_path)
 
     def __del__(self) -> None:
-        self.close()
+        if not getattr(self, "_closed", True):
+            self.close()
 
     def read_all(self) -> list[NetworkTaskRecord]:
-        rows = self._conn.execute("SELECT * FROM network_task").fetchall()
-        return [_row_to_record(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute("SELECT * FROM network_task").fetchall()
+            return [_row_to_record(row) for row in rows]
 
     def get(self, task_id: str) -> NetworkTaskRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM network_task WHERE task_id = ?",
-            (task_id,),
-        ).fetchone()
-        return _row_to_record(row) if row else None
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM network_task WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            return _row_to_record(row) if row else None
+
+    def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM network_task WHERE task_id = ? AND owner_id = ?",
+                (task_id, owner_id),
+            ).fetchone()
+            return _row_to_record(row) if row else None
+
+    def advance(
+        self,
+        task_id: str,
+        owner_id: str,
+        transition: Callable[[NetworkTaskRecord], NetworkTaskRecord],
+    ) -> NetworkTaskRecord | None:
+        while True:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT * FROM network_task WHERE task_id = ? AND owner_id = ?",
+                    (task_id, owner_id),
+                ).fetchone()
+                if row is None:
+                    return None
+                record = _row_to_record(row)
+                next_record = transition(record)
+                result_json = (
+                    json.dumps(next_record.result.model_dump(), ensure_ascii=False)
+                    if next_record.result is not None
+                    else None
+                )
+                warnings_json = json.dumps(next_record.warnings, ensure_ascii=False)
+                cursor = self._conn.execute(
+                    """UPDATE network_task
+                       SET query = ?,
+                           analysis_type = ?,
+                           status = ?,
+                           progress = ?,
+                           poll_count = ?,
+                           data_mode = ?,
+                           result = ?,
+                           error = ?,
+                           warnings = ?,
+                           created_at = ?
+                       WHERE task_id = ? AND owner_id = ? AND poll_count = ?""",
+                    (
+                        next_record.query,
+                        next_record.analysis_type,
+                        next_record.status,
+                        next_record.progress,
+                        next_record.poll_count,
+                        next_record.data_mode,
+                        result_json,
+                        next_record.error,
+                        warnings_json,
+                        next_record.created_at,
+                        task_id,
+                        owner_id,
+                        record.poll_count,
+                    ),
+                )
+                if cursor.rowcount == 0:
+                    self._conn.rollback()
+                    continue
+                self._conn.commit()
+                updated = self._conn.execute(
+                    "SELECT * FROM network_task WHERE task_id = ? AND owner_id = ?",
+                    (task_id, owner_id),
+                ).fetchone()
+                return _row_to_record(updated)
 
     def upsert(
         self,
@@ -197,6 +331,7 @@ class SqliteNetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
         warnings: list[str] | None = None,
@@ -206,63 +341,65 @@ class SqliteNetworkTaskRepository:
             result_json = json.dumps(result.model_dump(), ensure_ascii=False)
         warnings_json = json.dumps(warnings or [], ensure_ascii=False)
 
-        existing = self._conn.execute(
-            "SELECT task_id FROM network_task WHERE task_id = ?",
-            (task_id,),
-        ).fetchone()
+        with self._lock:
+            existing = self._conn.execute(
+                "SELECT task_id FROM network_task WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
 
-        if existing is not None:
-            self._conn.execute(
-                """UPDATE network_task
-                   SET query = ?,
-                       analysis_type = ?,
-                       status = ?,
-                       progress = ?,
-                       poll_count = ?,
-                       data_mode = ?,
-                       result = ?,
-                       error = ?,
-                       warnings = ?,
-                       created_at = ?
-                   WHERE task_id = ?""",
-                (
-                    query,
-                    analysis_type,
-                    status,
-                    progress,
-                    poll_count,
-                    data_mode,
-                    result_json,
-                    error,
-                    warnings_json,
-                    created_at,
-                    task_id,
-                ),
-            )
-        else:
-            self._conn.execute(
-                """INSERT INTO network_task
-                   (task_id, query, analysis_type, status, progress, poll_count,
-                    data_mode, result, error, warnings, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    task_id,
-                    query,
-                    analysis_type,
-                    status,
-                    progress,
-                    poll_count,
-                    data_mode,
-                    result_json,
-                    error,
-                    warnings_json,
-                    created_at,
-                ),
-            )
-        self._conn.commit()
+            if existing is not None:
+                self._conn.execute(
+                    """UPDATE network_task
+                       SET query = ?,
+                           analysis_type = ?,
+                           status = ?,
+                           progress = ?,
+                           poll_count = ?,
+                           data_mode = ?,
+                           result = ?,
+                           error = ?,
+                           warnings = ?,
+                           created_at = ?
+                       WHERE task_id = ?""",
+                    (
+                        query,
+                        analysis_type,
+                        status,
+                        progress,
+                        poll_count,
+                        data_mode,
+                        result_json,
+                        error,
+                        warnings_json,
+                        created_at,
+                        task_id,
+                    ),
+                )
+            else:
+                self._conn.execute(
+                    """INSERT INTO network_task
+                       (task_id, owner_id, query, analysis_type, status, progress, poll_count,
+                        data_mode, result, error, warnings, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        task_id,
+                        owner_id,
+                        query,
+                        analysis_type,
+                        status,
+                        progress,
+                        poll_count,
+                        data_mode,
+                        result_json,
+                        error,
+                        warnings_json,
+                        created_at,
+                    ),
+                )
+            self._conn.commit()
 
-        row = self._conn.execute(
-            "SELECT * FROM network_task WHERE task_id = ?",
-            (task_id,),
-        ).fetchone()
-        return _row_to_record(row)
+            row = self._conn.execute(
+                "SELECT * FROM network_task WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            return _row_to_record(row)

@@ -110,7 +110,7 @@ gate 默认关闭，在上述完成且明确翻转默认前不改变现有用户
 
 ### 工程闭环（Slices 1-5）
 
-按 `docs/plans/2026-06-01-execution-plan.md` 执行的 5 颗 slice 全部完成：
+本 ADR 记录的 5 个工程 slice 已全部完成：
 
 | Slice | 内容 | 关键指标 |
 |---|---|---|

@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -9,6 +12,8 @@ def test_default_settings(monkeypatch):
     for env_var in [
         "APP_NAME",
         "ENVIRONMENT",
+        "QIYAN_LLM_PROVIDER",
+        "QIYAN_ACCESS_TOKENS",
         "UPLOAD_STORAGE_DIR",
         "ANTHROPIC_API_KEY",
         "QIYAN_ANTHROPIC_MODEL",
@@ -34,6 +39,8 @@ def test_default_settings(monkeypatch):
 
     assert settings.app_name == "Qiyan Nexus API"
     assert settings.environment == "dev"
+    assert settings.llm_provider == "deterministic"
+    assert settings.access_control_enabled is False
     assert settings.upload_storage_dir == Path("uploads")
     assert settings.anthropic_api_key == ""
     assert settings.opencode_go_api_key == ""
@@ -125,27 +132,51 @@ def test_network_live_settings_from_env(monkeypatch):
     get_settings.cache_clear()
 
 
-def test_production_requires_at_least_one_llm_provider_key():
-    """HIGH-6: production must fail-fast when no LLM provider key is configured."""
-    with pytest.raises(ValueError, match="LLM provider API key"):
-        Settings(environment="production")
+def test_production_requires_access_control(tmp_path):
+    with pytest.raises(ValueError, match="access control"):
+        Settings(environment="production", upload_storage_dir=tmp_path)
 
 
-def test_production_accepts_configured_provider_and_existing_upload_dir(tmp_path):
+def test_production_accepts_deterministic_without_placeholder_llm_key(tmp_path):
     settings = Settings(
         environment="production",
-        opencode_go_api_key="test-key",
+        access_control_enabled=True,
         upload_storage_dir=tmp_path,
     )
 
     assert settings.environment == "production"
 
 
+def test_production_live_provider_requires_its_api_key(tmp_path):
+    with pytest.raises(ValueError, match="QIYAN_OPENCODE_GO_API_KEY"):
+        Settings(
+            environment="production",
+            access_control_enabled=True,
+            llm_provider="opencode_go",
+            upload_storage_dir=tmp_path,
+        )
+
+
+def test_production_alias_is_normalized_and_still_runs_validation(tmp_path):
+    settings = Settings(
+        environment=" PROD ",
+        access_control_enabled=True,
+        upload_storage_dir=tmp_path,
+    )
+
+    assert settings.environment == "production"
+
+
+def test_unknown_environment_fails_closed():
+    with pytest.raises(ValueError, match="ENVIRONMENT"):
+        Settings(environment="staging-ish")
+
+
 def test_production_rejects_out_of_range_grounding_threshold(tmp_path):
     with pytest.raises(ValueError, match="GROUNDING_SEMANTIC_THRESHOLD"):
         Settings(
             environment="production",
-            opencode_go_api_key="test-key",
+            access_control_enabled=True,
             upload_storage_dir=tmp_path,
             grounding_semantic_threshold=1.5,
         )
@@ -156,3 +187,27 @@ def test_dev_environment_skips_production_validation():
     settings = Settings(environment="dev")
 
     assert settings.environment == "dev"
+
+
+def test_app_import_runs_production_validation_before_serving_requests(tmp_path):
+    env = os.environ.copy()
+    env.update(
+        {
+            "ENVIRONMENT": "prod",
+            "QIYAN_ACCESS_TOKENS": "",
+            "QIYAN_LLM_PROVIDER": "deterministic",
+            "UPLOAD_STORAGE_DIR": str(tmp_path),
+        }
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import app.main"],
+        cwd=Path(__file__).resolve().parents[1],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "requires access control" in result.stderr

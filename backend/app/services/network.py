@@ -54,17 +54,13 @@ def _build_chains_from_seed(
     if analysis_type == "formula":
         formula = repo.find_formula_by_query(query)
         if formula is None:
-            return [chain for chain, _ in _fallback_chains(query, analysis_type, repo)][
-                :_MAX_CHAINS_PER_QUERY
-            ]
+            return []
         formula_label = formula.name
         allowed_herb_ids = set(formula.herb_ids)
     else:
         herb = repo.find_herb_by_query(query)
         if herb is None:
-            return [chain for chain, _ in _fallback_chains(query, analysis_type, repo)][
-                :_MAX_CHAINS_PER_QUERY
-            ]
+            return []
         allowed_herb_ids = {herb.id}
 
     candidate_chains: list[tuple[NetworkChain, float]] = []
@@ -93,44 +89,8 @@ def _build_chains_from_seed(
             )
             candidate_chains.append((chain, edge.score))
 
-    if not candidate_chains:
-        candidate_chains = _fallback_chains(query, analysis_type, repo)
-
     candidate_chains.sort(key=lambda pair: pair[1], reverse=True)
     return [chain for chain, _ in candidate_chains[:_MAX_CHAINS_PER_QUERY]]
-
-
-def _fallback_chains(
-    query: str,
-    analysis_type: AnalysisType,
-    repo: NetworkEntityRepository,
-) -> list[tuple[NetworkChain, float]]:
-    """When the query matches no herb or formula, echo the query as the herb label
-    and emit a small set of top-scoring chains so the page never goes empty.
-    """
-    compounds_by_id = {c.id: c for c in repo.list_compounds()}
-    targets_by_id = {t.id: t for t in repo.list_targets()}
-    pathways_by_id = {p.id: p for p in repo.list_pathways()}
-    label = query.strip() or "未识别对象"
-    fallback: list[tuple[NetworkChain, float]] = []
-    for edge in repo.list_chains():
-        compound = compounds_by_id.get(edge.compound_id)
-        target = targets_by_id.get(edge.target_id)
-        pathway = pathways_by_id.get(edge.pathway_id)
-        if compound is None or target is None or pathway is None:
-            continue
-        chain = NetworkChain(
-            herb=label,
-            formula=label if analysis_type == "formula" else None,
-            compound=compound.name,
-            target=target.symbol,
-            pathway=pathway.name,
-            disease=edge.disease,
-            score=edge.score,
-            related_entity_ids=[compound.id, target.id, pathway.id],
-        )
-        fallback.append((chain, edge.score))
-    return fallback
 
 
 def _now_iso() -> str:
@@ -142,12 +102,17 @@ def _select_data_mode() -> DataMode:
     return "live" if provider_name == "live" else "mock"
 
 
-def create_network_analysis_task(query: str, analysis_type: AnalysisType) -> NetworkAnalyzeAccepted:
+def create_network_analysis_task(
+    query: str,
+    analysis_type: AnalysisType,
+    reviewer_id: str = "local-preview",
+) -> NetworkAnalyzeAccepted:
     task_id = f"network-{uuid4().hex[:12]}"
     repo = _get_repository()
     data_mode = _select_data_mode()
     repo.upsert(
         task_id=task_id,
+        owner_id=reviewer_id,
         query=query.strip(),
         analysis_type=analysis_type,
         status="queued",
@@ -180,33 +145,17 @@ def _load_kegg_pathways() -> list[Any]:
         return data
 
 
-def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResultResponse]:
-    repo = _get_repository()
+def _advance_record(record: NetworkTaskRecord) -> NetworkTaskRecord:
+    if record.status in {"completed", "failed"}:
+        return record
     if record.poll_count == 0:
-        next_record = repo.upsert(
-            task_id=record.task_id,
-            query=record.query,
-            analysis_type=record.analysis_type,
-            status="running",
-            progress=60,
-            poll_count=record.poll_count + 1,
-            result=None,
-            created_at=record.created_at,
-            data_mode=record.data_mode,
-            error=record.error,
-            warnings=record.warnings,
-        )
-        return (
-            next_record,
-            NetworkResultResponse(
-                task_id=next_record.task_id,
-                status="running",
-                progress=60,
-                data_mode=next_record.data_mode,
-                result=None,
-                error=next_record.error,
-                warnings=next_record.warnings,
-            ),
+        return record.model_copy(
+            update={
+                "status": "running",
+                "progress": 60,
+                "poll_count": record.poll_count + 1,
+                "result": None,
+            }
         )
 
     chains = _build_chains_from_seed(record.query, record.analysis_type)
@@ -236,64 +185,65 @@ def _advance(record: NetworkTaskRecord) -> tuple[NetworkTaskRecord, NetworkResul
     )
     if record.data_mode == "live" and not result_payload.chains:
         error_message = "No live target chains could be assembled."
-        next_record = repo.upsert(
-            task_id=record.task_id,
-            query=record.query,
-            analysis_type=record.analysis_type,
-            status="failed",
-            progress=100,
-            poll_count=record.poll_count + 1,
-            result=None,
-            created_at=record.created_at,
-            data_mode=record.data_mode,
-            error=error_message,
-            warnings=result_payload.warnings,
+        return record.model_copy(
+            update={
+                "status": "failed",
+                "progress": 100,
+                "poll_count": record.poll_count + 1,
+                "result": None,
+                "error": error_message,
+                "warnings": result_payload.warnings,
+            }
         )
-        return (
-            next_record,
-            NetworkResultResponse(
-                task_id=next_record.task_id,
-                status="failed",
-                progress=100,
-                data_mode=next_record.data_mode,
-                result=None,
-                error=next_record.error,
-                warnings=next_record.warnings,
-            ),
-        )
-    next_record = repo.upsert(
+    return record.model_copy(
+        update={
+            "status": "completed",
+            "progress": 100,
+            "poll_count": record.poll_count + 1,
+            "result": result_payload,
+            "error": None,
+            "warnings": result_payload.warnings,
+        }
+    )
+
+
+def _result_response(record: NetworkTaskRecord) -> NetworkResultResponse:
+    return NetworkResultResponse(
         task_id=record.task_id,
-        query=record.query,
-        analysis_type=record.analysis_type,
-        status="completed",
-        progress=100,
-        poll_count=record.poll_count + 1,
-        result=result_payload,
-        created_at=record.created_at,
+        status=record.status,
+        progress=record.progress,
         data_mode=record.data_mode,
-        warnings=result_payload.warnings,
-    )
-    return (
-        next_record,
-        NetworkResultResponse(
-            task_id=next_record.task_id,
-            status="completed",
-            progress=100,
-            data_mode=next_record.data_mode,
-            result=result_payload,
-            error=next_record.error,
-            warnings=next_record.warnings,
-        ),
+        result=record.result,
+        error=record.error,
+        warnings=record.warnings,
     )
 
 
-def get_network_analysis_result(task_id: str) -> tuple[str, NetworkResultResponse | None]:
+def get_network_analysis_result(
+    task_id: str,
+    reviewer_id: str = "local-preview",
+) -> tuple[str, NetworkResultResponse | None]:
     repo = _get_repository()
-    record = repo.get(task_id)
+    current = repo.get_owned(task_id, reviewer_id)
+    if current is None:
+        return "not_found", None
+    if current.status in {"completed", "failed"}:
+        return "ok", _result_response(current)
+    record = repo.advance(task_id, reviewer_id, _advance_record)
     if record is None:
         return "not_found", None
-    _, response = _advance(record)
-    return "ok", response
+    return "ok", _result_response(record)
+
+
+def get_network_analysis_task(
+    task_id: str,
+    reviewer_id: str = "local-preview",
+) -> tuple[str, NetworkResultResponse | None]:
+    """Read an owner-scoped task without advancing its state machine."""
+    record = _get_repository().get_owned(task_id, reviewer_id)
+    if record is None:
+        return "not_found", None
+    return "ok", _result_response(record)
 
 
 def list_all_entities(

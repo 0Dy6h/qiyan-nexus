@@ -82,6 +82,12 @@ export type LiteratureSyncResponse = {
 };
 
 export function getBackendBaseUrl() {
+  if (typeof window === "undefined") {
+    const internalBaseUrl = (process.env.QIYAN_INTERNAL_API_BASE_URL ?? "").trim();
+    if (internalBaseUrl) {
+      return internalBaseUrl;
+    }
+  }
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 }
 

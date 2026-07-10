@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const backendDir = resolve(currentDir, "../../backend");
 const port = process.env.QIYAN_E2E_BACKEND_PORT ?? "8000";
-const e2eAccessToken = process.env.QIYAN_E2E_ACCESS_TOKEN?.trim() ?? "";
 
 const candidates =
   process.platform === "win32"
@@ -31,7 +30,7 @@ const child = spawn(
       ...process.env,
       PYTHONIOENCODING: "utf-8",
       PYTHONUTF8: "1",
-      QIYAN_ACCESS_TOKENS: e2eAccessToken,
+      QIYAN_ACCESS_TOKENS: "",
       LITERATURE_RUNTIME_STATE_PATH: join(tmpdir(), "qiyan-e2e-runtime.json"),
       CHUNK_RUNTIME_STATE_PATH: join(tmpdir(), "qiyan-e2e-chunks.json"),
       NETWORK_TASKS_RUNTIME_STATE_PATH: join(tmpdir(), "qiyan-e2e-network-tasks.json"),

@@ -20,6 +20,7 @@ from app.services.grounding import evaluate_answer_grounding
 from app.services.literature import detect_query_language
 from app.services.llm.provider import DeterministicProvider, select_provider
 from app.services.nli import select_nli_backend
+from app.services.rag_export_integrity import attach_export_integrity
 from app.services.retrieval.embedding import select_embedding_backend
 from app.services.retrieval.provider import (
     CONFIDENCE_BY_SOURCE_TYPE,
@@ -299,7 +300,7 @@ def answer_question(
         retrieval_provider.name,
         request_id,
     )
-    return RagAnswerResponse(
+    answer = RagAnswerResponse(
         question=normalized_question,
         answer=grounded_answer,
         disclaimer=DISCLAIMER,
@@ -317,6 +318,7 @@ def answer_question(
         output_tokens=draft.output_tokens,
         sli=sli,
     )
+    return attach_export_integrity(answer)
 
 
 _RAG_SOURCE_LABELS: dict[str, str] = {

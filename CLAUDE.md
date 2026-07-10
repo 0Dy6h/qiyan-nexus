@@ -32,18 +32,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 "Read app/main.py lines 50-60" → Read (specific range)
 ```
 
-### Project-specific symbols to query
+### Project-specific entry points
 
-Backend (Python):
-- `RAGService`, `LiteratureRepository`, `ChunkRepository` — RAG pipeline
-- `parse_pdf_content`, `update_pdf_metadata` — PDF upload flow
-- `keyword_retrieval`, `vector_retrieval` — retrieval strategies
-- `EvalService`, `run_batch_evaluation` — eval harness
+Query the actual symbols under these files instead of relying on a static symbol list, which drifts as slices are refactored:
 
-Frontend (TypeScript):
-- `RagPage`, `LiteratureDetailPage`, `NetworkPage` — main pages
-- `fetchLiteratureDetail`, `fetchRagAnswer` — API clients
-- `DISCLAIMER_TEXT`, `PAGE_PADDING` — locked constants
+- Backend RAG/export: `backend/app/services/rag.py`, `rag_export_integrity.py`, `rag_docx.py`
+- Backend PDF: `backend/app/api/upload.py`, `backend/app/services/upload.py`, `backend/app/services/pdf_storage.py`, literature/chunk repositories
+- Backend network: `backend/app/api/network.py`, `backend/app/services/network.py`, `*network_tasks.py`
+- Frontend clients: `frontend/lib/api/client.ts`, `literature.ts`, `rag.ts`, `network.ts`
+- Frontend pages: `frontend/app/literature/`, `frontend/app/rag/`, `frontend/app/network/`
 
 ### Index status check
 
@@ -97,14 +94,14 @@ py -3.11 -m venv .uv-test-venv
 cd frontend && pnpm install
 cd frontend && pnpm dev            # http://localhost:3000, expects backend at 127.0.0.1:8000
 cd frontend && pnpm test           # node --import tsx --test tests/*.test.ts
-cd frontend && pnpm typecheck      # tsc --noEmit (includes tests/)
+cd frontend && pnpm typecheck      # next typegen && tsc --noEmit (includes tests/)
 cd frontend && pnpm build          # next build --webpack
 
 # Single test file
 cd frontend && node --import tsx --test tests/literature-api.test.ts
 
 # Override API base
-cd frontend && NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
+$env:NEXT_PUBLIC_API_BASE_URL="http://127.0.0.1:8000"; cd frontend; pnpm dev
 
 # E2E (A4 — Playwright). One-time host setup: pnpm exec playwright install chromium
 # plus sudo install-deps for libnspr4/libnss3/etc. See frontend/e2e/README.md.
@@ -115,7 +112,7 @@ cd frontend && pnpm e2e            # spins up backend + frontend webServer, runs
 
 ### Backend layering (strict)
 
-`app/api/*.py` (FastAPI routers under `/api/...`) → `app/services/*.py` (business logic, disclaimer composition, ranking) → `app/repositories/*.py` (in-memory JSON-file I/O) → `app/schemas/*.py` (Pydantic models). Don't bypass layers — routers should not read JSON directly, services should not import `FastAPI`.
+`app/api/*.py` (FastAPI routers under `/api/...`) → `app/services/*.py` (business logic, disclaimer composition, ranking) → `app/repositories/*.py` (JSON/runtime storage plus explicit SQLite/PostgreSQL backends behind protocols) → `app/schemas/*.py` (Pydantic models). Don't bypass layers — routers should not read storage directly, services should not import `FastAPI`.
 
 Routers are wired in `app/main.py`. CORS is restricted to `localhost:3000` / `127.0.0.1:3000`, methods `GET, POST` only — adding a `DELETE` or `PUT` route requires editing the middleware.
 
@@ -133,7 +130,7 @@ Repositories bootstrap from seed JSON and write runtime state on update (e.g. `u
 
 `app/services/rag.py` does keyword tokenization with Chinese-char-per-token + alias / cross-lingual bridge terms. Scoring runs against `title + snippet + abstract + keywords + evidence_tags + related_entity_ids + chunk text + chunk evidence_tags + chunk related_entity_ids`. Formula/herb names from `backend/data/network/` are injected as entity tokens so queries like `消风散` / `黄芪` can match linked literature without requiring the literal AD disease token. A single `肠` character is intentionally not a gut-axis alias; keep `肠道` / `肠-脑` for valid gut-axis bridge terms. Language detection picks a `preferred_source_type` tie-breaker (zh → `cn_literature`, otherwise `pubmed`). Confidence is a constant per source type, **not** computed.
 
-RAG export endpoints are `POST /api/rag/answer/export` for Markdown and `POST /api/rag/answer/export/docx` for Word `.docx`. DOCX rendering lives in `app/services/rag_docx.py`, uses only the standard library, preserves answer newlines with `<w:br/>`, and strips XML-illegal control characters before writing text nodes.
+RAG export endpoints are `POST /api/rag/answer/export` for Markdown and `POST /api/rag/answer/export/docx` for Word `.docx`. `/api/rag/answer` signs its canonical response fields with a server-side HMAC `integrity_token`; both export endpoints reject missing, incomplete, or modified payloads. DOCX rendering lives in `app/services/rag_docx.py`, uses only the standard library, preserves answer newlines with `<w:br/>`, and strips XML-illegal control characters before writing text nodes. The signing key is process-local, so payloads issued before a restart are intentionally invalid afterward.
 
 Default path is `deterministic` provider + `keyword` retrieval. Optional providers / retrieval backends (`mock_claude`, `opencode_go`, `anthropic`, `vector`, `hybrid`, BGE/BGE-M3 embedding) are explicit env opt-ins for local smoke or spike work only; do not flip defaults without an ADR / governance decision.
 
@@ -167,7 +164,9 @@ MVP-A (evidence workbench) is complete for internal preview. MVP-B network pharm
 - **Lint/type gate**: every backend change must leave `ruff format --check app tests`, `ruff check app tests`, `mypy app`, and `pytest -q` all green. `[tool.mypy].strict = true` is enforced on `app/`; tests are excluded. `B008` is globally ignored because FastAPI uses `Body()` / `Form()` / `File()` / `Query()` as defaults.
 - **E2E gate (A4)**: `pnpm e2e` is the third frontend gauntlet stage but is NOT part of the per-commit gauntlet — it requires `playwright install chromium` + system libs (sudo). Run it before closed-beta walkthroughs and CI; treat failures as branch-level blockers, not commit-level.
 - **Secrets**: only `.env.example` is committed. `.env*` and `backend/uploads/` are gitignored.
-- **Access control (A2)**: `QIYAN_ACCESS_TOKENS` env (comma-separated allowlist) gates every API path except `/health` and CORS preflight. Empty value = open (dev default); set value requires `X-Access-Token` header. Middleware lives in `app/core/access_control.py`.
+- **Access control (A2)**: `QIYAN_ACCESS_TOKENS` env (comma-separated allowlist) gates every API path except `/health` and CORS preflight. Empty value = open (dev default); set value requires `X-Access-Token`. Browser code must never receive or forward this token. In protected deployments nginx authenticates each reviewer, overwrites `X-Qiyan-Reviewer`, and injects the shared backend token; middleware trusts reviewer identity only after token validation and stores it in request state. Keep backend port 8000 loopback-only.
+- **Object ownership**: network tasks carry `owner_id`; repositories and services must query/advance by `task_id + owner_id`. Foreign and legacy ownerless tasks return 404 without state changes. The report endpoint observes state only: queued/running → 202, completed → 200, failed → 409. PDF/uploaded-chunk/RAG ownership is not implemented yet; do not describe the current preview as safe for mutually private uploads.
+- **SQLite concurrency**: network-task repositories sharing one canonical DB path share a process-level `RLock`; literature/chunk repositories currently use instance-level locks. Failed database operations rollback. None of these locks protect multiple Python workers; require a database claim/lease design before claiming cross-process exactly-once transitions.
 - **TDD slice cadence**: per `AGENTS.md`, write failing test → implement → refactor; commit small vertical slices rather than batched refactors.
 
 ## Frontend skill routing

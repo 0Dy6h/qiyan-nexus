@@ -70,7 +70,7 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 ```
 
 - `pnpm e2e`（Playwright）不在每次提交门禁内，需先 `pnpm exec playwright install chromium` 及系统库，按 `frontend/e2e/README.md`。
-- 没有 CI、没有 `.cursor` 规则；仓库有 `opencode.json`，但当前提交门禁仍靠本地手跑上述 PowerShell / pnpm 命令。
+- GitHub Actions CI 位于 `.github/workflows/ci.yml`，规则说明见 `.github/workflows/README.md`；没有 `.cursor` 规则。提交前仍必须本地手跑上述 PowerShell / pnpm 门禁，不能把远端 CI 当作首次验证。
 
 ## 改代码前必看的硬约束（测试会卡）
 
@@ -79,6 +79,10 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 - 免责声明字符串 `非诊断结论、需结合临床。` 是 load-bearing，被后端测试、eval、前端断言引用，必须逐字节一致，不要改写 `services/rag.py` 的 `DISCLAIMER`。
 - RAG 契约：`/api/rag/answer` 返回的每个 `citations[*].literature_id` 必须能被 `/api/literature/{id}` 解析（`test_rag_literature_contract.py`）。
 - runtime 状态写在 `backend/data/runtime/`（gitignored），是本地开发态，不要回写 seed fixture，也不要把 runtime state / 上传的 PDF 当 fixture 提交。
+- reviewer identity 只能来自 access token 验证后的 request state；受保护部署由可信 nginx 覆盖写入 `X-Qiyan-Reviewer`。禁止信任浏览器或任意客户端直传的 reviewer header，后端 8000 必须保持 loopback。
+- network task 必须按 `task_id + owner_id` 查询和推进；foreign 或 legacy ownerless task 都要 fail closed。report GET 是只读观察接口，不得借读取推进状态或写 runtime。
+- SQLite network-task repository 的锁按 canonical DB path 在单进程内共享；literature/chunk 仍是实例级锁。两者都不提供多 worker exactly-once；若引入多进程，必须先设计数据库 claim/lease 或等价原子协议。
+- 启动外部进程时传结构化 argv，禁止拼接 `PowerShell -Command` 或 curl config/header 字符串；端口和凭证参数必须先校验。
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
 - 前端 4 个测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
 - 后端 mypy `strict=true` 仅作用于 `app/`（tests 排除）；`B008` 全局忽略，因为 FastAPI 用 `Body()`/`Form()`/`File()`/`Query()` 当默认值。

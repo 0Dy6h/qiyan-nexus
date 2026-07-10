@@ -88,3 +88,4 @@ class RagAnswerResponse(BaseModel):
     input_tokens: int | None = None
     output_tokens: int | None = None
     sli: ProviderSli | None = None
+    integrity_token: str | None = None

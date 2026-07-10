@@ -6,7 +6,7 @@ from app.services.network import create_network_analysis_task, get_network_analy
 def test_network_analysis_includes_enrichment_when_enough_targets():
     """Network analysis includes enrichment result when chains have >= 2 unique targets."""
     # Create a task for a known herb that will produce multiple chains
-    accepted = create_network_analysis_task("黄芩", "herb")
+    accepted = create_network_analysis_task("黄芪", "herb")
     task_id = accepted.task_id
 
     # Poll until completed
@@ -86,7 +86,7 @@ def test_network_analysis_enrichment_skipped_for_single_target():
 
 def test_enrichment_terms_have_valid_structure():
     """Enrichment terms have all required fields with correct types."""
-    accepted = create_network_analysis_task("黄芩", "herb")
+    accepted = create_network_analysis_task("黄芪", "herb")
     task_id = accepted.task_id
 
     # Poll until completed
@@ -120,7 +120,7 @@ def test_enrichment_terms_have_valid_structure():
 
 def test_enrichment_terms_sorted_by_p_value():
     """Enrichment terms are sorted by p-value (most significant first)."""
-    accepted = create_network_analysis_task("黄芩", "herb")
+    accepted = create_network_analysis_task("黄芪", "herb")
     task_id = accepted.task_id
 
     # Poll until completed

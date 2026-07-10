@@ -22,6 +22,13 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
+from app.core.reviewer_identity import (
+    LOCAL_REVIEWER_ID,
+    REVIEWER_ID_HEADER,
+    REVIEWER_ID_STATE_ATTR,
+    normalize_reviewer_id,
+)
+
 ACCESS_TOKEN_HEADER = "X-Access-Token"
 ACCESS_TOKENS_ENV = "QIYAN_ACCESS_TOKENS"
 _OPEN_PATHS: frozenset[str] = frozenset({"/health"})
@@ -48,6 +55,7 @@ class AccessTokenMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         if not self._allowed_tokens:
+            setattr(request.state, REVIEWER_ID_STATE_ATTR, LOCAL_REVIEWER_ID)
             return await call_next(request)
         # CORS preflight is normally absorbed by CORSMiddleware (installed outer);
         # this branch stays as a defensive net for OPTIONS requests that reach
@@ -63,6 +71,10 @@ class AccessTokenMiddleware(BaseHTTPMiddleware):
                 status_code=401,
                 content={"detail": "missing or invalid X-Access-Token"},
             )
+
+        reviewer_id = normalize_reviewer_id(request.headers.get(REVIEWER_ID_HEADER))
+        if reviewer_id is not None:
+            setattr(request.state, REVIEWER_ID_STATE_ATTR, reviewer_id)
 
         return await call_next(request)
 

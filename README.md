@@ -17,6 +17,7 @@ Qiyan Nexus 把「查文献 → 上传/归档证据 → 提问 → 核对引用 
 - RAG 默认走**本地确定性检索**（deterministic + keyword），不接真实 LLM；答案是检索到的原文证据片段，**不是模型综合生成的结论**。
 - 文献库为**小型构造演示样本集（约数十篇）**，不可当作外部可检索的真实文献引用；真实 PubMed 同步为显式 opt-in 入口。需要更大的真实语料时，运行 `backend/scripts/seed_pubmed_corpus.py` 一键拉取真实 PubMed 记录写入 runtime（gitignored，不污染 seed）。
 - 网络药理学默认为 **mock 演示链路**，富集分析为本地字典模拟，**不代表科研级 TCMSP/STRING/KEGG 或真实 FDR 校正**。
+- network task 已按 reviewer 隔离，但 PDF upload record、解析结果、uploaded chunk 与 RAG retrieval 仍是实例共享；云端多人试用只能上传所有参与者均有权查看的材料。
 - 分子对接 / 分子动力学（MVP-C）**仅有 schema 预留，无实际功能**。
 - 默认路径不外发数据、不接真实 embedding / 生产数据库；外部 provider 仅作本地显式 smoke。
 
@@ -48,12 +49,6 @@ Qiyan Nexus 把「查文献 → 上传/归档证据 → 提问 → 核对引用 
 
 ```powershell
 .\scripts\verify-local.ps1 -IncludeE2E
-```
-
-如需确认内部预览 shared-token profile 的浏览器 E2E：
-
-```powershell
-.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile
 ```
 
 单独跑一侧：
@@ -97,8 +92,9 @@ curl http://127.0.0.1:8000/health
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
 - 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
-- 前端可通过 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN` 为所有 backend fetch 自动附加同名 header；该变量只用于内部预览最小共享 token 门禁，不是正式认证/权限系统。例如：`$env:NEXT_PUBLIC_QIYAN_ACCESS_TOKEN="dev-token-1"; pnpm dev`。
-- CORS 配置不变；multipart PDF 上传只附加 `X-Access-Token`，不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
+- `X-Access-Token` 只证明请求来自可信内部通道，不代表 reviewer 身份。network task 等 owner-bound endpoint 在 protected mode 还要求 `X-Qiyan-Reviewer`；云端由 nginx 用 Basic Auth 的 `$remote_user` 覆盖注入，本地 token smoke 使用固定 `preview-smoke`。不要让浏览器 body、query 参数或公开环境变量决定 owner。
+- 前端不会读取或注入后端 token。任何 `NEXT_PUBLIC_*` 都会进入浏览器 bundle，不能承载访问凭证；本地浏览器开发使用 open mode，云端试用按 `docs/guides/cloud-trial-deployment-runbook.md` 由 nginx Basic Auth 鉴别 reviewer，并由 nginx 在反代层注入后端内部 token。
+- `frontend/lib/api/client.ts` 只合并调用方业务 header；multipart PDF 上传仍不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
 
 内部预览一键启动 / smoke（默认离线 deterministic + keyword + isolated runtime）：
 
@@ -108,16 +104,16 @@ curl http://127.0.0.1:8000/health
 .\scripts\smoke-internal-preview.ps1
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
 
-# shared-token profile（仅内部预览最小门禁，不是正式认证）
+# backend API token profile（供脚本直连验证；直接前端页面不会携带 token）
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
-.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
+.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token" -ReviewerId "preview-smoke"
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -Stop
 
 # 生成本地内部预览证据包（open + shared-token smoke，输出到 .tmp\internal-preview-evidence\<timestamp>\）
 .\scripts\collect-internal-preview-evidence.ps1
 ```
 
-`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 shared-token 两种 profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
+`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。传入 `-AccessToken` 只保护后端并供脚本直连验证，直接打开 `:3000` 的浏览器页面不会获得该 token；token 按设计保留在后端进程环境中，但不会进入生成的 PowerShell command line、curl argv、前端进程或浏览器，multipart smoke 通过 stdin curl config 传递 header。这里仍只应使用一次性本地测试 token，不要复用云端/生产内部 token，也不要把真实 token 留在 shell history。浏览器走查请用 open dev mode，或使用云端 runbook 中的认证反向代理。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；protected profile 默认使用 canonical reviewer `preview-smoke`。传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 backend-token 两种 API profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
 
 文献检索 API 数据来源：
 
@@ -211,7 +207,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata 与 `sli`，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
+当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata、`sli` 与服务端 HMAC `integrity_token`，其中 deterministic / fallback 路径 token usage 为 `null`、grounding 为 `skipped`。
 
 RAG 导出 API：
 
@@ -226,7 +222,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer/export/docx" \
   --output qiyan-rag-answer.docx
 ```
 
-Markdown 导出用于纯文本证据简报；`.docx` 导出使用后端标准库生成最小 OOXML 包，保留多行回答换行并剥离 XML 非法控制字符，适合在 Word / WPS 中继续编辑。
+`rag-answer.json` 必须是 `/api/rag/answer` 刚返回的完整、未修改 payload，并保留 `integrity_token`；任何字段缺失或被客户端篡改，Markdown/DOCX 导出都会返回 `409`。Markdown 导出用于纯文本证据简报；`.docx` 导出使用后端标准库生成最小 OOXML 包，保留多行回答换行并剥离 XML 非法控制字符，适合在 Word / WPS 中继续编辑。当前签名密钥为单进程内存态，服务重启后旧 payload 需要重新请求答案。
 
 SLI（成本/延迟可观测）：
 
@@ -309,6 +305,21 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
+protected mode 直连脚本必须在创建、轮询和报告请求中保持同一个 reviewer id：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
+  -H "X-Access-Token: dev-token-1" \
+  -H "X-Qiyan-Reviewer: reviewer-a" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"消风散","analysis_type":"formula"}'
+curl "http://127.0.0.1:8000/api/network/result/<task_id>" \
+  -H "X-Access-Token: dev-token-1" \
+  -H "X-Qiyan-Reviewer: reviewer-a"
+```
+
+任务创建时会持久化内部 `owner_id`，但 API response 不暴露该字段。其他 reviewer 查询同一 task id 时统一得到 `404`，且不会推进任务状态；旧 runtime 中没有 owner 的 task 同样 fail closed，需要清理或显式迁移。
+
 默认模式下，网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。mock 模式不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
 
 真实网络药理学链路是显式 opt-in，不进入默认路径：
@@ -327,7 +338,7 @@ PowerShell live smoke 示例（不会自动开启 TCMSP 抓取；需提前准备
 ```powershell
 cd backend
 $env:QIYAN_NETWORK_DATA_PROVIDER="live"
-$env:QIYAN_NETWORK_CACHE_DIR="backend/data/runtime/network_cache"
+$env:QIYAN_NETWORK_CACHE_DIR="data/runtime/network_cache"
 $env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions.csv"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
@@ -338,9 +349,20 @@ $env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions
 $task = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/network/analyze" `
   -ContentType "application/json" `
   -Body '{"query":"黄芪","analysis_type":"herb"}'
-Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
-Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+
+do {
+  $result = Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
+  if ($result.status -in @("queued", "running")) { Start-Sleep -Milliseconds 250 }
+} while ($result.status -in @("queued", "running"))
+
+if ($result.status -eq "completed") {
+  Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+} else {
+  throw "Network task failed: $($result.error)"
+}
 ```
+
+Report 是只读观察接口：任务仍 queued/running 时返回 202，completed 时返回 200 Markdown，failed 时返回 409；读取 report 不会推进状态。
 
 Network analysis response 示例（包含 enrichment 字段）：
 
@@ -401,24 +423,20 @@ pnpm build
 
 启动开发服务：
 
-```bash
+```powershell
 cd frontend
 pnpm dev
 ```
 
 前端 API 地址默认是 `http://127.0.0.1:8000`。如需覆盖：
 
-```bash
+```powershell
+$env:NEXT_PUBLIC_API_BASE_URL="http://127.0.0.1:8000"
 cd frontend
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
+pnpm dev
 ```
 
-如后端启用了内部预览 token gate，同时给前端设置同一个 token：
-
-```bash
-cd frontend
-NEXT_PUBLIC_QIYAN_ACCESS_TOKEN=dev-token-1 pnpm dev
-```
+前端不接收后端访问 token。后端启用 `QIYAN_ACCESS_TOKENS` 时，本地脚本或 curl 可直接带 `X-Access-Token`；浏览器页面必须放在能完成用户认证并在服务端注入 token 的反向代理后面。不要把 secret 写入任何 `NEXT_PUBLIC_*` 变量。
 
 前端测试：
 

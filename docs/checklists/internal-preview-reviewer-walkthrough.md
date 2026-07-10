@@ -14,10 +14,11 @@
 - **健康检查**：http://127.0.0.1:8000/health
 
 ### 1.2 访问控制（如适用）
-- 如果启用了访问控制（A2），需要在 HTTP 请求头中添加 `X-Access-Token`
-- 开发环境默认**不启用**访问控制，可直接访问
-- 如需 token，请联系技术团队获取
-- 技术团队启用 token profile 时，后端设置 `QIYAN_ACCESS_TOKENS`，前端设置相同值到 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN`；这只是内部预览最小共享 token 门禁，不是正式认证/权限系统
+- 本地浏览器走查默认使用 open dev mode；前端不会读取或携带后端 `X-Access-Token`
+- `QIYAN_ACCESS_TOKENS` 仅供后端 middleware、curl 与自动化脚本直连验证，不能放进浏览器公开环境变量
+- 云端 reviewer 通过 HTTPS + 每人独立的 nginx Basic Auth 账号访问；nginx 在服务端注入后端内部 token，并把 `$remote_user` 覆盖为 `X-Qiyan-Reviewer`，reviewer 不应获得内部 token，也不能自行选择 owner
+- network task 已按 reviewer 隔离；不同账号读取同一 task id 应得到 404。PDF、解析结果与 uploaded PDF RAG chunk 仍是实例共享边界，只能使用所有参与者均有权查看的材料
+- 云端账号由技术团队发放和撤销，具体边界见 `docs/guides/cloud-trial-deployment-runbook.md`
 
 ### 1.3 浏览器要求
 - 推荐使用 Chrome、Edge 或 Firefox 最新版本
@@ -29,7 +30,7 @@
 - [ ] 可以访问前端首页（显示"青黛绿"主色调界面）
 - [ ] 浏览器控制台无明显错误（F12 查看）
 - [ ] 本轮使用默认离线 profile：deterministic provider、keyword retrieval、不开启真实 LLM、不启用访问 token
-- [ ] 如本轮改用 token profile，确认前端启动环境包含 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN`，否则浏览器请求会按预期收到 401
+- [ ] 如走云端试用，确认 reviewer 使用个人 Basic Auth 账号，匿名访问返回 401，浏览器 bundle/请求中没有后端内部 token
 - [ ] 如需上传 PDF，主样本使用 `local-review-pdfs/健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf`
 - [ ] 如需演示抽取质量警告路径，可追加 `local-review-pdfs/中医辨证治疗异位性皮炎临床观察_周海啸.pdf`
 

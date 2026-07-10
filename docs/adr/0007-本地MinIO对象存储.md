@@ -1,5 +1,7 @@
 # 对象存储：本地 MinIO（而非 Cloudflare R2）
 
+> **状态：Deferred historical proposal。** 当前默认使用本地 gitignored upload/runtime 路径，不启用 MinIO。
+
 MVP 阶段使用 Docker Compose 自建 MinIO 作为 PDF 文件对象存储，替代 Cloudflare R2。
 
 ## 为什么选 MinIO 而非 R2

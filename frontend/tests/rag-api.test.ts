@@ -40,6 +40,7 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
     provider_name: "opencode_go",
     input_tokens: 128,
     output_tokens: 64,
+    integrity_token: "signed-answer-token",
     grounding: {
       status: "passed",
       policy: "opencode_go_tool_use_v1",
@@ -92,6 +93,7 @@ test("RagAnswerResponse type carries provider, retrieval strategy, and token usa
   assert.equal(payload.grounding.structured_claims[0].entailment_score, 0.99);
   assert.equal(payload.input_tokens, 128);
   assert.equal(payload.output_tokens, 64);
+  assert.equal(payload.integrity_token, "signed-answer-token");
 });
 
 const _EXPORT_SAMPLE: RagAnswerResponse = {
@@ -102,6 +104,7 @@ const _EXPORT_SAMPLE: RagAnswerResponse = {
   provider_name: "deterministic",
   input_tokens: null,
   output_tokens: null,
+  integrity_token: "signed-export-token",
   grounding: {
     status: "skipped",
     policy: "structured_claim_refs_v3",
@@ -149,7 +152,7 @@ test("fetchRagAnswerMarkdown posts answer payload and returns markdown text", as
     assert.equal(captured[0].init?.method, "POST");
     const headers = captured[0].init?.headers as Record<string, string>;
     assert.equal(headers["Content-Type"], "application/json");
-    assert.equal(headers["X-Access-Token"], "dev-token");
+    assert.equal("X-Access-Token" in headers, false);
     const body = JSON.parse(String(captured[0].init?.body ?? "{}"));
     assert.equal(body.question, "特应性皮炎和肠-脑-皮肤轴有什么关系？");
     assert.equal(body.provider_name, "deterministic");

@@ -85,6 +85,6 @@ provider + keyword retrieval，不在 CI 注入真实 LLM key、pgvector、Neo4j
 - [ ] 添加代码覆盖率报告（pytest-cov，不设 fail-under 时再纳入）
 - [ ] 添加 workflow 自校验（actionlint job 或轻量 step）
 - [ ] 添加 PR 的覆盖率变化评论
-- [ ] 添加 shared-token profile 的 E2E 测试
+- [ ] 添加 nginx Basic Auth + server-only backend token 的部署级 smoke（浏览器 bundle 不承载 token）
 - [ ] 添加性能回归检测（API latency baseline）
 - [ ] 添加 dependabot 自动依赖更新

@@ -70,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_chunks_embedding
 -- Stores network pharmacology analysis tasks and results
 CREATE TABLE IF NOT EXISTS network_tasks (
     task_id       TEXT PRIMARY KEY,
+    owner_id      TEXT,
     query         TEXT NOT NULL,
     analysis_type TEXT NOT NULL,
     status        TEXT NOT NULL,
@@ -83,6 +84,8 @@ CREATE TABLE IF NOT EXISTS network_tasks (
 );
 
 ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS data_mode TEXT NOT NULL DEFAULT 'mock';
 ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS error TEXT;
@@ -91,6 +94,7 @@ ALTER TABLE network_tasks
 
 -- Indexes for network_tasks table
 CREATE INDEX IF NOT EXISTS idx_network_tasks_status ON network_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_network_tasks_owner_id ON network_tasks(owner_id);
 CREATE INDEX IF NOT EXISTS idx_network_tasks_created_at ON network_tasks(created_at DESC);
 
 -- Helper function: update updated_at timestamp automatically

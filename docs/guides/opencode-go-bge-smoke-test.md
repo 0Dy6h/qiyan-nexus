@@ -1,8 +1,10 @@
 # OpenCode Go + BGE Smoke Test Guide
 
+> **Historical procedure — do not execute as-is.** 本文保存 2026-05-31 `opencode.ai` / `deepseek-v4-flash` smoke 的原始步骤，其中 `.venv`、`.env` 与 provider 获取方式均已失效。当前默认仍为 deterministic；如需显式 live smoke，只按 `docs/guides/real-llm-enablement-runbook.md` 与当前环境变量配置执行，并先确认 router.team 的有效授权。
+
 **Date**: 2026-05-31  
 **Purpose**: Validate real LLM integration with BGE semantic grounding  
-**Status**: Ready to run (requires API key)
+**Status**: Historical evidence; superseded for current execution
 
 ---
 

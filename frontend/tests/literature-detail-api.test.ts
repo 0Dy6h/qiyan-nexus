@@ -7,10 +7,42 @@ import {
   buildPdfDownloadUrl,
   buildPdfParseStatusRequest,
   buildPdfUploadUrl,
+  getBackendBaseUrl,
   getPdfParseStatusLabel,
   getParseAttemptLabel,
   getParseTriggerLabel,
 } from "../lib/api/literature";
+
+test("getBackendBaseUrl uses the non-public internal API URL during server rendering", () => {
+  process.env.QIYAN_INTERNAL_API_BASE_URL = "http://127.0.0.1:8100";
+  process.env.NEXT_PUBLIC_API_BASE_URL = "https://trial.example";
+
+  try {
+    assert.equal(getBackendBaseUrl(), "http://127.0.0.1:8100");
+  } finally {
+    delete process.env.QIYAN_INTERNAL_API_BASE_URL;
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+});
+
+test("getBackendBaseUrl keeps browser requests on the public same-origin API URL", () => {
+  process.env.QIYAN_INTERNAL_API_BASE_URL = "http://127.0.0.1:8100";
+  process.env.NEXT_PUBLIC_API_BASE_URL = "https://trial.example";
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+
+  try {
+    assert.equal(getBackendBaseUrl(), "https://trial.example");
+  } finally {
+    delete process.env.QIYAN_INTERNAL_API_BASE_URL;
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  }
+});
 
 test("buildLiteratureDetailUrl encodes item id with default backend base URL", () => {
   assert.equal(
@@ -77,7 +109,7 @@ test("uploadLiteraturePdf sends only literature_id and file in multipart form", 
     assert.equal(formData.get("literature_id"), "cn-ad-gbs-001");
     assert.equal((formData.get("file") as File).name, "review.pdf");
     assert.equal(formData.has("auto_parse"), false);
-    assert.equal(headers["X-Access-Token"], "dev-token");
+    assert.equal("X-Access-Token" in headers, false);
     assert.equal("Content-Type" in headers, false);
   } finally {
     globalThis.fetch = originalFetch;

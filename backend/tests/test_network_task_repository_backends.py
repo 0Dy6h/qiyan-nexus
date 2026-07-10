@@ -8,11 +8,16 @@ Or run both at once:
     pytest tests/test_network_task_repository_backends.py -k "json or sqlite"
 """
 
+import json
+import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier, Lock
 
 import pytest
 
+from app.repositories import network_tasks as network_tasks_module
 from app.repositories.network_tasks import NetworkTaskRepository
 from app.repositories.protocols import NetworkTaskRepositoryProtocol
 from app.repositories.runtime_storage import (
@@ -203,6 +208,205 @@ class TestUpsert:
         ids = {r.task_id for r in records}
         assert ids == {"network-list001", "network-list002"}
 
+    def test_upsert_does_not_transfer_existing_task_owner(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        repo.upsert(
+            task_id="network-owner-immutable",
+            owner_id="reviewer-a",
+            query="黄芪",
+            analysis_type="herb",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2025-01-01T00:00:00",
+        )
+
+        updated = repo.upsert(
+            task_id="network-owner-immutable",
+            owner_id="reviewer-b",
+            query="黄芪",
+            analysis_type="herb",
+            status="running",
+            progress=60,
+            poll_count=1,
+            result=None,
+            created_at="2025-01-01T00:00:00",
+        )
+
+        assert updated.owner_id == "reviewer-a"
+
+    def test_sqlite_shared_connection_accepts_concurrent_upserts_without_data_loss(
+        self, tmp_path: Path
+    ) -> None:
+        sqlite_repo = _make_sqlite_repo(tmp_path / "concurrent.sqlite3")
+        worker_count = 8
+        records_per_worker = 20
+        start = Barrier(worker_count)
+
+        def write_records(worker_id: int) -> None:
+            start.wait()
+            for record_id in range(records_per_worker):
+                sqlite_repo.upsert(
+                    task_id=f"network-{worker_id:02d}-{record_id:02d}",
+                    query="黄芪",
+                    analysis_type="herb",
+                    status="queued",
+                    progress=0,
+                    poll_count=0,
+                    result=None,
+                    created_at="2025-01-01T00:00:00",
+                )
+
+        try:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = [
+                    executor.submit(write_records, worker_id) for worker_id in range(worker_count)
+                ]
+                for future in futures:
+                    future.result()
+
+            records = sqlite_repo.read_all()
+            assert len(records) == worker_count * records_per_worker
+        finally:
+            sqlite_repo.close()
+
+
+class TestAdvance:
+    def test_matches_task_id_and_owner_id_atomically(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        repo.upsert(
+            task_id="network-owned001",
+            owner_id="reviewer-a",
+            query="黄芪",
+            analysis_type="herb",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2025-01-01T00:00:00",
+        )
+
+        foreign_result = repo.advance(
+            "network-owned001",
+            "reviewer-b",
+            lambda record: record.model_copy(
+                update={"status": "running", "progress": 60, "poll_count": 1}
+            ),
+        )
+        owner_result = repo.advance(
+            "network-owned001",
+            "reviewer-a",
+            lambda record: record.model_copy(
+                update={"status": "running", "progress": 60, "poll_count": 1}
+            ),
+        )
+
+        assert foreign_result is None
+        assert owner_result is not None
+        assert owner_result.owner_id == "reviewer-a"
+        assert owner_result.status == "running"
+
+    def test_two_sqlite_instances_do_not_lose_concurrent_advances(self, tmp_path: Path) -> None:
+        db_path = tmp_path / "shared-advance.sqlite3"
+        seed_path = tmp_path / "network_tasks_state.json"
+        _write_empty_seed(seed_path)
+        first_repo = SqliteNetworkTaskRepository(db_path, seed_path=seed_path)
+        second_repo = SqliteNetworkTaskRepository(db_path, seed_path=seed_path)
+        first_repo.upsert(
+            task_id="network-shared-advance",
+            owner_id="reviewer-a",
+            query="黄芪",
+            analysis_type="herb",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2025-01-01T00:00:00",
+        )
+        workers_ready = Barrier(2)
+        observed_poll_counts: list[int] = []
+        observation_lock = Lock()
+
+        def transition(record):
+            with observation_lock:
+                observed_poll_counts.append(record.poll_count)
+            if record.poll_count == 0:
+                time.sleep(0.05)
+            return record.model_copy(update={"poll_count": record.poll_count + 1})
+
+        def advance(repository: SqliteNetworkTaskRepository):
+            workers_ready.wait()
+            return repository.advance(
+                "network-shared-advance",
+                "reviewer-a",
+                transition,
+            )
+
+        try:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(advance, repository) for repository in (first_repo, second_repo)
+                ]
+                results = [future.result() for future in futures]
+
+            assert sorted(observed_poll_counts) == [0, 1]
+            assert sorted(result.poll_count for result in results if result is not None) == [1, 2]
+            persisted = first_repo.get("network-shared-advance")
+            assert persisted is not None
+            assert persisted.poll_count == 2
+        finally:
+            first_repo.close()
+            second_repo.close()
+
+    @pytest.mark.parametrize("backend", ["json", "sqlite"])
+    def test_legacy_record_without_owner_id_is_not_claimed_by_local_preview(
+        self, tmp_path: Path, backend: str
+    ) -> None:
+        seed_path = tmp_path / "legacy_network_tasks.json"
+        seed_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "task_id": "network-legacy001",
+                        "query": "黄芪",
+                        "analysis_type": "herb",
+                        "status": "queued",
+                        "progress": 0,
+                        "poll_count": 0,
+                        "result": None,
+                        "created_at": "2025-01-01T00:00:00",
+                    }
+                ],
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        if backend == "json":
+            legacy_repo: NetworkTaskRepositoryProtocol = NetworkTaskRepository(seed_path)
+        else:
+            legacy_repo = SqliteNetworkTaskRepository(
+                tmp_path / "legacy.sqlite3", seed_path=seed_path
+            )
+
+        try:
+            record = legacy_repo.get("network-legacy001")
+            advanced = legacy_repo.advance(
+                "network-legacy001",
+                "local-preview",
+                lambda current: current.model_copy(update={"status": "running"}),
+            )
+
+            assert record is not None
+            assert record.owner_id is None
+            assert advanced is None
+        finally:
+            close = getattr(legacy_repo, "close", None)
+            if callable(close):
+                close()
+
 
 # ── Factory / Protocol tests ──────────────────────────────────────────
 
@@ -244,6 +448,38 @@ class TestGetNetworkTaskRepository:
         repo1 = get_network_task_repository()
         repo2 = get_network_task_repository()
         assert repo1 is repo2
+
+    def test_concurrent_cold_start_returns_one_cached_repository(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        json_path = tmp_path / "network_tasks_state.json"
+        _write_empty_seed(json_path)
+        monkeypatch.setenv("NETWORK_TASKS_RUNTIME_STATE_PATH", str(json_path))
+        monkeypatch.setenv("QIYAN_STATE_BACKEND", "json")
+        clear_network_task_repository_cache()
+        callers_ready = Barrier(2)
+        constructor_count = 0
+        count_lock = Lock()
+        original_repository = NetworkTaskRepository
+
+        def slow_repository(path: Path) -> NetworkTaskRepository:
+            nonlocal constructor_count
+            with count_lock:
+                constructor_count += 1
+            time.sleep(0.05)
+            return original_repository(path)
+
+        monkeypatch.setattr(network_tasks_module, "NetworkTaskRepository", slow_repository)
+
+        def load_repository(_: int) -> NetworkTaskRepositoryProtocol:
+            callers_ready.wait()
+            return get_network_task_repository()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            repositories = list(executor.map(load_repository, range(2)))
+
+        assert constructor_count == 1
+        assert repositories[0] is repositories[1]
 
     def test_cache_invalidated_on_backend_change(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

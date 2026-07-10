@@ -4,6 +4,7 @@ These protocols enable dependency inversion: services depend on the
 abstract interface, not the concrete InMemory/SQLite implementation.
 """
 
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.schemas.chunk import LiteratureChunk
@@ -68,6 +69,15 @@ class NetworkTaskRepositoryProtocol(Protocol):
 
     def get(self, task_id: str) -> NetworkTaskRecord | None: ...
 
+    def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None: ...
+
+    def advance(
+        self,
+        task_id: str,
+        owner_id: str,
+        transition: Callable[[NetworkTaskRecord], NetworkTaskRecord],
+    ) -> NetworkTaskRecord | None: ...
+
     def upsert(
         self,
         task_id: str,
@@ -78,6 +88,7 @@ class NetworkTaskRepositoryProtocol(Protocol):
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
         warnings: list[str] | None = None,

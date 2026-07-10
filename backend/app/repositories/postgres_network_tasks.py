@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Callable
 from typing import Any
 
 from psycopg.rows import dict_row
@@ -72,6 +73,72 @@ class PostgresNetworkTaskRepository:
                 row = cur.fetchone()
                 return _row_to_record(dict(row)) if row else None
 
+    def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    "SELECT * FROM network_tasks WHERE task_id = %s AND owner_id = %s",
+                    (task_id, owner_id),
+                )
+                row = cur.fetchone()
+                return _row_to_record(dict(row)) if row else None
+
+    def advance(
+        self,
+        task_id: str,
+        owner_id: str,
+        transition: Callable[[NetworkTaskRecord], NetworkTaskRecord],
+    ) -> NetworkTaskRecord | None:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    "SELECT * FROM network_tasks WHERE task_id = %s AND owner_id = %s FOR UPDATE",
+                    (task_id, owner_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                next_record = transition(_row_to_record(dict(row)))
+                result_json = (
+                    Jsonb(next_record.result.model_dump())
+                    if next_record.result is not None
+                    else None
+                )
+                cur.execute(
+                    """
+                    UPDATE network_tasks
+                    SET query = %s,
+                        analysis_type = %s,
+                        status = %s,
+                        progress = %s,
+                        poll_count = %s,
+                        data_mode = %s,
+                        result = %s,
+                        error = %s,
+                        warnings = %s,
+                        created_at = %s
+                    WHERE task_id = %s AND owner_id = %s
+                    RETURNING *
+                    """,
+                    (
+                        next_record.query,
+                        next_record.analysis_type,
+                        next_record.status,
+                        next_record.progress,
+                        next_record.poll_count,
+                        next_record.data_mode,
+                        result_json,
+                        next_record.error,
+                        Jsonb(next_record.warnings),
+                        next_record.created_at,
+                        task_id,
+                        owner_id,
+                    ),
+                )
+                updated_row = cur.fetchone()
+                conn.commit()
+                return _row_to_record(dict(updated_row))
+
     def upsert(
         self,
         task_id: str,
@@ -82,6 +149,7 @@ class PostgresNetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
         warnings: list[str] | None = None,
@@ -93,10 +161,10 @@ class PostgresNetworkTaskRepository:
                 cur.execute(
                     """
                     INSERT INTO network_tasks (
-                        task_id, query, analysis_type, status, progress,
+                        task_id, owner_id, query, analysis_type, status, progress,
                         poll_count, data_mode, result, error, warnings, created_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (task_id) DO UPDATE SET
                         query = EXCLUDED.query,
                         analysis_type = EXCLUDED.analysis_type,
@@ -112,6 +180,7 @@ class PostgresNetworkTaskRepository:
                     """,
                     (
                         task_id,
+                        owner_id,
                         query,
                         analysis_type,
                         status,

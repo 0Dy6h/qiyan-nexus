@@ -1,5 +1,7 @@
 # Celery + Redis 异步任务架构
 
+> **状态：Deferred historical proposal。** 当前默认不启用 Celery、Redis 或 Flower；network task 仍是本地 preview 状态机。
+
 网络药理学分析等耗时操作使用 Celery + Redis 异步任务队列处理，用户通过 `task_id` 轮询进度和结果。
 
 ## 方案

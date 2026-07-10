@@ -26,7 +26,11 @@ logger = logging.getLogger(__name__)
 # Maximum request body size: 50MB (prevents DoS via large payloads)
 MAX_REQUEST_SIZE = 50 * 1024 * 1024
 
-app = FastAPI(title="Qiyan Nexus API")
+# Resolve settings during application import so production validation fails
+# before the server accepts health checks or business traffic.
+_startup_settings = get_settings()
+
+app = FastAPI(title=_startup_settings.app_name)
 
 
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
