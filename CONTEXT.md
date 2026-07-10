@@ -2,7 +2,7 @@
 
 > Harness Engineering 支柱一 · 上下文工程
 > 每次 Agent 会话必加载此文件。用精确术语替代冗长描述。
-> 更新规则：`grill-with-docs` 每次对齐后自动增量更新。
+> 更新规则：收工时使用文档一致性检查（当前推荐 `neat-freak` 流程）按代码与 `docs/current-state.md` 增量更新。
 
 ## 核心领域术语
 
@@ -17,7 +17,9 @@
 | 引用卡片 | Citation-Card | 证据链的前端展示单元：来源文献标题、页码/段落片段、置信度指标（必展示，非可选） |
 | 魔法链接 | Magic-Link | 无密码登录方式，通过邮件发送一次性链接 |
 
-## 系统组件简称
+## 历史规划组件简称（非当前实现）
+
+> 下表保留早期架构讨论中的词汇，不能据此判断仓库已实现对应组件。当前默认是 JSON seed/runtime、可选 SQLite、deterministic keyword retrieval、inline SVG 网络图；不启用 Celery/Redis/Flower、MinIO、PgBouncer、真实 embedding 或按 endpoint 双模型路由。
 
 | 简称 | 组件 | 用途 |
 |------|------|------|
@@ -31,6 +33,8 @@
 
 ## 流程中的术语
 
+> `中英分流`、`语义缓存`、`模型路由` 描述历史/长期方案；当前实现只把它们作为讨论词汇或显式 opt-in 方向。`异步长任务` 当前对应本地 network task 状态机，不代表 Celery 已接入。
+
 | 术语 | 含义 |
 |------|------|
 | 中英分流 | 根据 `language` 字段选择 text2vec-chinese 或 PubMedBERT 做 Embedding |
@@ -40,6 +44,8 @@
 | 红-绿-重构 | TDD 循环：先写失败测试→实现→重构 |
 
 ## 角色术语
+
+> 这些角色是产品语言，不是已实现的 RBAC 权限表。当前云端预览只建立 reviewer identity 与 network-task owner isolation。
 
 | 角色 | 权限层级 |
 |------|---------|
@@ -51,6 +57,8 @@
 ## 已记录的 ADR（架构决策）
 
 详见 `docs/adr/` 目录。ADR 记录长期架构决策与阶段边界；当前开发事实源仍以 `docs/current-state.md`、代码、测试和最新 handoff 为准。
+
+> ADR-0001 至 ADR-0008 是历史规划提案或 deferred 方向，不能当作当前默认实现；各文件顶部已标状态。当前活跃边界优先看 ADR-0009 以后及 `docs/current-state.md`。
 
 | 编号 | 决策 |
 |------|------|

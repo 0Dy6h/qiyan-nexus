@@ -21,7 +21,10 @@ def test_token_profile_blocks_missing_header_and_allows_core_preview_flows(token
     unauthorized = token_client.get("/api/literature/search", params={"q": "特应性皮炎"})
     assert unauthorized.status_code == 401
 
-    headers = {"X-Access-Token": "dev-token"}
+    headers = {
+        "X-Access-Token": "dev-token",
+        "X-Qiyan-Reviewer": "smoke-reviewer",
+    }
 
     literature = token_client.get(
         "/api/literature/search",

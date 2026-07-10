@@ -79,7 +79,7 @@ test("getRagAdEvalReport fetches report payload", async () => {
 
     assert.equal(captured[0].url, "http://127.0.0.1:8000/api/evals/rag-ad/report");
     const headers = captured[0].init?.headers as Record<string, string>;
-    assert.equal(headers["X-Access-Token"], "dev-token");
+    assert.equal("X-Access-Token" in headers, false);
     assert.equal(report.summary.total_questions, 50);
     assert.equal(report.summary.corpus, "seed");
     assert.equal(report.summary.pass_rate, 0.7);

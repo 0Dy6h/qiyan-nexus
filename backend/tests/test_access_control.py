@@ -81,6 +81,99 @@ def test_access_control_returns_200_with_matching_token(monkeypatch, reload_app)
     assert response.status_code == 200
 
 
+def test_protected_network_task_creation_requires_reviewer_identity(monkeypatch, reload_app):
+    monkeypatch.setenv("QIYAN_ACCESS_TOKENS", "alpha")
+    client = reload_app()
+
+    response = client.post(
+        "/api/network/analyze",
+        json={"query": "黄芪", "analysis_type": "herb"},
+        headers={"X-Access-Token": "alpha"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing or invalid X-Qiyan-Reviewer"}
+
+
+def test_protected_network_task_is_visible_only_to_its_reviewer(monkeypatch, reload_app):
+    monkeypatch.setenv("QIYAN_ACCESS_TOKENS", "alpha")
+    client = reload_app()
+    reviewer_a_headers = {
+        "X-Access-Token": "alpha",
+        "X-Qiyan-Reviewer": "reviewer-a",
+    }
+    reviewer_b_headers = {
+        "X-Access-Token": "alpha",
+        "X-Qiyan-Reviewer": "reviewer-b",
+    }
+
+    create_response = client.post(
+        "/api/network/analyze",
+        json={"query": "黄芪", "analysis_type": "herb"},
+        headers=reviewer_a_headers,
+    )
+    assert create_response.status_code == 202
+    task_id = create_response.json()["task_id"]
+
+    foreign_response = client.get(
+        f"/api/network/result/{task_id}",
+        headers=reviewer_b_headers,
+    )
+    foreign_report_response = client.get(
+        f"/api/network/result/{task_id}/report",
+        headers=reviewer_b_headers,
+    )
+    owner_response = client.get(
+        f"/api/network/result/{task_id}",
+        headers=reviewer_a_headers,
+    )
+
+    assert foreign_response.status_code == 404
+    assert foreign_response.json() == {"detail": "Network analysis task not found"}
+    assert foreign_report_response.status_code == 404
+    assert foreign_report_response.json() == {"detail": "Network analysis task not found"}
+    assert owner_response.status_code == 200
+    assert owner_response.json()["task_id"] == task_id
+
+
+def test_protected_reviewer_identity_must_already_be_canonical(monkeypatch, reload_app):
+    monkeypatch.setenv("QIYAN_ACCESS_TOKENS", "alpha")
+    client = reload_app()
+
+    response = client.post(
+        "/api/network/analyze",
+        json={"query": "黄芪", "analysis_type": "herb"},
+        headers={
+            "X-Access-Token": "alpha",
+            "X-Qiyan-Reviewer": "Reviewer-A",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing or invalid X-Qiyan-Reviewer"}
+
+
+def test_open_mode_ignores_untrusted_reviewer_header(monkeypatch, reload_app):
+    monkeypatch.delenv("QIYAN_ACCESS_TOKENS", raising=False)
+    client = reload_app()
+
+    create_response = client.post(
+        "/api/network/analyze",
+        json={"query": "黄芪", "analysis_type": "herb"},
+        headers={"X-Qiyan-Reviewer": "reviewer-a"},
+    )
+    assert create_response.status_code == 202
+    task_id = create_response.json()["task_id"]
+
+    response = client.get(
+        f"/api/network/result/{task_id}",
+        headers={"X-Qiyan-Reviewer": "reviewer-b"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["task_id"] == task_id
+
+
 def test_access_control_skips_health_endpoint(monkeypatch, reload_app):
     monkeypatch.setenv("QIYAN_ACCESS_TOKENS", "alpha")
     client = reload_app()

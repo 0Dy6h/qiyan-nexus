@@ -27,7 +27,7 @@ docker --version
 docker compose version
 ```
 
-本仓库当前环境曾验证过：这台机器没有 `docker` 命令，因此此 compose 配置尚未在本机实际启动过。它是项目配置，需在有 Docker 的机器上完成 runtime 验证。
+Docker 可用性属于每台机器的运行前提，不在长期文档中记录瞬时主机状态。PostgreSQL/pgvector 的历史 benchmark 结论见 `docs/current-state.md`，默认 runtime backend 仍不因此翻转。
 
 ### Start
 

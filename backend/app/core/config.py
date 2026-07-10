@@ -8,6 +8,8 @@ from pathlib import Path
 class Settings:
     app_name: str = "Qiyan Nexus API"
     environment: str = "dev"
+    llm_provider: str = "deterministic"
+    access_control_enabled: bool = False
     upload_storage_dir: Path = Path("uploads")
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5"
@@ -35,12 +37,38 @@ class Settings:
 
         In production environment, ensure critical settings are properly configured.
         """
-        if self.environment == "production":
-            # At least one LLM provider must be configured
-            if not self.anthropic_api_key and not self.opencode_go_api_key:
+        environment_aliases = {
+            "dev": "dev",
+            "development": "dev",
+            "test": "test",
+            "testing": "test",
+            "prod": "production",
+            "production": "production",
+        }
+        raw_environment = self.environment.strip().lower()
+        environment = environment_aliases.get(raw_environment)
+        if environment is None:
+            raise ValueError(
+                "ENVIRONMENT must be dev, development, test, testing, prod, or production"
+            )
+        object.__setattr__(self, "environment", environment)
+
+        if environment == "production":
+            if not self.access_control_enabled:
                 raise ValueError(
-                    "Production environment requires at least one LLM provider API key: "
-                    "ANTHROPIC_API_KEY or QIYAN_OPENCODE_GO_API_KEY"
+                    "Production environment requires access control via QIYAN_ACCESS_TOKENS"
+                )
+
+            provider = self.llm_provider.strip().lower() or "deterministic"
+            if provider == "opencode_go" and not self.opencode_go_api_key:
+                raise ValueError(
+                    "QIYAN_LLM_PROVIDER=opencode_go requires QIYAN_OPENCODE_GO_API_KEY"
+                )
+            if provider == "anthropic" and not self.anthropic_api_key:
+                raise ValueError("QIYAN_LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
+            if provider not in {"deterministic", "opencode_go", "anthropic"}:
+                raise ValueError(
+                    "Production QIYAN_LLM_PROVIDER must be deterministic, opencode_go, or anthropic"
                 )
 
             # Upload directory must be writable
@@ -68,11 +96,19 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _has_access_tokens(raw: str | None) -> bool:
+    if not raw:
+        return False
+    return any(token.strip() for token in raw.split(","))
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
         app_name=os.getenv("APP_NAME", "Qiyan Nexus API"),
         environment=os.getenv("ENVIRONMENT", "dev"),
+        llm_provider=os.getenv("QIYAN_LLM_PROVIDER", "deterministic"),
+        access_control_enabled=_has_access_tokens(os.getenv("QIYAN_ACCESS_TOKENS")),
         upload_storage_dir=Path(os.getenv("UPLOAD_STORAGE_DIR", "uploads")),
         # ANTHROPIC_API_KEY is intentionally unprefixed: the anthropic SDK reads
         # this exact name natively, so we mirror it instead of using QIYAN_*.

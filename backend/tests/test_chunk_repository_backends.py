@@ -10,7 +10,9 @@ Or run both at once:
 
 import json
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 
 import pytest
@@ -175,6 +177,44 @@ class TestUpsertUploadedPdfChunk:
             related_entity_ids=None,
         )
         assert result.related_entity_ids == ["disease:atopic-dermatitis"]
+
+    def test_sqlite_shared_connection_accepts_concurrent_upserts_without_data_loss(
+        self, tmp_path: Path
+    ) -> None:
+        sqlite_repo = _make_sqlite_repo(tmp_path / "concurrent.sqlite3")
+        worker_count = 8
+        records_per_worker = 20
+        start = Barrier(worker_count)
+
+        def write_records(worker_id: int) -> None:
+            start.wait()
+            for record_id in range(records_per_worker):
+                suffix = f"{worker_id:02d}-{record_id:02d}"
+                sqlite_repo.upsert_uploaded_pdf_chunk(
+                    chunk_id=f"chunk-concurrent-{suffix}",
+                    literature_id="cn-ad-gbs-001",
+                    pdf_upload_id=f"pdf-concurrent-{suffix}",
+                    text="Concurrent parsed content.",
+                    source_quote="Concurrent quote.",
+                    evidence_tags=["uploaded_pdf"],
+                )
+
+        try:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = [
+                    executor.submit(write_records, worker_id) for worker_id in range(worker_count)
+                ]
+                for future in futures:
+                    future.result()
+
+            concurrent_chunks = [
+                chunk
+                for chunk in sqlite_repo.list_chunks()
+                if chunk.chunk_id.startswith("chunk-concurrent-")
+            ]
+            assert len(concurrent_chunks) == worker_count * records_per_worker
+        finally:
+            sqlite_repo.close()
 
 
 # ── Factory / Protocol tests ──────────────────────────────────────────

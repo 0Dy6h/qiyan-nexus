@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.core.config import get_settings
 from app.main import app
 from app.repositories.network_cache import NetworkCacheRepository, build_network_cache_key
+from app.repositories.runtime_storage import get_network_task_repository
 from app.services.network_connectors import UniProtConnector
 
 
@@ -74,6 +75,26 @@ def test_network_result_endpoint_returns_progress_then_completed_result():
     first_chain = second_payload["result"]["chains"][0]
     assert first_chain["related_entity_ids"]
     assert all(entity_id for entity_id in first_chain["related_entity_ids"])
+
+
+def test_network_unknown_query_completes_with_honest_empty_result():
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/api/network/analyze",
+        json={"query": "不存在的方剂", "analysis_type": "formula"},
+    )
+    task_id = create_response.json()["task_id"]
+
+    client.get(f"/api/network/result/{task_id}")
+    completed_response = client.get(f"/api/network/result/{task_id}")
+
+    assert completed_response.status_code == 200
+    payload = completed_response.json()
+    assert payload["status"] == "completed"
+    assert payload["result"]["query"] == "不存在的方剂"
+    assert payload["result"]["chains"] == []
+    assert payload["result"]["enrichment"] is None
 
 
 def test_network_live_mode_surfaces_provenance_fields(monkeypatch, tmp_path: Path):
@@ -316,6 +337,12 @@ def test_network_task_state_is_persisted_to_runtime_file(tmp_path: Path, monkeyp
     assert first_chain["formula"] == "消风散"
     assert first_chain["herb"] in {"荆芥", "防风", "牛蒡子"}
 
+    repeated_poll = fresh_client.get(f"/api/network/result/{task_id}")
+    assert repeated_poll.status_code == 200
+    assert repeated_poll.json()["status"] == "completed"
+    after_repeated_poll = json.loads(runtime_file.read_text(encoding="utf-8"))
+    assert after_repeated_poll == after_second_poll
+
 
 def test_network_entities_endpoint_returns_grouped_lookup_payload():
     client = TestClient(app)
@@ -367,9 +394,7 @@ def test_report_endpoint_returns_404_for_missing_task():
 
 
 def test_report_endpoint_returns_202_for_pending_task():
-    """A newly created task is in 'queued' state.  The report endpoint calls
-    get_network_analysis_result which advances it to 'running', but since
-    'running' != 'completed' the endpoint returns 202."""
+    """A report read must not advance a newly queued task."""
     client = TestClient(app)
 
     create_response = client.post(
@@ -378,16 +403,16 @@ def test_report_endpoint_returns_202_for_pending_task():
     )
     assert create_response.status_code == 202
     task_id = create_response.json()["task_id"]
+    runtime_file = Path(os.environ["NETWORK_TASKS_RUNTIME_STATE_PATH"])
+    before_report = runtime_file.read_text(encoding="utf-8")
 
     report_response = client.get(f"/api/network/result/{task_id}/report")
     assert report_response.status_code == 202
+    assert runtime_file.read_text(encoding="utf-8") == before_report
 
 
 def test_report_endpoint_returns_202_for_running_task():
-    """After one poll the task is 'running'.  The report endpoint calls
-    get_network_analysis_result which advances it to 'completed', so this
-    actually returns 200.  We verify the 202 path via the pending-task test
-    above and document the state-machine behaviour here."""
+    """A report read must not complete a running task."""
     client = TestClient(app)
 
     create_response = client.post(
@@ -398,12 +423,12 @@ def test_report_endpoint_returns_202_for_running_task():
 
     # First poll advances queued → running
     client.get(f"/api/network/result/{task_id}")
+    runtime_file = Path(os.environ["NETWORK_TASKS_RUNTIME_STATE_PATH"])
+    before_report = runtime_file.read_text(encoding="utf-8")
 
-    # The report endpoint calls get_network_analysis_result again, which
-    # advances running → completed, so it returns 200 (not 202).
-    # This is expected: the state machine always advances on read.
     report_response = client.get(f"/api/network/result/{task_id}/report")
-    assert report_response.status_code == 200
+    assert report_response.status_code == 202
+    assert runtime_file.read_text(encoding="utf-8") == before_report
 
 
 def test_report_endpoint_returns_markdown_for_completed_task():
@@ -418,9 +443,12 @@ def test_report_endpoint_returns_markdown_for_completed_task():
     # Poll twice to reach "completed"
     client.get(f"/api/network/result/{task_id}")
     client.get(f"/api/network/result/{task_id}")
+    runtime_file = Path(os.environ["NETWORK_TASKS_RUNTIME_STATE_PATH"])
+    before_report = runtime_file.read_text(encoding="utf-8")
 
     report_response = client.get(f"/api/network/result/{task_id}/report")
     assert report_response.status_code == 200
+    assert runtime_file.read_text(encoding="utf-8") == before_report
 
     text = report_response.text
     assert "# Qiyan Nexus 网络药理学报告导出" in text
@@ -430,12 +458,44 @@ def test_report_endpoint_returns_markdown_for_completed_task():
     assert "## 边界说明" in text
 
 
-def test_report_endpoint_returns_500_when_result_is_none():
-    """When a task is completed but result is None, the endpoint returns 500.
+def test_report_endpoint_returns_terminal_error_for_failed_task():
+    repo = get_network_task_repository()
+    repo.upsert(
+        task_id="network-failed-report",
+        owner_id="local-preview",
+        query="黄芪",
+        analysis_type="herb",
+        status="failed",
+        progress=100,
+        poll_count=2,
+        result=None,
+        error="provider unavailable",
+        created_at="2025-01-01T00:00:00",
+    )
+    before_report = repo.get("network-failed-report")
 
-    This is a defensive test — in the current mock implementation, completed tasks
-    always have a result, but the API guards against the edge case.
-    Since we cannot manufacture a completed task with result=None through the
-    public API, we document the expected behaviour here.
-    """
-    pass
+    response = TestClient(app).get("/api/network/result/network-failed-report/report")
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "provider unavailable"}
+    assert repo.get("network-failed-report") == before_report
+
+
+def test_report_endpoint_returns_500_when_result_is_none():
+    repo = get_network_task_repository()
+    repo.upsert(
+        task_id="network-missing-result",
+        owner_id="local-preview",
+        query="黄芪",
+        analysis_type="herb",
+        status="completed",
+        progress=100,
+        poll_count=2,
+        result=None,
+        created_at="2025-01-01T00:00:00",
+    )
+
+    response = TestClient(app).get("/api/network/result/network-missing-result/report")
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Task completed but result is missing"}

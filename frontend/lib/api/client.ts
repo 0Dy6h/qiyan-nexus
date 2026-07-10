@@ -1,9 +1,3 @@
-const ACCESS_TOKEN_HEADER = "X-Access-Token";
-
-export function getAccessToken() {
-  return (process.env.NEXT_PUBLIC_QIYAN_ACCESS_TOKEN ?? "").trim();
-}
-
 function canonicalHeaderName(name: string) {
   const lowerName = name.toLowerCase();
   if (lowerName === "content-type") {
@@ -12,27 +6,41 @@ function canonicalHeaderName(name: string) {
   if (lowerName === "accept") {
     return "Accept";
   }
-  if (lowerName === "x-access-token") {
-    return ACCESS_TOKEN_HEADER;
-  }
   return name;
 }
 
 export function buildApiHeaders(extra?: HeadersInit): Record<string, string> {
   const headers: Record<string, string> = {};
   new Headers(extra).forEach((value, key) => {
+    if (key.toLowerCase() === "x-access-token") {
+      return;
+    }
     headers[canonicalHeaderName(key)] = value;
   });
-  const token = getAccessToken();
-  if (token) {
-    headers[ACCESS_TOKEN_HEADER] = token;
-  }
   return headers;
 }
 
+function isInternalApiTarget(input: URL | RequestInfo, internalBaseUrl: string) {
+  try {
+    const inputUrl =
+      input instanceof URL ? input.toString() : typeof input === "string" ? input : input.url;
+    return new URL(inputUrl, internalBaseUrl).origin === new URL(internalBaseUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 export function apiFetch(input: URL | RequestInfo, init: RequestInit = {}): Promise<Response> {
+  const headers = buildApiHeaders(init.headers);
+  if (typeof window === "undefined") {
+    const internalToken = (process.env.QIYAN_INTERNAL_API_TOKEN ?? "").trim();
+    const internalBaseUrl = (process.env.QIYAN_INTERNAL_API_BASE_URL ?? "").trim();
+    if (internalToken && internalBaseUrl && isInternalApiTarget(input, internalBaseUrl)) {
+      headers["X-Access-Token"] = internalToken;
+    }
+  }
   return fetch(input, {
     ...init,
-    headers: buildApiHeaders(init.headers),
+    headers,
   });
 }

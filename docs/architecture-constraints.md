@@ -1,6 +1,6 @@
 # 架构约束 — Harness Engineering 支柱二
 
-> 本文件记录当前可运行骨架的开发约束。长期架构方向见 `docs/adr/`；当前事实源见 `docs/current-state.md`。
+> **历史 WSL / MVP-A 快照，不是当前执行约束。** 本文保留早期骨架与命令背景，其中 `.venv/bin/python`、WSL 路径、“仅 MVP-A”及未接认证/network 的描述均已过期。当前边界和 Windows PowerShell 命令只以 `AGENTS.md`、`docs/current-state.md`、`CLAUDE.md` 为准。
 
 ## 当前阶段边界
 

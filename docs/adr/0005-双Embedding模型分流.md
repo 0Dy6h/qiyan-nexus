@@ -1,5 +1,7 @@
 # 双 Embedding 模型分流：text2vec-base-chinese + PubMedBERT
 
+> **状态：历史规划提案，未作为默认架构采用。** 当前默认 retrieval/embedding 边界以 `docs/current-state.md` 与 ADR-0014 为准。
+
 中英文文献嵌入采用两个独立模型，按文档 `language` 字段分流，不做单模型微调。
 
 ## 模型选择

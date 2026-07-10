@@ -54,10 +54,102 @@ _SAMPLE_ANSWER_PAYLOAD: dict[str, object] = {
 }
 
 
-def test_rag_answer_export_endpoint_returns_plain_text_markdown() -> None:
+def _request_signed_answer(client: TestClient, question: str) -> dict[str, object]:
+    response = client.post(
+        "/api/rag/answer",
+        json={"question": question, "source": "all", "top_k": 2},
+    )
+    assert response.status_code == 200
+    payload: dict[str, object] = response.json()
+    assert payload["integrity_token"]
+    return payload
+
+
+def test_rag_answer_export_endpoint_rejects_unsigned_client_payload() -> None:
     client = TestClient(app)
 
     response = client.post("/api/rag/answer/export", json=_SAMPLE_ANSWER_PAYLOAD)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_modified_signed_payload() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    payload["answer"] = "被客户端篡改的伪造结论"
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_signed_payload_with_default_field_removed() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    del payload["input_tokens"]
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_signed_payload_with_required_field_removed() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    del payload["question"]
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_signed_payload_with_unknown_top_level_field() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    payload["client_note"] = "不能加入已签名导出"
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_signed_payload_with_unknown_citation_field() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    citations = payload["citations"]
+    assert isinstance(citations, list)
+    assert isinstance(citations[0], dict)
+    citations[0]["client_note"] = "不能加入已签名引用"
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_rejects_signed_payload_with_unknown_grounding_field() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+    grounding = payload["grounding"]
+    assert isinstance(grounding, dict)
+    grounding["client_note"] = "不能加入已签名 grounding"
+
+    response = client.post("/api/rag/answer/export", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "RAG answer export integrity check failed"}
+
+
+def test_rag_answer_export_endpoint_returns_plain_text_markdown() -> None:
+    client = TestClient(app)
+    payload = _request_signed_answer(client, "特应性皮炎和肠-脑-皮肤轴有什么关系？")
+
+    response = client.post("/api/rag/answer/export", json=payload)
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
@@ -68,7 +160,7 @@ def test_rag_answer_export_endpoint_returns_plain_text_markdown() -> None:
     assert DISCLAIMER in body
     assert "特应性皮炎和肠-脑-皮肤轴有什么关系？" in body
     assert "literature_id：cn-ad-gbs-001" in body
-    assert "2026-06-04T07:42:11.123456+00:00" in body
+    assert str(payload["answered_at"]) in body
     assert "应用来源：全部文献" in body
     assert "应用 top_k：2" in body
     assert "Provider：deterministic" in body
@@ -76,9 +168,8 @@ def test_rag_answer_export_endpoint_returns_plain_text_markdown() -> None:
 
 def test_rag_answer_export_endpoint_handles_empty_citations() -> None:
     client = TestClient(app)
-
-    payload = dict(_SAMPLE_ANSWER_PAYLOAD)
-    payload["citations"] = []
+    payload = _request_signed_answer(client, "高血压一线降压药怎么选？")
+    assert payload["citations"] == []
 
     response = client.post("/api/rag/answer/export", json=payload)
 

@@ -10,7 +10,9 @@ Or run both at once:
 
 import json
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 
 import pytest
@@ -246,6 +248,79 @@ class TestBulkUpsertPubmedItems:
         assert item.pdf_upload_id == "pdf-pmid-40100001-paper"
         assert item.pdf_file_name == "paper.pdf"
         assert item.pdf_parse_status == "parsed"
+
+    def test_sqlite_rolls_back_the_whole_batch_when_one_item_is_invalid(
+        self, tmp_path: Path
+    ) -> None:
+        sqlite_repo = _make_sqlite_repo(tmp_path / "rollback.sqlite3")
+        valid_item = {
+            "id": "pmid-rollback-001",
+            "title": "Must not survive failed batch",
+            "language": "en",
+            "source_type": "pubmed",
+            "source": "PubMed live sync",
+            "year": 2025,
+            "snippet": "rollback test",
+        }
+
+        try:
+            with pytest.raises(KeyError):
+                sqlite_repo.bulk_upsert_pubmed_items([valid_item, {"title": "missing id"}])
+
+            assert sqlite_repo.get_item_by_id("pmid-rollback-001") is None
+            sqlite_repo.update_pdf_metadata(
+                "cn-ad-gbs-001",
+                "pdf-cn-ad-gbs-001-after-rollback",
+                "after-rollback.pdf",
+                "pending",
+            )
+            assert sqlite_repo.get_item_by_id("pmid-rollback-001") is None
+        finally:
+            sqlite_repo.close()
+
+    def test_sqlite_shared_connection_accepts_concurrent_upserts_without_data_loss(
+        self, tmp_path: Path
+    ) -> None:
+        sqlite_repo = _make_sqlite_repo(tmp_path / "concurrent.sqlite3")
+        worker_count = 8
+        records_per_worker = 20
+        start = Barrier(worker_count)
+
+        def write_records(worker_id: int) -> None:
+            start.wait()
+            for record_id in range(records_per_worker):
+                suffix = f"{worker_id:02d}{record_id:02d}"
+                sqlite_repo.bulk_upsert_pubmed_items(
+                    [
+                        {
+                            "id": f"pmid-concurrent-{suffix}",
+                            "title": f"Concurrent literature {suffix}",
+                            "language": "en",
+                            "source_type": "pubmed",
+                            "source": "PubMed live sync",
+                            "year": 2025,
+                            "snippet": "Concurrent write test",
+                            "authors": ["Test Author"],
+                            "keywords": ["concurrency"],
+                            "pubmed_id": suffix,
+                        }
+                    ]
+                )
+
+        try:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = [
+                    executor.submit(write_records, worker_id) for worker_id in range(worker_count)
+                ]
+                for future in futures:
+                    future.result()
+
+            concurrent_items = [
+                item for item in sqlite_repo.list_items() if item.id.startswith("pmid-concurrent-")
+            ]
+            assert len(concurrent_items) == worker_count * records_per_worker
+        finally:
+            sqlite_repo.close()
 
 
 # ── Factory / Protocol tests ──────────────────────────────────────────

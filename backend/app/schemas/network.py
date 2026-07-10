@@ -113,6 +113,7 @@ class NetworkResultResponse(BaseModel):
 
 class NetworkTaskRecord(BaseModel):
     task_id: str
+    owner_id: str | None = None
     query: str
     analysis_type: AnalysisType
     status: TaskStatus

@@ -68,6 +68,7 @@ export type RagAnswerResponse = {
   input_tokens?: number | null;
   output_tokens?: number | null;
   sli?: ProviderSli | null;
+  integrity_token: string;
 };
 
 export function getBackendBaseUrl() {

@@ -1,6 +1,9 @@
 param(
     [string]$BackendUrl = "http://127.0.0.1:8000",
+    [ValidatePattern('^[A-Za-z0-9._~-]*$')]
     [string]$AccessToken = "",
+    [ValidatePattern('^[a-z0-9][a-z0-9._-]{0,63}$')]
+    [string]$ReviewerId = "preview-smoke",
     [string]$PdfPath = "",
     [string]$ProfileName = "",
     [string]$OutputJson = "",
@@ -68,6 +71,7 @@ function Get-Headers {
     $headers = @{}
     if ($AccessToken.Trim()) {
         $headers["X-Access-Token"] = $AccessToken
+        $headers["X-Qiyan-Reviewer"] = $ReviewerId
     }
     return $headers
 }
@@ -99,7 +103,8 @@ function Invoke-Json {
     param(
         [string]$Method,
         [string]$Url,
-        [object]$Body = $null
+        [object]$Body = $null,
+        [string]$RawBody = ""
     )
 
     $headers = Get-Headers
@@ -109,7 +114,11 @@ function Invoke-Json {
         Headers = $headers
         UseBasicParsing = $true
     }
-    if ($null -ne $Body) {
+    if ($RawBody) {
+        $params["ContentType"] = "application/json"
+        $params["Body"] = [System.Text.Encoding]::UTF8.GetBytes($RawBody)
+    }
+    elseif ($null -ne $Body) {
         $params["ContentType"] = "application/json"
         $jsonBody = $Body | ConvertTo-Json -Depth 30
         $params["Body"] = [System.Text.Encoding]::UTF8.GetBytes($jsonBody)
@@ -135,6 +144,7 @@ function Invoke-Json {
         Status = [int]$response.StatusCode
         Headers = $response.Headers
         Payload = $payload
+        RawContent = $content
     }
 }
 
@@ -229,6 +239,7 @@ function Write-SmokeArtifacts {
         duration_seconds = [math]::Round(($finishedAt - $startedAt).TotalSeconds, 3)
         passed = $Passed
         token_profile_enabled = [bool]$AccessToken.Trim()
+        reviewer_id = if ($AccessToken.Trim()) { $ReviewerId } else { "local-preview" }
         network_live = [bool]$NetworkLive
         disclaimer = $disclaimer
         flows = $flowResults
@@ -291,17 +302,28 @@ foreach ($source in $literatureSources) {
     Add-Result -Flow $source.Label -Status $response.Status -RequestId (Get-RequestId $response.Headers) -Notes "total=$($response.Payload.total)"
 }
 
-$curlHeaders = @()
+$curlConfig = ""
 if ($AccessToken.Trim()) {
-    $curlHeaders = @("-H", "X-Access-Token: $AccessToken")
+    $curlConfig = @(
+        "header = `"X-Access-Token: $AccessToken`""
+        "header = `"X-Qiyan-Reviewer: $ReviewerId`""
+    ) -join [Environment]::NewLine
 }
 $uploadUrl = Join-Url $BackendUrl "/api/uploads/pdf"
 $uploadHeaderFile = [System.IO.Path]::GetTempFileName()
 $uploadBodyFile = [System.IO.Path]::GetTempFileName()
 try {
-    & curl.exe -sS -D $uploadHeaderFile -o $uploadBodyFile -X POST $uploadUrl @curlHeaders `
-        -F "literature_id=cn-ad-barrier-006" `
-        -F "file=@$pdfFullPath;type=application/pdf"
+    if ($curlConfig) {
+        $curlConfig | & curl.exe --config "-" -sS -D $uploadHeaderFile -o $uploadBodyFile `
+            -X POST $uploadUrl `
+            -F "literature_id=cn-ad-barrier-006" `
+            -F "file=@$pdfFullPath;type=application/pdf"
+    }
+    else {
+        & curl.exe -sS -D $uploadHeaderFile -o $uploadBodyFile -X POST $uploadUrl `
+            -F "literature_id=cn-ad-barrier-006" `
+            -F "file=@$pdfFullPath;type=application/pdf"
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "curl.exe PDF upload failed with exit code $LASTEXITCODE."
     }
@@ -336,7 +358,7 @@ Assert-True ($rag.Payload.disclaimer -eq $disclaimer) "RAG disclaimer mismatch."
 Assert-True ($rag.Payload.citations.Count -gt 0) "RAG returned no citations."
 Add-Result -Flow "rag_answer" -Status $rag.Status -RequestId (Get-RequestId $rag.Headers) -Notes "citations=$($rag.Payload.citations.Count)"
 
-$ragExport = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/rag/answer/export") -Body $rag.Payload
+$ragExport = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/rag/answer/export") -RawBody $rag.RawContent
 Assert-True ($ragExport.Status -eq 200) "RAG Markdown export failed."
 Assert-True (($ragExport.Payload | Out-String).Contains($disclaimer)) "RAG Markdown export missing disclaimer."
 Add-Result -Flow "rag_export" -Status $ragExport.Status -RequestId (Get-RequestId $ragExport.Headers) -Notes "markdown=ok"

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from threading import RLock
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ _chunk_repo_cache_backend: str | None = None
 
 _nt_repo_cache: "NetworkTaskRepositoryProtocol | None" = None
 _nt_repo_cache_backend: str | None = None
+_nt_repo_cache_lock = RLock()
 
 
 def _close_if_sqlite(repo: object | None) -> None:
@@ -250,33 +252,35 @@ def get_network_task_repository() -> "NetworkTaskRepositoryProtocol":
 
     backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
 
-    if _nt_repo_cache is not None and _nt_repo_cache_backend == backend:
+    with _nt_repo_cache_lock:
+        if _nt_repo_cache is not None and _nt_repo_cache_backend == backend:
+            return _nt_repo_cache
+
+        _close_if_sqlite(_nt_repo_cache)
+
+        if backend == "postgresql":
+            from app.repositories.postgres_network_tasks import PostgresNetworkTaskRepository
+
+            _nt_repo_cache = PostgresNetworkTaskRepository()
+        elif backend == "sqlite":
+            from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
+
+            db_path = resolve_sqlite_db_path()
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            _nt_repo_cache = SqliteNetworkTaskRepository(db_path)
+        else:
+            from app.repositories.network_tasks import NetworkTaskRepository
+
+            _nt_repo_cache = NetworkTaskRepository(resolve_network_tasks_storage_path())
+
+        _nt_repo_cache_backend = backend
         return _nt_repo_cache
-
-    _close_if_sqlite(_nt_repo_cache)
-
-    if backend == "postgresql":
-        from app.repositories.postgres_network_tasks import PostgresNetworkTaskRepository
-
-        _nt_repo_cache = PostgresNetworkTaskRepository()
-    elif backend == "sqlite":
-        from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
-
-        db_path = resolve_sqlite_db_path()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        _nt_repo_cache = SqliteNetworkTaskRepository(db_path)
-    else:
-        from app.repositories.network_tasks import NetworkTaskRepository
-
-        _nt_repo_cache = NetworkTaskRepository(resolve_network_tasks_storage_path())
-
-    _nt_repo_cache_backend = backend
-    return _nt_repo_cache
 
 
 def clear_network_task_repository_cache() -> None:
     """Reset the module-level network task repository cache (for use in tests)."""
     global _nt_repo_cache, _nt_repo_cache_backend
-    _close_if_sqlite(_nt_repo_cache)
-    _nt_repo_cache = None
-    _nt_repo_cache_backend = None
+    with _nt_repo_cache_lock:
+        _close_if_sqlite(_nt_repo_cache)
+        _nt_repo_cache = None
+        _nt_repo_cache_backend = None

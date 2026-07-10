@@ -8,6 +8,7 @@ from the same seed JSON that ``InMemoryLiteratureRepository`` reads.
 import json
 import sqlite3
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from app.repositories.literature import normalize_literature_item_payload
@@ -129,17 +130,19 @@ class SqliteLiteratureRepository:
 
     def __init__(self, db_path: Path, seed_path: Path | None = None) -> None:
         self._db_path = db_path
+        self._lock = RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._closed = False
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(_CREATE_TABLE_SQL)
-        self._conn.commit()
+        with self._lock:
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute(_CREATE_TABLE_SQL)
+            self._conn.commit()
 
-        # Bootstrap from seed JSON if the table is empty.
-        count = self._conn.execute("SELECT COUNT(*) FROM literature").fetchone()[0]
-        if count == 0:
-            self._bootstrap_from_seed(seed_path)
+            # Bootstrap from seed JSON if the table is empty.
+            count = self._conn.execute("SELECT COUNT(*) FROM literature").fetchone()[0]
+            if count == 0:
+                self._bootstrap_from_seed(seed_path)
 
     # ------------------------------------------------------------------
     # Bootstrap
@@ -157,9 +160,10 @@ class SqliteLiteratureRepository:
             seed_path = resolve_literature_storage_path()
 
         raw_items: list[dict[str, Any]] = json.loads(seed_path.read_text(encoding="utf-8"))
-        for item in raw_items:
-            self._insert_item(item)
-        self._conn.commit()
+        with self._lock:
+            for item in raw_items:
+                self._insert_item(item)
+            self._conn.commit()
 
     def _insert_item(self, item: dict[str, Any]) -> None:
         """Insert a single item dict into the database."""
@@ -205,10 +209,11 @@ class SqliteLiteratureRepository:
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
-        self._conn.execute(
-            f"INSERT INTO literature ({col_names}) VALUES ({placeholders})",
-            values,
-        )
+        with self._lock:
+            self._conn.execute(
+                f"INSERT INTO literature ({col_names}) VALUES ({placeholders})",
+                values,
+            )
 
     # ------------------------------------------------------------------
     # Public API
@@ -221,20 +226,23 @@ class SqliteLiteratureRepository:
         cached repository, and tests call it on teardown to avoid leaking
         connections / file locks on Windows.
         """
-        if not self._closed:
-            self._conn.close()
-            self._closed = True
+        with self._lock:
+            if not self._closed:
+                self._conn.close()
+                self._closed = True
 
     def __del__(self) -> None:
         self.close()
 
     def list_items(self) -> list[LiteratureItem]:
-        rows = self._conn.execute("SELECT * FROM literature").fetchall()
-        return [_row_to_item(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute("SELECT * FROM literature").fetchall()
+            return [_row_to_item(row) for row in rows]
 
     def get_item_by_id(self, item_id: str) -> LiteratureItem | None:
-        row = self._conn.execute("SELECT * FROM literature WHERE id = ?", (item_id,)).fetchone()
-        return _row_to_item(row) if row else None
+        with self._lock:
+            row = self._conn.execute("SELECT * FROM literature WHERE id = ?", (item_id,)).fetchone()
+            return _row_to_item(row) if row else None
 
     def update_pdf_metadata(
         self,
@@ -243,22 +251,23 @@ class SqliteLiteratureRepository:
         pdf_file_name: str,
         pdf_parse_status: str,
     ) -> LiteratureItem | None:
-        self._conn.execute(
-            """UPDATE literature
-               SET pdf_upload_id = ?,
-                   pdf_file_name = ?,
-                   pdf_parse_status = ?,
-                   pdf_parse_message = NULL,
-                   pdf_parse_started_at = NULL,
-                   pdf_parse_finished_at = NULL,
-                   pdf_parse_result = NULL,
-                   last_parse_trigger = NULL,
-                   parse_attempt_count = 0
-               WHERE id = ?""",
-            (pdf_upload_id, pdf_file_name, pdf_parse_status, literature_id),
-        )
-        self._conn.commit()
-        return self.get_item_by_id(literature_id)
+        with self._lock:
+            self._conn.execute(
+                """UPDATE literature
+                   SET pdf_upload_id = ?,
+                       pdf_file_name = ?,
+                       pdf_parse_status = ?,
+                       pdf_parse_message = NULL,
+                       pdf_parse_started_at = NULL,
+                       pdf_parse_finished_at = NULL,
+                       pdf_parse_result = NULL,
+                       last_parse_trigger = NULL,
+                       parse_attempt_count = 0
+                   WHERE id = ?""",
+                (pdf_upload_id, pdf_file_name, pdf_parse_status, literature_id),
+            )
+            self._conn.commit()
+            return self.get_item_by_id(literature_id)
 
     def update_pdf_parse_status(
         self,
@@ -270,70 +279,76 @@ class SqliteLiteratureRepository:
         pdf_parse_result: PdfParseResult | None = None,
         last_parse_trigger: str | None = None,
     ) -> LiteratureItem | None:
-        # Guard: must have pdf_upload_id and pdf_file_name
-        row = self._conn.execute(
-            "SELECT pdf_upload_id, pdf_file_name FROM literature WHERE id = ?",
-            (literature_id,),
-        ).fetchone()
-        if row is None or row["pdf_upload_id"] is None or row["pdf_file_name"] is None:
-            return None
+        with self._lock:
+            # Guard: must have pdf_upload_id and pdf_file_name
+            row = self._conn.execute(
+                "SELECT pdf_upload_id, pdf_file_name FROM literature WHERE id = ?",
+                (literature_id,),
+            ).fetchone()
+            if row is None or row["pdf_upload_id"] is None or row["pdf_file_name"] is None:
+                return None
 
-        pr_json: str | None = None
-        if pdf_parse_result is not None:
-            pr_json = json.dumps(pdf_parse_result.model_dump(), ensure_ascii=False)
+            pr_json: str | None = None
+            if pdf_parse_result is not None:
+                pr_json = json.dumps(pdf_parse_result.model_dump(), ensure_ascii=False)
 
-        self._conn.execute(
-            """UPDATE literature
-               SET pdf_parse_status = ?,
-                   pdf_parse_message = ?,
-                   pdf_parse_started_at = ?,
-                   pdf_parse_finished_at = ?,
-                   pdf_parse_result = ?,
-                   last_parse_trigger = ?,
-                   parse_attempt_count = COALESCE(parse_attempt_count, 0) + 1
-               WHERE id = ?""",
-            (
-                pdf_parse_status,
-                pdf_parse_message,
-                pdf_parse_started_at,
-                pdf_parse_finished_at,
-                pr_json,
-                last_parse_trigger,
-                literature_id,
-            ),
-        )
-        self._conn.commit()
-        return self.get_item_by_id(literature_id)
+            self._conn.execute(
+                """UPDATE literature
+                   SET pdf_parse_status = ?,
+                       pdf_parse_message = ?,
+                       pdf_parse_started_at = ?,
+                       pdf_parse_finished_at = ?,
+                       pdf_parse_result = ?,
+                       last_parse_trigger = ?,
+                       parse_attempt_count = COALESCE(parse_attempt_count, 0) + 1
+                   WHERE id = ?""",
+                (
+                    pdf_parse_status,
+                    pdf_parse_message,
+                    pdf_parse_started_at,
+                    pdf_parse_finished_at,
+                    pr_json,
+                    last_parse_trigger,
+                    literature_id,
+                ),
+            )
+            self._conn.commit()
+            return self.get_item_by_id(literature_id)
 
     def bulk_upsert_pubmed_items(self, incoming_items: list[dict[str, Any]]) -> tuple[int, int]:
-        created = 0
-        updated = 0
-        for incoming in incoming_items:
-            item_id = incoming["id"]
-            existing_row = self._conn.execute(
-                "SELECT id FROM literature WHERE id = ?", (item_id,)
-            ).fetchone()
+        with self._lock:
+            created = 0
+            updated = 0
+            try:
+                for incoming in incoming_items:
+                    item_id = incoming["id"]
+                    existing_row = self._conn.execute(
+                        "SELECT id FROM literature WHERE id = ?", (item_id,)
+                    ).fetchone()
 
-            if existing_row is not None:
-                # UPDATE: only overwrite PubMed-owned fields
-                set_clauses: list[str] = []
-                set_values: list[Any] = []
-                for field_name, value in incoming.items():
-                    if field_name in _PUBMED_FIELDS and field_name != "id":
-                        if field_name in _JSON_COLUMNS:
-                            value = json.dumps(value, ensure_ascii=False)
-                        set_clauses.append(f"{field_name} = ?")
-                        set_values.append(value)
-                if set_clauses:
-                    self._conn.execute(
-                        f"UPDATE literature SET {', '.join(set_clauses)} WHERE id = ?",
-                        (*set_values, item_id),
-                    )
-                updated += 1
-            else:
-                # INSERT new row
-                self._insert_item(dict(incoming))
-                created += 1
+                    if existing_row is not None:
+                        # UPDATE: only overwrite PubMed-owned fields
+                        set_clauses: list[str] = []
+                        set_values: list[Any] = []
+                        for field_name, value in incoming.items():
+                            if field_name in _PUBMED_FIELDS and field_name != "id":
+                                if field_name in _JSON_COLUMNS:
+                                    value = json.dumps(value, ensure_ascii=False)
+                                set_clauses.append(f"{field_name} = ?")
+                                set_values.append(value)
+                        if set_clauses:
+                            self._conn.execute(
+                                f"UPDATE literature SET {', '.join(set_clauses)} WHERE id = ?",
+                                (*set_values, item_id),
+                            )
+                        updated += 1
+                    else:
+                        # INSERT new row
+                        self._insert_item(dict(incoming))
+                        created += 1
 
-        self._conn.commit()
-        return created, updated
+                self._conn.commit()
+                return created, updated
+            except Exception:
+                self._conn.rollback()
+                raise
