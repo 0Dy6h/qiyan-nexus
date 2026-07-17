@@ -46,10 +46,9 @@ const CHIP_KIND_STYLE = {
 
 const FALLBACK_CHIP_STYLE = {
   ...CHIP_STYLE,
-  backdropFilter: "blur(10px) saturate(125%)",
   borderStyle: "dashed" as const,
   borderColor: "var(--qiyan-line)",
-  background: "rgba(15, 23, 42, 0.16)",
+  background: "var(--qiyan-surface-3)",
   color: "var(--qiyan-muted-2)",
 };
 

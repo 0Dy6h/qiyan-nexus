@@ -21,36 +21,34 @@ test("root layout uses a persistent app-style left rail navigation and reserves 
   assert.match(shellSource, /aria-label="工作台侧栏"/);
   assert.match(shellSource, /className="home-account-entry"/);
   assert.match(shellSource, /内部预览版/);
-  assert.match(shellSource, /className="meteor-shower"/);
   assert.match(shellSource, /aria-hidden="true"/);
   assert.match(shellSource, /next\/link/);
 });
 
-test("workbench shell uses a clean meteor background without legacy decorative clutter", () => {
+test("workbench shell uses a light porcelain research surface without decorative clutter", () => {
   const source = getPageSource("app/workbench.css");
 
-  assert.match(source, /--qiyan-glass-bg/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\)::before\s*{/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\)::after\s*{/);
-  assert.match(source, /\.meteor-shower\s*{/);
-  assert.match(source, /\.meteor::before\s*{/);
-  assert.match(source, /qiyanStarDrift/);
-  assert.match(source, /meteorFall/);
-  assert.doesNotMatch(source, /qiyanMeteorDrift/);
-  assert.doesNotMatch(source, /linear-gradient\(rgba\(56, 189, 248/);
-  assert.match(source, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.meteor[\s\S]*animation:\s*none/);
+  assert.match(source, /--qiyan-teal:\s*#0d9488/);
+  assert.match(source, /--qiyan-teal-dark:\s*#0f766e/);
+  assert.match(source, /--qiyan-page:\s*#f3f6f4/);
+  assert.match(source, /--qiyan-surface:\s*#ffffff/);
+  assert.match(source, /--qiyan-ink:\s*#172420/);
+  assert.doesNotMatch(source, /meteor/);
+  assert.doesNotMatch(source, /qiyanStarDrift/);
+  assert.doesNotMatch(source, /--qiyan-glass-bg/);
+  assert.doesNotMatch(source, /#020508/);
+  assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test("non-home workbench pages keep homepage rail and glass surface continuity", () => {
+test("non-home workbench pages keep homepage rail and porcelain surface continuity", () => {
   const source = getPageSource("app/workbench.css");
 
   assert.match(source, /\.workbench-frame\s*{[\s\S]*width:\s*min\(1480px, 100%\);[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\)/);
   assert.match(source, /\.home-main-stack,\s*\.workbench-main-stack\s*{/);
-  assert.match(source, /\.workbench-page \.home-app-rail \.workbench-nav\s*{/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav\s*{[\s\S]*background:\s*var\(--qiyan-glass-bg\)/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--qiyan-teal\)/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*border-radius:\s*24px;[\s\S]*background:\s*rgba\(5, 12, 20, 0\.025\)/);
-  assert.match(source, /\.workbench-page:not\(\.home-page\) \.workbench-content-band\s*{[\s\S]*backdrop-filter:\s*var\(--qiyan-glass-filter\)/);
+  assert.match(source, /\.home-app-rail\s*{[\s\S]*position:\s*sticky;[\s\S]*background:\s*var\(--qiyan-surface\)/);
+  assert.match(source, /\.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*background:\s*var\(--qiyan-teal-soft\)/);
+  assert.match(source, /\.workbench-nav a\[aria-current="page"\]\s*{[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--qiyan-teal\)/);
+  assert.match(source, /\.workbench-content-band\s*{[\s\S]*display:\s*grid;[\s\S]*gap:\s*20px;/);
 });
 
 test("workbench routes render only right-side content inside the persistent shell", () => {
@@ -102,29 +100,32 @@ test("literature detail page offers a next-step path into evidence question answ
   assert.match(source, /带这篇文献去问证据 →/);
 });
 
-test("home page presents the core evidence workflow instead of a module inventory", () => {
+test("home page presents network pharmacology research as the primary workflow", () => {
   const source = getPageSource("app/page.tsx");
 
-  assert.match(source, /查证据/);
-  assert.match(source, /问证据/);
-  assert.match(source, /看机制线索/);
-  assert.match(source, /可导出的证据材料/);
-  assert.match(source, /查文献[\s\S]*上传\/归档证据[\s\S]*提问[\s\S]*核引用[\s\S]*导出/);
-  assert.doesNotMatch(source, /title: "网络药理学"/);
+  assert.match(source, /窄领域网络药理学科研工作台/);
+  assert.match(source, /定研究协议/);
+  assert.match(source, /构建网络/);
+  assert.match(source, /核证据/);
+  assert.match(source, /出研究报告/);
+  assert.match(source, /文献检索、PDF 归档与 RAG 问答是证据服务层/);
+  assert.doesNotMatch(source, /先完成核心证据整理，再评价更多模块/);
 });
 
-test("workbench navigation uses user-facing mechanism exploration language", () => {
+test("workbench navigation makes network pharmacology the primary product surface", () => {
   const shellSource = getPageSource("components/WorkbenchShell.tsx");
   const networkPageSource = getPageSource("app/network/page.tsx");
   const networkClientSource = getPageSource("components/NetworkAnalysisClient.tsx");
 
-  assert.match(shellSource, /label: "机制线索"/);
-  assert.doesNotMatch(shellSource, /label: "网络药理学"/);
-  assert.match(networkPageSource, /机制线索探索（mock）/);
-  assert.match(networkPageSource, /不是正式网络药理学分析结论/);
+  assert.match(shellSource, /label: "网络药理学"/);
+  assert.match(shellSource, /Network Pharmacology Workbench/);
+  assert.match(shellSource, /新建研究任务/);
+  assert.doesNotMatch(shellSource, /label: "机制线索"/);
+  assert.match(networkPageSource, /网络药理学研究工作台/);
+  assert.match(networkPageSource, /研究协议/);
   assert.match(networkPageSource, /aria-label="机制线索能力边界"/);
   assert.match(networkPageSource, /aria-label="机制线索演示数据说明"/);
-  assert.match(networkPageSource, /加载机制线索面板/);
+  assert.match(networkPageSource, /加载网络药理学研究面板/);
   assert.match(networkClientSource, /aria-label="机制线索分析对象"/);
   assert.match(networkClientSource, /aria-label="机制线索对象类型"/);
   assert.doesNotMatch(networkClientSource, /aria-label="网络药理学分析对象"/);
