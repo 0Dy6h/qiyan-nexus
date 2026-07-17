@@ -270,7 +270,6 @@ export default function LiteratureSearchClient() {
                 disabled={state.isLoading || state.page <= 1}
                 onClick={() => runSearch(state.query, state.view, state.page - 1, state.pageSize, state.sort)}
                 style={{
-                  backdropFilter: "blur(10px) saturate(125%)",
                   border: "1px solid var(--qiyan-line)",
                   borderRadius: 8,
                   background: "var(--qiyan-surface)",

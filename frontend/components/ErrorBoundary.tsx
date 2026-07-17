@@ -55,21 +55,21 @@ export default class ErrorBoundary extends Component<
             maxWidth: 800,
             margin: "0 auto",
             minHeight: "100vh",
-            backgroundColor: "#020508",
-            color: "#f6fbff",
+            backgroundColor: "#f3f6f4",
+            color: "#172420",
           }}
         >
           <div
             style={{
-              backgroundColor: "#2a0d14",
-              border: "1px solid #fb7185",
+              backgroundColor: "#fdf0f1",
+              border: "1px solid #f0c2c8",
               borderRadius: 20,
               padding: 24,
             }}
           >
             <h2
               style={{
-                color: "#fecdd3",
+                color: "#b3233a",
                 fontSize: 20,
                 fontWeight: 700,
                 margin: "0 0 12px",
@@ -79,7 +79,7 @@ export default class ErrorBoundary extends Component<
             </h2>
             <p
               style={{
-                color: "#ffe4e6",
+                color: "#6b2731",
                 lineHeight: 1.6,
                 margin: "0 0 16px",
               }}
@@ -90,7 +90,7 @@ export default class ErrorBoundary extends Component<
               <details style={{ marginTop: 16 }}>
                 <summary
                   style={{
-                    color: "#fecdd3",
+                    color: "#b3233a",
                     fontSize: 14,
                     cursor: "pointer",
                     fontWeight: 600,
@@ -102,12 +102,12 @@ export default class ErrorBoundary extends Component<
                   style={{
                     marginTop: 12,
                     padding: 12,
-                    backgroundColor: "#0d1724",
-                    border: "1px solid #fb7185",
+                    backgroundColor: "#f9e2e5",
+                    border: "1px solid #f0c2c8",
                     borderRadius: 12,
                     fontSize: 13,
                     overflow: "auto",
-                    color: "#ffe4e6",
+                    color: "#6b2731",
                   }}
                 >
                   {this.state.error.toString()}
@@ -119,7 +119,7 @@ export default class ErrorBoundary extends Component<
                 onClick={() => window.location.reload()}
                 style={{
                   padding: "8px 16px",
-                  backgroundColor: "#e11d48",
+                  backgroundColor: "#dc2626",
                   color: "#ffffff",
                   border: "none",
                   borderRadius: 12,
@@ -135,7 +135,7 @@ export default class ErrorBoundary extends Component<
                 style={{
                   marginLeft: 12,
                   padding: "8px 16px",
-                  color: "#fecdd3",
+                  color: "#b3233a",
                   fontSize: 14,
                   fontWeight: 600,
                   textDecoration: "none",
