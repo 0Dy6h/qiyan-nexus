@@ -13,6 +13,9 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkCompoundTargetSnapshot,
+    NetworkDiseaseTargetSnapshot,
+    NetworkResearchProtocol,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -67,6 +70,8 @@ class ChunkRepository(Protocol):
 class NetworkTaskRepositoryProtocol(Protocol):
     def read_all(self) -> list[NetworkTaskRecord]: ...
 
+    def create(self, record: NetworkTaskRecord) -> bool: ...
+
     def get(self, task_id: str) -> NetworkTaskRecord | None: ...
 
     def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None: ...
@@ -88,6 +93,10 @@ class NetworkTaskRepositoryProtocol(Protocol):
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        research_protocol: NetworkResearchProtocol | None = None,
+        disease_target_import: NetworkDiseaseTargetSnapshot | None = None,
+        compound_target_import: NetworkCompoundTargetSnapshot | None = None,
+        source_task_id: str | None = None,
         owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,

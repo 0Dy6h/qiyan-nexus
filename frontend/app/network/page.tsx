@@ -8,10 +8,10 @@ export default function NetworkPage() {
     <>
       <article className="workbench-hero">
         <div className="workbench-hero-main">
-          <p className="workbench-kicker">Evidence workbench</p>
-          <h1 className="workbench-title">机制线索探索（mock）</h1>
+          <p className="workbench-kicker">Network pharmacology research</p>
+          <h1 className="workbench-title">网络药理学研究工作台</h1>
           <p className="workbench-summary">
-            当前阶段只验证「成分-靶点-通路-疾病」任务壳与结果展示，把未来网络药理学能力预留为可审阅的机制图谱入口；默认结果不是正式网络药理学分析结论。
+            以研究协议为起点，组织方药-成分-靶点-通路链、证据来源、富集结果与科研就绪门禁；默认 mock 数据只用于演练同一套可审计流程，不是正式研究结论。
           </p>
         </div>
         <aside className="workbench-hero-aside" aria-label="机制线索能力边界">
@@ -25,7 +25,7 @@ export default function NetworkPage() {
           </div>
           <div className="workbench-stat">
             <span>Phase</span>
-            <strong>MVP-B concept reserve</strong>
+            <strong>Gate 1 · research protocol</strong>
           </div>
         </aside>
       </article>
@@ -40,7 +40,7 @@ export default function NetworkPage() {
           </p>
         </section>
 
-        <Suspense fallback={<StatusPanel message="加载机制线索面板..." />}>
+        <Suspense fallback={<StatusPanel message="加载网络药理学研究面板..." />}>
           <NetworkAnalysisClient />
         </Suspense>
       </div>

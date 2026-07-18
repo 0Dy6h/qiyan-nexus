@@ -1,0 +1,10 @@
+issue_id,severity,status,category,finding,source_evidence,disposition,close_condition
+NP-001,critical,closed,product-direction,"网络药理学被降为 mock 附属入口，RAG/证据工作台成为事实上的产品主轴","frontend/app/page.tsx; frontend/components/WorkbenchShell.tsx; docs/current-state.md",correct,"首页、导航、事实源和下一步计划一致声明网络科研主轴"
+NP-002,critical,closed,research-contract,"网络任务仅接收 query 与 analysis_type，无法复现表型、物种、证据策略和查询时点","backend/app/schemas/network.py; backend/app/services/network.py",correct,"API 强制最小研究协议并完整持久化/导出"
+NP-003,high,mitigated,scientific-validity,"mock chain 分数与本地富集结果容易形成类似正式分析的视觉叙事","backend/app/services/network.py; frontend/components/NetworkAnalysisClient.tsx",downgrade,"所有结果显示 readiness 门禁；mock 不可进入正式研究状态"
+NP-004,high,mitigated,evidence-lineage,"compound-target-pathway 链缺少统一逐边 lineage、查询版本和人工判定对象","backend/app/schemas/network.py; backend/app/services/network.py; backend/scripts/validate_network_target_lineage.py",block,"独立疾病靶点导入、真实数据库版本/阈值和人工 adjudication 完成后，才能关闭"
+NP-005,high,closed,validation,"质量评分把产品需求、架构和后端评为 A，但核心科研链仍未达到 scientific readiness",docs/quality-score.md,correct,"评分拆分 engineering quality 与 scientific readiness"
+NP-006,medium,mitigated,scope-allocation,"大量工程投入用于真实 LLM、grounding、embedding、检索调参与预览安全，未证明是网络科研主轴的当前瓶颈","docs/current-state.md; git history",retire,"冻结非必要 AI 扩展，直到真实网络研究最小闭环通过"
+NP-007,medium,open,workflow,"文献/RAG 产物不能绑定具体研究项目、靶点、通路或边",frontend/app/page.tsx,block,"证据对象具备 project/edge 关联并可导出 claim-to-source"
+NP-008,medium,closed,governance,"当前唯一下一步被 retrieval 标注或 PDF ownership 等支线占据，缺少网络科研 Gate 1",docs/current-state.md,correct,"当前唯一工程主线改为研究协议与证据门禁"
+NP-009,high,closed,evidence-provenance,"疾病靶点已可封存为严格 task snapshot，但来源仍由客户端声明，payload hash 不能证明 Open Targets 原始数据真实性","backend/app/schemas/network.py; backend/app/services/network_open_targets.py; backend/app/services/network.py; docs/guides/network-disease-target-import.md",pass,"服务端离线 raw-artifact 核验已保存 release、结构化查询、usage note 与 raw-byte source_artifact_sha256；该关闭只解决客户端 provenance 信任缺口，不证明外部官方真实性或生物学意义"

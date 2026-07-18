@@ -368,6 +368,13 @@ $networkAnalysisType = if ($NetworkLive) { "herb" } else { "formula" }
 $network = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/network/analyze") -Body @{
     query = $networkQuery
     analysis_type = $networkAnalysisType
+    research_protocol = @{
+        disease = "atopic_dermatitis"
+        phenotype = "AD type 2 inflammation and skin barrier dysfunction"
+        species = "Homo sapiens"
+        evidence_policy = "direct_human_first"
+        query_date = (Get-Date).ToString("yyyy-MM-dd")
+    }
 }
 Assert-True ($network.Status -eq 202) "Network analyze failed."
 if ($NetworkLive) {

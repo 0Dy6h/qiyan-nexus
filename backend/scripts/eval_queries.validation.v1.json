@@ -1,0 +1,248 @@
+{
+  "dataset_id": "ad-real-retrieval-held-out-v1",
+  "status": "candidate_frozen_pending_domain_reviewer_acceptance",
+  "created_at": "2026-07-11",
+  "note": "30 个无 expected literature ID 的候选临床/科研问题。该版本在生成新 worksheet 前冻结；问题由工程侧按真实工作流起草，尚不能冒充医生/科研专家原创。真人 reviewer 若改题，必须另存 v2 后再生成 packet，不能看过结果后原地补题。",
+  "queries": [
+    {
+      "query_id": "ad-val-001",
+      "question": "特应性皮炎患者使用保湿剂和神经酰胺类产品修复皮肤屏障的临床证据如何？",
+      "language": "zh",
+      "topic": "skin_barrier_clinical",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-002",
+      "question": "儿童特应性皮炎长期使用外用糖皮质激素的疗效与安全性证据是什么？",
+      "language": "zh",
+      "topic": "topical_corticosteroid_pediatric",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-003",
+      "question": "外用钙调神经磷酸酶抑制剂在特应性皮炎维持治疗中的证据如何？",
+      "language": "zh",
+      "topic": "topical_calcineurin_inhibitor",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-004",
+      "question": "JAK 抑制剂治疗中重度特应性皮炎的疗效、复发和主要安全性风险有哪些证据？",
+      "language": "zh",
+      "topic": "jak_inhibitor_clinical",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-005",
+      "question": "What comparative evidence is available for dupilumab and tralokinumab in moderate-to-severe atopic dermatitis?",
+      "language": "en",
+      "topic": "biologics_comparative_effectiveness",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-006",
+      "question": "IL-31 靶向治疗对特应性皮炎瘙痒和睡眠障碍的改善证据如何？",
+      "language": "zh",
+      "topic": "pruritus_il31_clinical",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-007",
+      "question": "针灸治疗特应性皮炎瘙痒的随机对照试验证据和偏倚风险如何？",
+      "language": "zh",
+      "topic": "acupuncture_clinical",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-008",
+      "question": "哪些中药复方具有治疗特应性皮炎的随机对照试验证据，其结局指标是什么？",
+      "language": "zh",
+      "topic": "chinese_herbal_formula_rct",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-009",
+      "question": "口服中药治疗特应性皮炎有哪些已报道的不良反应和肝肾安全性问题？",
+      "language": "zh",
+      "topic": "chinese_herbal_safety",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-010",
+      "question": "外用中药制剂治疗特应性皮炎的临床疗效与接触性皮炎风险有哪些证据？",
+      "language": "zh",
+      "topic": "topical_chinese_medicine",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-011",
+      "question": "What evidence links Staphylococcus aureus colonization to atopic dermatitis severity and treatment response?",
+      "language": "en",
+      "topic": "skin_microbiome_staphylococcus",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-012",
+      "question": "特应性皮炎患者的肠道菌群改变是否与疾病严重度或复发相关？",
+      "language": "zh",
+      "topic": "gut_microbiome_severity",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-013",
+      "question": "益生菌或合生元预防和治疗儿童特应性皮炎的证据是否一致？",
+      "language": "zh",
+      "topic": "probiotics_pediatric",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-014",
+      "question": "What evidence is available for preventing relapse after atopic dermatitis disease control is achieved?",
+      "language": "en",
+      "topic": "relapse_prevention",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-015",
+      "question": "妊娠或哺乳期特应性皮炎患者可用治疗的安全性证据有哪些？",
+      "language": "zh",
+      "topic": "pregnancy_lactation_safety",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-016",
+      "question": "How do filaggrin defects contribute to skin-barrier dysfunction in atopic dermatitis?",
+      "language": "en",
+      "topic": "filaggrin_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-017",
+      "question": "IL-4 和 IL-13 信号如何驱动特应性皮炎的 Th2 炎症与屏障损伤？",
+      "language": "zh",
+      "topic": "th2_il4_il13_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-018",
+      "question": "What mechanistic evidence supports JAK-STAT pathway inhibition in atopic dermatitis?",
+      "language": "en",
+      "topic": "jak_stat_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-019",
+      "question": "皮肤微生态失衡在特应性皮炎屏障破坏和免疫激活中可能起什么作用？",
+      "language": "zh",
+      "topic": "skin_microbiome_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-020",
+      "question": "What causal evidence, rather than correlation alone, supports a gut-skin axis in atopic dermatitis?",
+      "language": "en",
+      "topic": "gut_skin_axis_causality",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-021",
+      "question": "中药复方治疗特应性皮炎的网络药理学研究通常预测哪些靶点和通路？",
+      "language": "zh",
+      "topic": "network_pharmacology_targets",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-022",
+      "question": "How often are network-pharmacology predictions for atopic dermatitis experimentally validated?",
+      "language": "en",
+      "topic": "network_pharmacology_validation",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-023",
+      "question": "黄芪或其活性成分干预特应性皮炎的已报道靶点、通路和实验依据是什么？",
+      "language": "zh",
+      "topic": "herb_astragalus_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-024",
+      "question": "消风散治疗特应性皮炎的临床研究与机制研究之间是否存在可核对的一致性？",
+      "language": "zh",
+      "topic": "formula_xiaofengsan_translation",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-025",
+      "question": "What are the main risk-of-bias problems in trials of Chinese herbal medicine for atopic dermatitis?",
+      "language": "en",
+      "topic": "tcm_trial_bias",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-026",
+      "question": "中医药治疗特应性皮炎研究中的方剂组成、剂量和疗程异质性有多大？",
+      "language": "zh",
+      "topic": "tcm_intervention_heterogeneity",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-027",
+      "question": "What biological mechanisms have been proposed for acupuncture reducing itch in atopic dermatitis?",
+      "language": "en",
+      "topic": "acupuncture_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-028",
+      "question": "儿童和成人特应性皮炎在免疫表型或屏障异常方面有哪些可重复的差异？",
+      "language": "zh",
+      "topic": "pediatric_adult_endotypes",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-029",
+      "question": "Which biomarkers have evidence for predicting treatment response in atopic dermatitis?",
+      "language": "en",
+      "topic": "predictive_biomarkers",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-030",
+      "question": "真实世界研究中 JAK 抑制剂或生物制剂治疗特应性皮炎的持续用药和停药原因是什么？",
+      "language": "zh",
+      "topic": "real_world_persistence",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    }
+  ]
+}

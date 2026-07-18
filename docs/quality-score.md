@@ -3,18 +3,19 @@
 > 每次项目级对抗性 review、架构整改或事实源收口后更新。
 > 评分体系：A = 无债务，B = 轻微债务（< 3 缺口），C = 中度债务（3-10 缺口），D = 严重债务
 
-## 当前质量评分（2026-07-11 对抗性加固收口）
+## 当前质量评分（2026-07-15 Gate 2 双侧 raw-artifact provenance）
 
 | 领域 | 评分 | 缺口 | 最后更新 |
 |------|------|------|---------|
-| 产品需求 | A | MVP-A 已收口；MVP-B 保持 mock/opt-in live 边界 | 2026-07-11 |
-| 技术架构 | A | 分层严格；RAG export 完整性、network owner isolation 与终态只读 report 已落地 | 2026-07-11 |
-| 任务拆解 | A | 下一工程主线已收敛为 PDF 全链路 owner isolation | 2026-07-11 |
-| 前端设计 | A | 浏览器公开 token 路径已删除；既有页面壳与可访问性测试保持全绿 | 2026-07-11 |
-| 后端 API | A | 629 passed / 1 skipped；ruff、mypy、并发与跨 owner 回归全绿 | 2026-07-11 |
-| 合规 | A | 免责声明、数据来源、mock 边界与 reviewer 访问边界明确 | 2026-07-11 |
-| 领域文档 | B | 当前事实源已同步；部分 2026-05/06 历史 plans/低优先快照仍待批量归档或加 superseded banner | 2026-07-11 |
-| 可观测性 | A | Request ID、structured logging、nginx reviewer access log 均有明确路径 | 2026-07-11 |
+| 产品需求 | C | 主轴已纠偏且双侧 artifact workflow 可用，但研究项目、逐边人工证据与真实最小科研闭环尚未完成 | 2026-07-15 |
+| 技术架构 | B | 分层、安全、immutable disease/compound snapshot、双 trusted manifest、raw/canonical 双 hash、双侧 intersection refs 与独立复算已落地；多 worker claim 与科学验证仍未设计 | 2026-07-15 |
+| 任务拆解 | B | Open Targets 与 ChEMBL offline raw-artifact slice 已收口；唯一下一切片为 owner-scoped 人工 adjudication，不再扩展 provider | 2026-07-15 |
+| 前端设计 | A | `/network` 已支持疾病 artifact 与第二阶段 ChEMBL artifact 上传、immutable child task、来源区分和三集合审计表；既有页面壳与可访问性门禁保持全绿 | 2026-07-15 |
+| 后端 API | B | strict multipart、owner-scoped parent lookup、双 server-controlled manifest、双 hash、immutable child task 与 fail-closed readiness 已落地；人工 adjudication API 与科学复核尚未实现 | 2026-07-15 |
+| 合规 | A | 免责声明、mock 边界、reviewer 访问边界、客户端未验证路径与 `server_verified_raw_artifact` 中间态均明确 | 2026-07-15 |
+| 领域文档 | B | ADR-0017、双侧 artifact guide、整改工作区与 handoff 已建立；历史“证据工作台主轴”表述仍需逐步归档 | 2026-07-15 |
+| 科研就绪度 | D | 双侧 raw bytes 与 canonical snapshots 均有 hash 锚点，但 hash 不证明 release 选择、官方来源、映射正确性或靶点意义；人工作业判定与科学验证仍缺失 | 2026-07-15 |
+| 可观测性 | A | Request ID、structured logging、nginx reviewer access log、disease/compound raw artifact hash 与 import payload hash 均有明确路径 | 2026-07-15 |
 
 ## 开发启动后需追踪的领域
 

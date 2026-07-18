@@ -1,0 +1,1 @@
+{"data":{"disease":{"id":"EFO_0000274","name":"atopic eczema","associatedTargets":{"count":2,"rows":[{"target":{"id":"ENSG00000136244","approvedSymbol":"IL6"},"score":0.91},{"target":{"id":"ENSG00000146648","approvedSymbol":"EGFR"},"score":0.78}]}}}}

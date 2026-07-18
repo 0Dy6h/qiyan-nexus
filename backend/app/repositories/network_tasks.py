@@ -4,12 +4,24 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from pydantic import TypeAdapter
+
 from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkCompoundTargetSnapshot,
+    NetworkDiseaseTargetSnapshot,
+    NetworkResearchProtocol,
     NetworkTaskRecord,
     TaskStatus,
+)
+
+_DISEASE_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkDiseaseTargetSnapshot] = TypeAdapter(
+    NetworkDiseaseTargetSnapshot
+)
+_COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = TypeAdapter(
+    NetworkCompoundTargetSnapshot
 )
 
 
@@ -29,6 +41,18 @@ class NetworkTaskRepository:
         with self._lock:
             raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
             return [NetworkTaskRecord.model_validate(item) for item in raw_items]
+
+    def create(self, record: NetworkTaskRecord) -> bool:
+        with self._lock:
+            raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
+            if any(item.get("task_id") == record.task_id for item in raw_items):
+                return False
+            raw_items.append(record.model_dump(mode="json"))
+            self.data_path.write_text(
+                json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            return True
 
     def get(self, task_id: str) -> NetworkTaskRecord | None:
         with self._lock:
@@ -60,6 +84,10 @@ class NetworkTaskRepository:
                 owner_id=owner_id,
                 query=next_record.query,
                 analysis_type=next_record.analysis_type,
+                research_protocol=next_record.research_protocol,
+                disease_target_import=next_record.disease_target_import,
+                compound_target_import=next_record.compound_target_import,
+                source_task_id=next_record.source_task_id,
                 status=next_record.status,
                 progress=next_record.progress,
                 poll_count=next_record.poll_count,
@@ -80,6 +108,10 @@ class NetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        research_protocol: NetworkResearchProtocol | None = None,
+        disease_target_import: NetworkDiseaseTargetSnapshot | None = None,
+        compound_target_import: NetworkCompoundTargetSnapshot | None = None,
+        source_task_id: str | None = None,
         owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
@@ -89,16 +121,43 @@ class NetworkTaskRepository:
             raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
             existing_index: int | None = None
             persisted_owner_id: str | None = owner_id
+            persisted_research_protocol = research_protocol
+            persisted_disease_target_import = disease_target_import
+            persisted_compound_target_import = compound_target_import
+            persisted_source_task_id = source_task_id
             for index, existing in enumerate(raw_items):
                 if existing.get("task_id") == task_id:
                     existing_index = index
                     persisted_owner_id = existing.get("owner_id")
+                    existing_protocol = existing.get("research_protocol")
+                    persisted_research_protocol = (
+                        NetworkResearchProtocol.model_validate(existing_protocol)
+                        if existing_protocol is not None
+                        else None
+                    )
+                    existing_import = existing.get("disease_target_import")
+                    persisted_disease_target_import = (
+                        _DISEASE_TARGET_SNAPSHOT_ADAPTER.validate_python(existing_import)
+                        if existing_import is not None
+                        else None
+                    )
+                    existing_compound_import = existing.get("compound_target_import")
+                    persisted_compound_target_import = (
+                        _COMPOUND_TARGET_SNAPSHOT_ADAPTER.validate_python(existing_compound_import)
+                        if existing_compound_import is not None
+                        else None
+                    )
+                    persisted_source_task_id = existing.get("source_task_id")
                     break
             record = NetworkTaskRecord(
                 task_id=task_id,
+                source_task_id=persisted_source_task_id,
                 owner_id=persisted_owner_id,
                 query=query,
                 analysis_type=analysis_type,
+                research_protocol=persisted_research_protocol,
+                disease_target_import=persisted_disease_target_import,
+                compound_target_import=persisted_compound_target_import,
                 status=status,
                 progress=progress,
                 poll_count=poll_count,
@@ -108,7 +167,7 @@ class NetworkTaskRepository:
                 warnings=warnings or [],
                 created_at=created_at,
             )
-            payload = record.model_dump()
+            payload = record.model_dump(mode="json")
             if existing_index is None:
                 raw_items.append(payload)
             else:

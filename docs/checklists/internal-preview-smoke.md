@@ -29,7 +29,7 @@ Default expectation: no real LLM key is required; deterministic provider and key
 | Literature search | `GET /api/literature/search?q=AD&source=pubmed&page=1&page_size=5` | HTTP 200, `items` array, PubMed source entries from seed/runtime | |
 | RAG answer | `POST /api/rag/answer` with `{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":1}` | HTTP 200, `provider_name`, `retrieval.strategy`, `disclaimer`, citation card fields | |
 | RAG eval | `GET /api/evals/rag-ad/report` | HTTP 200, `summary.total_questions == 50`, disclaimer coverage present | |
-| Network analyze | `POST /api/network/analyze` with `{"query":"消风散","analysis_type":"formula"}` | HTTP 202 accepted payload with `task_id` | |
+| Network analyze | `POST /api/network/analyze` with query/type plus `research_protocol` (AD phenotype, Homo sapiens, evidence policy, query date) | HTTP 202 accepted payload with `task_id` | |
 | Network result | `GET /api/network/result/{task_id}` | First poll may be running, later poll returns completed mock chain | |
 | Network report | `GET /api/network/result/{task_id}/report` | 202 while queued/running; 200 Markdown when completed; 409 with task error when failed; request is read-only | |
 

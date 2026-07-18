@@ -1,6 +1,6 @@
 ---
 name: qiyan-adversarial-hardening
-description: Audit and harden Qiyan Nexus changes from first principles. Use for access control, reviewer identity, owner isolation, RAG export integrity, network-task state transitions, SQLite concurrency, internal-preview PowerShell scripts, cloud trial runbooks, or security-sensitive pre-commit review.
+description: Audit and harden Qiyan Nexus changes from first principles. Use for access control, reviewer identity, owner isolation, RAG export integrity, network-task state transitions, target lineage, raw-artifact provenance and scientific-readiness integrity, SQLite concurrency, internal-preview PowerShell scripts, cloud trial runbooks, or security- and research-sensitive pre-commit review.
 ---
 
 # Qiyan Adversarial Hardening
@@ -14,6 +14,17 @@ Use this workflow to turn an adversarial finding into a small, verifiable, fail-
 3. Trace the full lifecycle, not only the entry endpoint: create -> store -> query -> mutate -> export/download -> delete or terminal state.
 4. Prefer an explicit invariant such as "a task is accessible only by `task_id + owner_id`" over a patch-specific description.
 
+## Preserve scientific set integrity
+
+- Model disease targets, compound targets, and their intersection as separate sets. Never infer the disease set from the compound set or accept a client-declared intersection without recomputation.
+- Treat an empty set as a valid fail-closed result. If independent disease-target evidence is absent, keep disease and intersection empty and expose the blocker.
+- Use source record as the lineage observation unit. Preserve multiple rows when distinct records map to the same canonical symbol; report unique-target counts separately from lineage-row counts.
+- Separate automatic extraction from human adjudication. Default extracted rows to pending/unreviewed with no invented reviewer, timestamp, decision, or rationale.
+- Freeze source database, version, query date, species, score, threshold, identifier mapping, and source record IDs before claiming reproducibility. Missing values must lower readiness rather than disappear from the UI or report.
+- Keep artifact consistency separate from scientific readiness. Internal agreement proves neither source validity nor biological or clinical truth.
+- When a verified artifact establishes only a frozen upstream snapshot, return a snapshot-only projection: do not invoke downstream providers or populate graph, pathway, PPI, enrichment, or other derived-analysis fields. Keep readiness false with an explicit remaining-gate blocker, and have the independent validator, report, and UI enforce the same boundary.
+- Build important validators independently of the producer path. Recompute counts, intersections, protocol consistency, canonical payload hashes, and raw-byte hashes without importing the service that generated the artifact. State explicitly when a validator does not independently replay the producer's parser.
+
 ## Write the adversarial test first
 
 Create a RED test for the smallest counterexample:
@@ -22,6 +33,13 @@ Create a RED test for the smallest counterexample:
 - legacy ownerless data becomes visible;
 - GET/report polling changes state or writes runtime data;
 - client-modified RAG payload exports successfully;
+- disease targets are absent but a non-empty intersection is declared;
+- two source records mapping to one canonical target are silently collapsed;
+- automatic extraction is presented as accepted human adjudication;
+- a client-controlled artifact and a sibling client declaration are accepted as independent proof of source or release;
+- a forbidden derived field is rejected inside metadata but accepted as a sibling top-level multipart field;
+- oversized, chunked, ambiguously framed, truncated, or hash-mismatched raw uploads reach parsing or persistence;
+- provenance text changes Markdown structure or injects active output;
 - two repositories using the same SQLite path race;
 - token, reviewer, port, path, or curl config input changes command interpretation.
 
@@ -31,9 +49,15 @@ Confirm the test fails for the intended reason before implementing.
 
 - Build reviewer identity only after access-token verification. Ignore untrusted reviewer headers in open mode.
 - Carry ownership through schemas, repository protocols, every backend implementation, services, routers, SSR forwarding, and projections.
+- For a derived task, resolve its parent through the same owner-scoped lookup, persist an immutable non-self-referential parent ID through every storage and projection path, and reject recursive derivation. A legacy derived record without that link must fail closed on result, report, and export reads without being repaired or advanced by the read.
 - Return 404 for foreign or ambiguous ownership to avoid existence disclosure. Quarantine or reject legacy ownerless records.
 - Keep observation endpoints read-only. Separate status advancement from report/export retrieval.
 - Sign server-issued export payloads over canonical fields; reject missing, incomplete, or modified data.
+- Treat the uploaded bytes and all declarations from the same client as one trust domain. For a provenance upgrade, compute the raw hash server-side and bind it to server-controlled acquisition metadata; never let a client-supplied hash, record set, or release envelope attest to its sibling input.
+- Apply strict allowlists at every envelope layer. A strict nested metadata model does not constrain sibling multipart fields, headers, filenames, media types, or request framing.
+- Reject unsupported transfer framing and enforce byte/row/resource caps before multipart parsing, spooling, domain parsing, or repository writes.
+- Persist content-addressed artifacts through a same-directory temporary file, complete write plus flush/fsync, server-side rehash, and atomic replace. A hash-shaped filename alone does not make a partial write safe.
+- Escape or structurally encode provenance fields at every HTML/Markdown/export boundary; provenance is attacker-controlled output even after its bytes are integrity-checked.
 - Share network-task SQLite locks by canonical database path and rollback on failure. Treat literature/chunk locks as instance-local until code proves otherwise. Never claim cross-process safety from an in-process lock.
 - Pass executable arguments structurally. Never place unvalidated operator input or secrets into `PowerShell -Command` or shell fragments. A curl config may be generated only from strict allowlisted input and passed through stdin or another controlled non-command channel.
 - Keep real LLM, embedding, PostgreSQL, and heavy infrastructure opt-in unless an ADR explicitly changes the default.
@@ -49,10 +73,12 @@ cd frontend
 pnpm audit --prod
 ```
 
+If the audit command fails before returning an advisory result, for example because registry endpoints return HTTP 410, record it as a tooling compatibility blocker. Never translate that failure or a stale prior run into "0 vulnerabilities".
+
 Also parse changed PowerShell files, run the protected smoke with two distinct reviewers, inspect process command lines for secrets, and run `git diff --check`. Require an independent reviewer to search specifically for fail-open behavior, cross-owner leakage, hidden mutation, and command injection.
 
 ## Close out safely
 
 Update `docs/current-state.md` and one dated handoff with verified facts, deferred boundaries, and exactly one recommended next slice. Add only durable hard rules to `AGENTS.md` or `CLAUDE.md`.
 
-Stage expected files explicitly. Inspect `git diff --cached --name-status` and `git diff --cached --check`. Exclude `.mcp.json`, `components.json`, runtime state, uploads, secrets, and unrelated user changes. Never push unless the user explicitly requests it.
+If the user authorized a commit workflow, stage expected files explicitly and inspect `git diff --cached --name-status` plus `git diff --cached --check`. Otherwise leave the index untouched. Always exclude `.mcp.json`, `components.json`, runtime state, uploads, secrets, and unrelated user changes. Never commit or push unless the user explicitly requests it.

@@ -1,0 +1,20 @@
+{
+  "activities": [
+    {
+      "activity_id": "CHEMBL_ACTIVITY_1001",
+      "molecule_chembl_id": "CHEMBL1201587",
+      "target_chembl_id": "CHEMBL1792",
+      "target_gene_symbol": "IL6",
+      "target_organism": "Homo sapiens",
+      "pchembl_value": 6.4
+    },
+    {
+      "activity_id": "CHEMBL_ACTIVITY_1002",
+      "molecule_chembl_id": "CHEMBL1201587",
+      "target_chembl_id": "CHEMBL203",
+      "target_gene_symbol": "EGFR",
+      "target_organism": "Homo sapiens",
+      "pchembl_value": 6.1
+    }
+  ]
+}

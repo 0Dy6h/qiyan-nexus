@@ -3,6 +3,14 @@ import importlib
 import pytest
 from fastapi.testclient import TestClient
 
+RESEARCH_PROTOCOL = {
+    "disease": "atopic_dermatitis",
+    "phenotype": "特应性皮炎伴 2 型炎症与皮肤屏障异常",
+    "species": "Homo sapiens",
+    "evidence_policy": "direct_human_first",
+    "query_date": "2026-07-11",
+}
+
 
 @pytest.fixture
 def token_client(monkeypatch):
@@ -54,7 +62,11 @@ def test_token_profile_blocks_missing_header_and_allows_core_preview_flows(token
 
     accepted = token_client.post(
         "/api/network/analyze",
-        json={"query": "消风散", "analysis_type": "formula"},
+        json={
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": RESEARCH_PROTOCOL,
+        },
         headers=headers,
     )
     assert accepted.status_code == 202
