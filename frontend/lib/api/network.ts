@@ -2,6 +2,161 @@ import { apiFetch, buildApiHeaders } from "./client";
 import { getBackendBaseUrl } from "./rag";
 
 export type NetworkAnalysisType = "formula" | "herb";
+export type NetworkEvidencePolicy = "direct_human_first" | "mixed_exploratory";
+
+export type NetworkResearchProtocol = {
+  disease: "atopic_dermatitis";
+  phenotype: string;
+  species: "Homo sapiens";
+  evidence_policy: NetworkEvidencePolicy;
+  query_date: string;
+};
+
+export type NetworkDiseaseTargetRecord = {
+  raw_identifier: string;
+  canonical_symbol: string;
+  source_record_id: string;
+  source_score: number;
+};
+
+export type NetworkDiseaseTargetImport = {
+  source_profile: "open_targets_association_v1";
+  disease: "atopic_dermatitis";
+  phenotype: string;
+  species: "Homo sapiens";
+  source_database: "Open Targets Platform";
+  database_version: string;
+  source_query_id: string;
+  source_query_label: string;
+  source_query_parameters: Record<string, string | number | boolean | string[]>;
+  query_date: string;
+  retrieved_at: string;
+  score_name: "association_score";
+  applied_threshold: number;
+  threshold_operator: "gte";
+  identifier_mapping: "Ensembl target approvedSymbol";
+  identifier_mapping_version: string;
+  records: NetworkDiseaseTargetRecord[];
+};
+
+export type NetworkDiseaseTargetVerifyMetadata = Omit<NetworkDiseaseTargetImport, "records"> & {
+  usage_license_note: string;
+};
+
+export type NetworkDiseaseTargetImportProvenance = Omit<
+  NetworkDiseaseTargetImport,
+  "disease" | "phenotype" | "species" | "records"
+> & {
+  record_count: number;
+  provenance_verification_status:
+    | "unverified_client_import"
+    | "server_verified_raw_artifact";
+  import_payload_sha256: string;
+  source_artifact_sha256?: string | null;
+  source_artifact_filename?: string | null;
+  source_artifact_media_type?: string | null;
+  usage_license_note?: string | null;
+};
+
+export type NetworkCompoundTargetVerifyMetadata = {
+  source_profile: "chembl_known_activity_v1";
+  compound_id: string;
+  compound_label: string;
+  species: "Homo sapiens";
+  source_database: "ChEMBL";
+  database_version: string;
+  source_query_id: string;
+  source_query_label: string;
+  source_query_parameters: {
+    assay_organism: "Homo sapiens";
+    pchembl_value_min: number;
+    standard_type?: string | null;
+  };
+  query_date: string;
+  retrieved_at: string;
+  score_name: "pchembl_value";
+  applied_threshold: number;
+  threshold_operator: "gte";
+  identifier_mapping: "ChEMBL target component gene symbol";
+  identifier_mapping_version: string;
+  usage_license_note: string;
+};
+
+export type NetworkCompoundTargetImportProvenance = NetworkCompoundTargetVerifyMetadata & {
+  record_count: number;
+  provenance_verification_status: "server_verified_raw_artifact";
+  import_payload_sha256: string;
+  source_artifact_sha256: string;
+  source_artifact_filename: string;
+  source_artifact_media_type: string;
+};
+
+export type NetworkResearchReadiness = {
+  protocol_complete: boolean;
+  formal_network_ready: boolean;
+  blocking_reasons: string[];
+};
+
+export type NetworkTargetLineageRow = {
+  lineage_row_id?: string | null;
+  raw_identifier: string;
+  canonical_symbol: string;
+  source_database: string;
+  database_version?: string | null;
+  source_query?: string | null;
+  query_date: string;
+  retrieved_at?: string | null;
+  species: "Homo sapiens";
+  source_score?: number | null;
+  applied_threshold?: number | null;
+  threshold_operator?: "gte" | null;
+  score_name?: string | null;
+  identifier_mapping: string;
+  identifier_mapping_version?: string | null;
+  evidence_origin: "mock" | "known_activity" | "predicted" | "mixed" | "disease_association";
+  source_record_ids: string[];
+  automatic_status: "extracted";
+  adjudication_status: "pending" | "accepted" | "excluded" | "needs_review";
+  reviewer_id?: string | null;
+  reviewed_at?: string | null;
+  decision: "unreviewed" | "include" | "exclude";
+  decision_rationale?: string | null;
+};
+
+export type NetworkTargetIntersectionRow = {
+  lineage_row_id: string;
+  canonical_symbol: string;
+  query_date: string;
+  species: "Homo sapiens";
+  derivation: "canonical_symbol_exact_match_v1";
+  disease_lineage_row_ids: string[];
+  compound_lineage_row_ids: string[];
+  automatic_status: "derived";
+  adjudication_status: "pending" | "accepted" | "excluded" | "needs_review";
+  reviewer_id?: string | null;
+  reviewed_at?: string | null;
+  decision: "unreviewed" | "include" | "exclude";
+  decision_rationale?: string | null;
+};
+
+export type NetworkTargetLineage = {
+  observation_unit: "target_record" | "mixed";
+  disease_observation_unit: "source_record";
+  compound_observation_unit: "source_record";
+  intersection_observation_unit: "canonical_symbol_derivation";
+  disease_import_provenance?: NetworkDiseaseTargetImportProvenance | null;
+  compound_import_provenance?: NetworkCompoundTargetImportProvenance | null;
+  disease_targets: NetworkTargetLineageRow[];
+  compound_targets: NetworkTargetLineageRow[];
+  intersection_targets: NetworkTargetIntersectionRow[];
+  disease_target_count: number;
+  compound_target_count: number;
+  intersection_target_count: number;
+  disease_lineage_row_count: number;
+  compound_lineage_row_count: number;
+  intersection_lineage_row_count: number;
+  warnings: string[];
+};
 
 export type NetworkTaskStatus = "queued" | "running" | "completed" | "failed";
 export type NetworkDataMode = "mock" | "live";
@@ -75,8 +230,12 @@ export type EnrichmentResult = {
 
 export type NetworkAnalysisResult = {
   task_id: string;
+  source_task_id?: string | null;
   query: string;
   analysis_type: NetworkAnalysisType;
+  research_protocol?: NetworkResearchProtocol | null;
+  readiness?: NetworkResearchReadiness;
+  target_lineage: NetworkTargetLineage;
   data_mode?: NetworkDataMode;
   chains: NetworkChain[];
   enrichment?: EnrichmentResult | null;
@@ -91,6 +250,7 @@ export type NetworkAnalyzeAccepted = {
   task_id: string;
   status: NetworkTaskStatus;
   progress: number;
+  data_mode: NetworkDataMode;
 };
 
 export type NetworkResultResponse = {
@@ -105,6 +265,14 @@ export type NetworkResultResponse = {
 
 export function buildNetworkAnalyzeUrl() {
   return new URL("/api/network/analyze", getBackendBaseUrl()).toString();
+}
+
+export function buildNetworkDiseaseImportVerifyUrl() {
+  return new URL("/api/network/disease-import/verify", getBackendBaseUrl()).toString();
+}
+
+export function buildNetworkCompoundImportVerifyUrl() {
+  return new URL("/api/network/compound-import/verify", getBackendBaseUrl()).toString();
 }
 
 export function buildNetworkResultUrl(taskId: string) {
@@ -155,15 +323,69 @@ export function getNetworkEvidenceLevelLabel(level: NetworkEvidenceLevel | undef
 export async function submitNetworkAnalysis(
   query: string,
   analysisType: NetworkAnalysisType,
+  researchProtocol: NetworkResearchProtocol,
+  diseaseTargetImport?: NetworkDiseaseTargetImport | null,
 ): Promise<NetworkAnalyzeAccepted> {
+  const body = {
+    query: query.trim(),
+    analysis_type: analysisType,
+    research_protocol: researchProtocol,
+    ...(diseaseTargetImport ? { disease_target_import: diseaseTargetImport } : {}),
+  };
   const response = await apiFetch(buildNetworkAnalyzeUrl(), {
     method: "POST",
     headers: buildApiHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ query: query.trim(), analysis_type: analysisType }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     throw new Error("Network analyze request failed");
+  }
+
+  return response.json();
+}
+
+export async function verifyNetworkDiseaseImport(
+  query: string,
+  analysisType: NetworkAnalysisType,
+  evidencePolicy: NetworkEvidencePolicy,
+  metadata: NetworkDiseaseTargetVerifyMetadata,
+  file: File,
+): Promise<NetworkAnalyzeAccepted> {
+  const body = new FormData();
+  body.set("query", query.trim());
+  body.set("analysis_type", analysisType);
+  body.set("evidence_policy", evidencePolicy);
+  body.set("metadata", JSON.stringify(metadata));
+  body.set("file", file);
+  const response = await apiFetch(buildNetworkDiseaseImportVerifyUrl(), {
+    method: "POST",
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Network disease import verification request failed");
+  }
+
+  return response.json();
+}
+
+export async function verifyNetworkCompoundImport(
+  sourceTaskId: string,
+  metadata: NetworkCompoundTargetVerifyMetadata,
+  file: File,
+): Promise<NetworkAnalyzeAccepted> {
+  const body = new FormData();
+  body.set("source_task_id", sourceTaskId);
+  body.set("metadata", JSON.stringify(metadata));
+  body.set("file", file);
+  const response = await apiFetch(buildNetworkCompoundImportVerifyUrl(), {
+    method: "POST",
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Network compound import verification request failed");
   }
 
   return response.json();

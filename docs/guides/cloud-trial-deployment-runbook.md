@@ -67,7 +67,19 @@ UPLOAD_STORAGE_DIR=/opt/qiyan/qiyan-nexus/backend/uploads
 # 推荐 sqlite runtime（比 JSON 略稳）；单进程下足够小范围试用
 QIYAN_STATE_BACKEND=sqlite
 QIYAN_SQLITE_DB_PATH=/opt/qiyan/qiyan-nexus/backend/data/runtime/qiyan_state.sqlite3
+# 仅在启用 /api/network/disease-import/verify 时配置；manifest 由 operator 生成并保持只读
+NETWORK_OPEN_TARGETS_MANIFEST_PATH=/etc/qiyan/open-targets-artifact-manifest.json
+NETWORK_RAW_ARTIFACT_DIR=/opt/qiyan/qiyan-nexus/backend/data/runtime/network_raw_artifacts
 ```
+
+若启用 raw-artifact 入口，先创建 runtime 目录并安装 manifest：
+
+```bash
+sudo install -d -o qiyan -g qiyan -m 750 /opt/qiyan/qiyan-nexus/backend/data/runtime/network_raw_artifacts
+sudo install -o root -g qiyan -m 640 /path/to/operator-reviewed-manifest.json /etc/qiyan/open-targets-artifact-manifest.json
+```
+
+manifest 必须按服务端计算的 raw-byte SHA-256 索引，不能由浏览器生成或上传。若云端试用不开放该入口，删除上述两个环境变量并在 reviewer 说明中标记 raw-artifact 上传不可用；默认 mock `/api/network/analyze` 不受影响。
 
 **绝对不要做**：未完成真实 provider 的密钥管理与数据外发审查时，不得把 `QIYAN_LLM_PROVIDER` 改为 `opencode_go` 或 `anthropic`；不得设置 `QIYAN_GROUNDING_SEMANTIC_THRESHOLD=0` 绕过 grounding 安全闸。内部试用应保留上面的显式 `QIYAN_LLM_PROVIDER=deterministic`。
 
@@ -427,7 +439,7 @@ PY
 CREATE_STATUS="$(curl -sS --user reviewer-a \
   -o "$SMOKE_DIR/create.json" -w "%{http_code}" \
   -H "Content-Type: application/json" \
-  -d '{"query":"黄芪","analysis_type":"herb"}' \
+  -d '{"query":"黄芪","analysis_type":"herb","research_protocol":{"disease":"atopic_dermatitis","phenotype":"特应性皮炎伴2型炎症与皮肤屏障异常","species":"Homo sapiens","evidence_policy":"direct_human_first","query_date":"2026-07-11"}}' \
   "$BASE/api/network/analyze")"
 [[ "$CREATE_STATUS" == "202" ]] || { cat "$SMOKE_DIR/create.json" >&2; exit 1; }
 TASK_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["task_id"])' "$SMOKE_DIR/create.json")"

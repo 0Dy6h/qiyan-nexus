@@ -70,9 +70,13 @@ CREATE INDEX IF NOT EXISTS idx_chunks_embedding
 -- Stores network pharmacology analysis tasks and results
 CREATE TABLE IF NOT EXISTS network_tasks (
     task_id       TEXT PRIMARY KEY,
+    source_task_id TEXT,
     owner_id      TEXT,
     query         TEXT NOT NULL,
     analysis_type TEXT NOT NULL,
+    research_protocol JSONB,
+    disease_target_import JSONB,
+    compound_target_import JSONB,
     status        TEXT NOT NULL,
     progress      INTEGER NOT NULL DEFAULT 0,
     poll_count    INTEGER NOT NULL DEFAULT 0,
@@ -84,7 +88,16 @@ CREATE TABLE IF NOT EXISTS network_tasks (
 );
 
 ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS source_task_id TEXT;
+ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS research_protocol JSONB;
+
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS disease_target_import JSONB;
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS compound_target_import JSONB;
 ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS data_mode TEXT NOT NULL DEFAULT 'mock';
 ALTER TABLE network_tasks

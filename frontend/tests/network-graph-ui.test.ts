@@ -11,7 +11,7 @@ test("NetworkGraph is imported in NetworkAnalysisClient", () => {
 
   assert(source.includes("import NetworkGraph"));
   assert(source.includes("<NetworkGraph"));
-  assert(source.includes("result.chains"));
+  assert(source.includes("visibleChains"));
 });
 
 test("NetworkGraph renders SVG with role=img", () => {
@@ -72,6 +72,16 @@ test("NetworkGraph handles empty chains", () => {
   const source = readFileSync("components/NetworkGraph.tsx", "utf-8");
 
   assert(source.includes("暂无网络数据"));
+});
+
+test("NetworkGraph identifies an imported snapshot when its network layers are intentionally absent", () => {
+  const clientSource = readFileSync("components/NetworkAnalysisClient.tsx", "utf-8");
+  const graphSource = readFileSync("components/NetworkGraph.tsx", "utf-8");
+
+  assert.match(clientSource, /const visibleChains = isImportedSnapshotResult \? \[\] : result\?\.chains \?\? \[\];/);
+  assert.match(clientSource, /snapshotOnly=\{isImportedSnapshotResult\}/);
+  assert.match(graphSource, /snapshotOnly\?: boolean/);
+  assert.match(graphSource, /冻结靶点快照：未构建 provider chains、PPI、pathway 或 enrichment/);
 });
 
 test("NetworkGraph imports buildNetworkGraphModel", () => {

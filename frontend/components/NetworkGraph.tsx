@@ -10,6 +10,7 @@ import type { NetworkChain } from "../lib/api/network";
 interface NetworkGraphProps {
   chains: NetworkChain[];
   taskId?: string;
+  snapshotOnly?: boolean;
 }
 
 type LayerKey = "herb" | "compound" | "target" | "pathway" | "disease";
@@ -212,7 +213,7 @@ function renderLegendShape(
   return renderNodeSymbol({ cx: x, cy: y, radius, visual, opacity: 1 });
 }
 
-export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
+export default function NetworkGraph({ chains, taskId, snapshotOnly = false }: NetworkGraphProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -288,7 +289,9 @@ export default function NetworkGraph({ chains, taskId }: NetworkGraphProps) {
             );
           })}
           <text x={520} y={110} textAnchor="middle" fontSize={11} fontWeight={400} fill="#718096" fontFamily="Arial, Helvetica, 'Noto Sans SC', sans-serif">
-            暂无网络数据
+            {snapshotOnly
+              ? "冻结靶点快照：未构建 provider chains、PPI、pathway 或 enrichment"
+              : "暂无网络数据"}
           </text>
         </svg>
       </div>

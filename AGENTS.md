@@ -4,7 +4,7 @@
 
 ## 仓库性质
 
-项目已从纯规划阶段切换到可运行开发阶段。MVP-A 证据工作台已完成收尾；MVP-B 网络药理学 mock 起步链路已落地；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。
+项目已从纯规划阶段切换到可运行开发阶段。2026-07-11 起，唯一产品主轴是窄领域网络药理学自动化科研辅助；MVP-A 文献/PDF/RAG 能力作为证据服务层保留。网络药理学已具备 mock/live 任务壳、最小研究协议门禁及双侧离线 raw-artifact engineering provenance，但 owner-scoped 人工 adjudication 与真实科研数据闭环尚未完成；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。
 
 当前代码目录：
 - `frontend/` — Next.js 前端应用
@@ -81,6 +81,9 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 - runtime 状态写在 `backend/data/runtime/`（gitignored），是本地开发态，不要回写 seed fixture，也不要把 runtime state / 上传的 PDF 当 fixture 提交。
 - reviewer identity 只能来自 access token 验证后的 request state；受保护部署由可信 nginx 覆盖写入 `X-Qiyan-Reviewer`。禁止信任浏览器或任意客户端直传的 reviewer header，后端 8000 必须保持 loopback。
 - network task 必须按 `task_id + owner_id` 查询和推进；foreign 或 legacy ownerless task 都要 fail closed。report GET 是只读观察接口，不得借读取推进状态或写 runtime。
+- 派生 network task 的 parent link 也是授权边界：必须通过同 owner 的查询解析，`source_task_id` 要跨 JSON/SQLite/PostgreSQL、result、report 持久化且不可变，禁止 self-link 与 child-of-child。缺少 link 的 legacy child 在 result/report/export 读取时只返回非持久化失败投影，不得由读取修复或推进。
+- 靶点集合必须失败关闭：`disease_targets`、`compound_targets`、`intersection_targets` 分开建模；没有独立疾病靶点来源时 disease/intersection 必须为空，禁止从 compound set 自造交集。同一 canonical symbol 的不同 source record 保留多行，unique target count 与 lineage row count 分开；自动抽取不得冒充人工 adjudication。`disease_target_import` 在 task 创建时封存且不可后改：旧 `/api/network/analyze` 客户端导入固定为 `unverified_client_import`；`server_verified_raw_artifact` 只能由受支持的离线 raw artifact（当前为 Open Targets GraphQL 疾病数据或 `chembl_known_activity_v1` ChEMBL 成分数据）经服务端 SHA-256、operator-controlled trusted manifest 与服务端 parser 派生。客户端不得提交 records/hash/provenance/readiness/判定字段，multipart 外层也必须 strict allowlist；该中间态不得命名为 `verified`，且不得翻转 `formal_network_ready`。intersection 必须是一条/unique symbol 的服务端派生 row，并完整引用两侧匹配 lineage row IDs。
+- 双侧 raw artifact 只建立冻结 snapshot，不自动授权下游网络结论。compound child 必须跳过 provider、机制链、PPI、通路与 enrichment，保持 `chains=[]`、`enrichment=null` 和明确的 network-assembly blocker；独立 validator、report 与 UI 必须共同执行该 snapshot-only 边界。
 - SQLite network-task repository 的锁按 canonical DB path 在单进程内共享；literature/chunk 仍是实例级锁。两者都不提供多 worker exactly-once；若引入多进程，必须先设计数据库 claim/lease 或等价原子协议。
 - 启动外部进程时传结构化 argv，禁止拼接 `PowerShell -Command` 或 curl config/header 字符串；端口和凭证参数必须先校验。
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
@@ -95,6 +98,8 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 ## 产品边界
 
 - 病种仅特应性皮炎；用户仅医生/科研人员端；不替代诊断；不自训大模型
+- 产品主轴是网络药理学科研项目；文献检索、PDF、RAG 与引用导出必须服务于研究项目、靶点、通路、网络边或科研 claim
+- network task 必须携带明确表型、`Homo sapiens`、证据策略与查询日期；缺少来源版本、阈值或逐边人工判定时 `formal_network_ready=false`
 - 所有 AI 输出必须带 "非诊断结论、需结合临床" 免责声明
 - 视觉：青黛绿主色 `#0d9488`~`#14b8a6`，浅色产品端，Noto Sans SC
 
@@ -108,4 +113,4 @@ node --import tsx --test tests\literature-api.test.ts   # 单测文件
 - TDD：行为代码先写测试，确认失败，再实现
 - 不提前接入真实 AI API、Embedding 模型、Neo4j、支付等重依赖
 - Secret 不进仓库，只写 `.env.example`
-- 长期科研模块按阶段推进：MVP-A 证据工作台已收尾；MVP-B 网络药理学当前是 mock / sample 数据链路，不接真实重计算；MVP-C 分子对接/分子动力学模拟目前只做 protein、ligand、simulation_task 等 schema 概念预留
+- 长期科研模块按阶段推进：先完成网络药理学协议、lineage、独立复算与小规模真实闭环；证据服务层按网络研究对象绑定；MVP-C 分子对接/分子动力学模拟目前只做 schema 概念预留

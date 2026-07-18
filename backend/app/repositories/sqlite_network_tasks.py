@@ -14,20 +14,36 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from pydantic import TypeAdapter
+
 from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkCompoundTargetSnapshot,
+    NetworkDiseaseTargetSnapshot,
+    NetworkResearchProtocol,
     NetworkTaskRecord,
     TaskStatus,
+)
+
+_DISEASE_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkDiseaseTargetSnapshot] = TypeAdapter(
+    NetworkDiseaseTargetSnapshot
+)
+_COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = TypeAdapter(
+    NetworkCompoundTargetSnapshot
 )
 
 _CREATE_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS network_task (
     task_id        TEXT PRIMARY KEY,
+    source_task_id TEXT,
     owner_id       TEXT,
     query          TEXT NOT NULL,
     analysis_type  TEXT NOT NULL,
+    research_protocol TEXT,
+    disease_target_import TEXT,
+    compound_target_import TEXT,
     status         TEXT NOT NULL,
     progress       INTEGER NOT NULL,
     poll_count     INTEGER NOT NULL,
@@ -43,9 +59,13 @@ CREATE TABLE IF NOT EXISTS network_task (
 _ALLOWED_COLUMNS = frozenset(
     {
         "task_id",
+        "source_task_id",
         "owner_id",
         "query",
         "analysis_type",
+        "research_protocol",
+        "disease_target_import",
+        "compound_target_import",
         "status",
         "progress",
         "poll_count",
@@ -94,6 +114,22 @@ def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
     # result is stored as JSON TEXT; None stays None
     if data.get("result") is not None:
         data["result"] = NetworkAnalysisResult.model_validate(json.loads(data["result"]))
+    if data.get("research_protocol") is not None and isinstance(data["research_protocol"], str):
+        data["research_protocol"] = NetworkResearchProtocol.model_validate_json(
+            data["research_protocol"]
+        )
+    if data.get("disease_target_import") is not None and isinstance(
+        data["disease_target_import"], str
+    ):
+        data["disease_target_import"] = _DISEASE_TARGET_SNAPSHOT_ADAPTER.validate_json(
+            data["disease_target_import"]
+        )
+    if data.get("compound_target_import") is not None and isinstance(
+        data["compound_target_import"], str
+    ):
+        data["compound_target_import"] = _COMPOUND_TARGET_SNAPSHOT_ADAPTER.validate_json(
+            data["compound_target_import"]
+        )
     if data.get("warnings") is not None and isinstance(data["warnings"], str):
         data["warnings"] = json.loads(data["warnings"])
     return NetworkTaskRecord.model_validate(data)
@@ -149,8 +185,18 @@ class SqliteNetworkTaskRepository:
         with self._lock:
             rows = self._conn.execute("PRAGMA table_info(network_task)").fetchall()
             existing = {row["name"] for row in rows}
+            if "source_task_id" not in existing:
+                self._conn.execute("ALTER TABLE network_task ADD COLUMN source_task_id TEXT")
             if "owner_id" not in existing:
                 self._conn.execute("ALTER TABLE network_task ADD COLUMN owner_id TEXT")
+            if "research_protocol" not in existing:
+                self._conn.execute("ALTER TABLE network_task ADD COLUMN research_protocol TEXT")
+            if "disease_target_import" not in existing:
+                self._conn.execute("ALTER TABLE network_task ADD COLUMN disease_target_import TEXT")
+            if "compound_target_import" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE network_task ADD COLUMN compound_target_import TEXT"
+                )
             if "data_mode" not in existing:
                 self._conn.execute(
                     "ALTER TABLE network_task ADD COLUMN data_mode TEXT NOT NULL DEFAULT 'mock'"
@@ -193,9 +239,13 @@ class SqliteNetworkTaskRepository:
 
         columns = [
             "task_id",
+            "source_task_id",
             "owner_id",
             "query",
             "analysis_type",
+            "research_protocol",
+            "disease_target_import",
+            "compound_target_import",
             "status",
             "progress",
             "poll_count",
@@ -207,6 +257,21 @@ class SqliteNetworkTaskRepository:
         ]
         if item.get("data_mode") is None:
             item["data_mode"] = "mock"
+        protocol_value = item.get("research_protocol")
+        if isinstance(protocol_value, NetworkResearchProtocol):
+            item["research_protocol"] = protocol_value.model_dump_json()
+        elif protocol_value is not None and not isinstance(protocol_value, str):
+            item["research_protocol"] = json.dumps(protocol_value, ensure_ascii=False)
+        disease_import_value = item.get("disease_target_import")
+        if disease_import_value is not None and not isinstance(disease_import_value, str):
+            parsed_import = _DISEASE_TARGET_SNAPSHOT_ADAPTER.validate_python(disease_import_value)
+            item["disease_target_import"] = parsed_import.model_dump_json()
+        compound_import_value = item.get("compound_target_import")
+        if compound_import_value is not None and not isinstance(compound_import_value, str):
+            parsed_compound_import = _COMPOUND_TARGET_SNAPSHOT_ADAPTER.validate_python(
+                compound_import_value
+            )
+            item["compound_target_import"] = parsed_compound_import.model_dump_json()
         if item.get("warnings") is None:
             item["warnings"] = []
         if not isinstance(item.get("warnings"), str):
@@ -244,6 +309,16 @@ class SqliteNetworkTaskRepository:
             rows = self._conn.execute("SELECT * FROM network_task").fetchall()
             return [_row_to_record(row) for row in rows]
 
+    def create(self, record: NetworkTaskRecord) -> bool:
+        with self._lock:
+            try:
+                self._insert_item(record.model_dump(mode="json"))
+                self._conn.commit()
+            except sqlite3.IntegrityError:
+                self._conn.rollback()
+                return False
+            return True
+
     def get(self, task_id: str) -> NetworkTaskRecord | None:
         with self._lock:
             row = self._conn.execute(
@@ -277,7 +352,7 @@ class SqliteNetworkTaskRepository:
                 record = _row_to_record(row)
                 next_record = transition(record)
                 result_json = (
-                    json.dumps(next_record.result.model_dump(), ensure_ascii=False)
+                    json.dumps(next_record.result.model_dump(mode="json"), ensure_ascii=False)
                     if next_record.result is not None
                     else None
                 )
@@ -331,6 +406,10 @@ class SqliteNetworkTaskRepository:
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        research_protocol: NetworkResearchProtocol | None = None,
+        disease_target_import: NetworkDiseaseTargetSnapshot | None = None,
+        compound_target_import: NetworkCompoundTargetSnapshot | None = None,
+        source_task_id: str | None = None,
         owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
@@ -338,8 +417,17 @@ class SqliteNetworkTaskRepository:
     ) -> NetworkTaskRecord:
         result_json: str | None = None
         if result is not None:
-            result_json = json.dumps(result.model_dump(), ensure_ascii=False)
+            result_json = json.dumps(result.model_dump(mode="json"), ensure_ascii=False)
         warnings_json = json.dumps(warnings or [], ensure_ascii=False)
+        research_protocol_json = (
+            research_protocol.model_dump_json() if research_protocol is not None else None
+        )
+        disease_target_import_json = (
+            disease_target_import.model_dump_json() if disease_target_import is not None else None
+        )
+        compound_target_import_json = (
+            compound_target_import.model_dump_json() if compound_target_import is not None else None
+        )
 
         with self._lock:
             existing = self._conn.execute(
@@ -378,14 +466,19 @@ class SqliteNetworkTaskRepository:
             else:
                 self._conn.execute(
                     """INSERT INTO network_task
-                       (task_id, owner_id, query, analysis_type, status, progress, poll_count,
+                       (task_id, source_task_id, owner_id, query, analysis_type, research_protocol,
+                        disease_target_import, compound_target_import, status, progress, poll_count,
                         data_mode, result, error, warnings, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         task_id,
+                        source_task_id,
                         owner_id,
                         query,
                         analysis_type,
+                        research_protocol_json,
+                        disease_target_import_json,
+                        compound_target_import_json,
                         status,
                         progress,
                         poll_count,

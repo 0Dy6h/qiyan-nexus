@@ -13,6 +13,14 @@ import importlib
 import pytest
 from fastapi.testclient import TestClient
 
+RESEARCH_PROTOCOL = {
+    "disease": "atopic_dermatitis",
+    "phenotype": "特应性皮炎伴 2 型炎症与皮肤屏障异常",
+    "species": "Homo sapiens",
+    "evidence_policy": "direct_human_first",
+    "query_date": "2026-07-11",
+}
+
 
 @pytest.fixture
 def reload_app(monkeypatch):
@@ -87,7 +95,7 @@ def test_protected_network_task_creation_requires_reviewer_identity(monkeypatch,
 
     response = client.post(
         "/api/network/analyze",
-        json={"query": "黄芪", "analysis_type": "herb"},
+        json={"query": "黄芪", "analysis_type": "herb", "research_protocol": RESEARCH_PROTOCOL},
         headers={"X-Access-Token": "alpha"},
     )
 
@@ -109,7 +117,7 @@ def test_protected_network_task_is_visible_only_to_its_reviewer(monkeypatch, rel
 
     create_response = client.post(
         "/api/network/analyze",
-        json={"query": "黄芪", "analysis_type": "herb"},
+        json={"query": "黄芪", "analysis_type": "herb", "research_protocol": RESEARCH_PROTOCOL},
         headers=reviewer_a_headers,
     )
     assert create_response.status_code == 202
@@ -142,7 +150,7 @@ def test_protected_reviewer_identity_must_already_be_canonical(monkeypatch, relo
 
     response = client.post(
         "/api/network/analyze",
-        json={"query": "黄芪", "analysis_type": "herb"},
+        json={"query": "黄芪", "analysis_type": "herb", "research_protocol": RESEARCH_PROTOCOL},
         headers={
             "X-Access-Token": "alpha",
             "X-Qiyan-Reviewer": "Reviewer-A",
@@ -159,7 +167,7 @@ def test_open_mode_ignores_untrusted_reviewer_header(monkeypatch, reload_app):
 
     create_response = client.post(
         "/api/network/analyze",
-        json={"query": "黄芪", "analysis_type": "herb"},
+        json={"query": "黄芪", "analysis_type": "herb", "research_protocol": RESEARCH_PROTOCOL},
         headers={"X-Qiyan-Reviewer": "reviewer-a"},
     )
     assert create_response.status_code == 202

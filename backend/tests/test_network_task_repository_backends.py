@@ -19,13 +19,21 @@ import pytest
 
 from app.repositories import network_tasks as network_tasks_module
 from app.repositories.network_tasks import NetworkTaskRepository
+from app.repositories.postgres_network_tasks import _row_to_record as postgres_row_to_record
 from app.repositories.protocols import NetworkTaskRepositoryProtocol
 from app.repositories.runtime_storage import (
     clear_network_task_repository_cache,
     get_network_task_repository,
 )
 from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
-from app.schemas.network import NetworkAnalysisResult, NetworkChain
+from app.schemas.network import (
+    NetworkAnalysisResult,
+    NetworkChain,
+    NetworkCompoundTargetVerifiedSnapshot,
+    NetworkDiseaseTargetImportSnapshot,
+    NetworkDiseaseTargetVerifiedSnapshot,
+    NetworkTaskRecord,
+)
 
 
 def _write_empty_seed(path: Path) -> None:
@@ -43,6 +51,41 @@ def _make_sqlite_repo(db_path: Path) -> SqliteNetworkTaskRepository:
     seed_path = db_path.parent / "network_tasks_state.json"
     _write_empty_seed(seed_path)
     return SqliteNetworkTaskRepository(db_path, seed_path=seed_path)
+
+
+def _verified_compound_snapshot() -> NetworkCompoundTargetVerifiedSnapshot:
+    return NetworkCompoundTargetVerifiedSnapshot(
+        source_profile="chembl_known_activity_v1",
+        compound_id="CHEMBL1201587",
+        compound_label="Quercetin",
+        species="Homo sapiens",
+        source_database="ChEMBL",
+        database_version="34",
+        source_query_id="CHEMBL1201587",
+        source_query_label="Quercetin",
+        source_query_parameters={"assay_organism": "Homo sapiens", "pchembl_value_min": 6.0},
+        query_date="2026-07-12",
+        retrieved_at="2026-07-12T08:30:00Z",
+        score_name="pchembl_value",
+        applied_threshold=6.0,
+        threshold_operator="gte",
+        identifier_mapping="ChEMBL target component gene symbol",
+        identifier_mapping_version="34",
+        usage_license_note="ChEMBL data; see database terms.",
+        records=[
+            {
+                "raw_identifier": "CHEMBL1792",
+                "canonical_symbol": "IL6",
+                "source_record_id": "CHEMBL_ACTIVITY_1001",
+                "source_score": 6.4,
+            }
+        ],
+        provenance_verification_status="server_verified_raw_artifact",
+        import_payload_sha256="a" * 64,
+        source_artifact_sha256="b" * 64,
+        source_artifact_filename="chembl-known-activities.json",
+        source_artifact_media_type="application/json",
+    )
 
 
 # ── Parametrized fixture ──────────────────────────────────────────────
@@ -73,6 +116,81 @@ class TestReadAll:
         assert records == []
 
 
+def test_postgres_jsonb_row_preserves_verified_disease_snapshot() -> None:
+    snapshot = NetworkDiseaseTargetVerifiedSnapshot(
+        source_profile="open_targets_association_v1",
+        disease="atopic_dermatitis",
+        phenotype="特应性皮炎伴 2 型炎症",
+        species="Homo sapiens",
+        source_database="Open Targets Platform",
+        database_version="25.06",
+        source_query_id="EFO_0000274",
+        source_query_label="atopic eczema",
+        source_query_parameters={"datatype": "overall"},
+        query_date="2026-07-11",
+        retrieved_at="2026-07-11T08:30:00Z",
+        score_name="association_score",
+        applied_threshold=0.6,
+        threshold_operator="gte",
+        identifier_mapping="Ensembl target approvedSymbol",
+        identifier_mapping_version="25.06",
+        provenance_verification_status="server_verified_raw_artifact",
+        import_payload_sha256="a" * 64,
+        source_artifact_sha256="b" * 64,
+        source_artifact_filename="open-targets.jsonl",
+        source_artifact_media_type="application/x-ndjson",
+        usage_license_note="Open Targets Platform data usage terms apply.",
+        records=[],
+    )
+
+    record = postgres_row_to_record(
+        {
+            "task_id": "network-postgres-verified",
+            "owner_id": "reviewer-a",
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": None,
+            "disease_target_import": snapshot.model_dump(mode="json"),
+            "status": "queued",
+            "progress": 0,
+            "poll_count": 0,
+            "data_mode": "mock",
+            "result": None,
+            "error": None,
+            "warnings": [],
+            "created_at": "2026-07-11T00:00:00+00:00",
+        }
+    )
+
+    assert record.disease_target_import == snapshot
+
+
+def test_postgres_jsonb_row_preserves_verified_compound_snapshot() -> None:
+    snapshot = _verified_compound_snapshot()
+
+    record = postgres_row_to_record(
+        {
+            "task_id": "network-postgres-compound-verified",
+            "owner_id": "reviewer-a",
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": None,
+            "disease_target_import": None,
+            "compound_target_import": snapshot.model_dump(mode="json"),
+            "status": "queued",
+            "progress": 0,
+            "poll_count": 0,
+            "data_mode": "mock",
+            "result": None,
+            "error": None,
+            "warnings": [],
+            "created_at": "2026-07-12T00:00:00+00:00",
+        }
+    )
+
+    assert record.compound_target_import == snapshot
+
+
 class TestGet:
     def test_found(self, repo: NetworkTaskRepositoryProtocol) -> None:
         repo.upsert(
@@ -95,7 +213,224 @@ class TestGet:
         assert repo.get("nonexistent") is None
 
 
+class TestCreate:
+    def test_create_is_insert_only_on_task_id_collision(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        original = NetworkTaskRecord(
+            task_id="network-create-only",
+            owner_id="reviewer-a",
+            query="消风散",
+            analysis_type="formula",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2026-07-15T00:00:00+00:00",
+        )
+        replacement = original.model_copy(
+            update={
+                "owner_id": "reviewer-b",
+                "query": "不应覆盖",
+                "status": "failed",
+                "progress": 100,
+                "error": "collision",
+            }
+        )
+
+        assert repo.create(original) is True
+        assert repo.create(replacement) is False
+        assert repo.get(original.task_id) == original
+
+
 class TestUpsert:
+    def test_disease_target_import_round_trips(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        imported = NetworkDiseaseTargetImportSnapshot(
+            source_profile="open_targets_association_v1",
+            disease="atopic_dermatitis",
+            phenotype="特应性皮炎伴 2 型炎症",
+            species="Homo sapiens",
+            source_database="Open Targets Platform",
+            database_version="25.06",
+            source_query_id="EFO_0000274",
+            source_query_label="atopic eczema",
+            source_query_parameters={"datatypes": ["genetic_association"]},
+            query_date="2026-07-11",
+            retrieved_at="2026-07-11T08:30:00Z",
+            score_name="association_score",
+            applied_threshold=0.6,
+            threshold_operator="gte",
+            identifier_mapping="Ensembl target approvedSymbol",
+            identifier_mapping_version="25.06",
+            provenance_verification_status="unverified_client_import",
+            import_payload_sha256="a" * 64,
+            records=[
+                {
+                    "raw_identifier": "ENSG00000136244",
+                    "canonical_symbol": "IL6",
+                    "source_record_id": "EFO_0000274:ENSG00000136244",
+                    "source_score": 0.91,
+                }
+            ],
+        )
+
+        repo.upsert(
+            task_id="network-disease-import",
+            query="消风散",
+            analysis_type="formula",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2026-07-11T00:00:00+00:00",
+            disease_target_import=imported,
+        )
+
+        persisted = repo.get("network-disease-import")
+        assert persisted is not None
+        assert persisted.disease_target_import == imported
+
+        replacement = imported.model_copy(
+            update={
+                "database_version": "25.07",
+                "import_payload_sha256": "b" * 64,
+            }
+        )
+        repo.upsert(
+            task_id="network-disease-import",
+            query="消风散",
+            analysis_type="formula",
+            status="running",
+            progress=60,
+            poll_count=1,
+            result=None,
+            created_at="2026-07-11T00:00:00+00:00",
+            disease_target_import=replacement,
+        )
+
+        persisted_after_update = repo.get("network-disease-import")
+        assert persisted_after_update is not None
+        assert persisted_after_update.disease_target_import == imported
+
+    def test_verified_disease_target_import_round_trips_and_is_immutable(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        imported = NetworkDiseaseTargetVerifiedSnapshot(
+            source_profile="open_targets_association_v1",
+            disease="atopic_dermatitis",
+            phenotype="特应性皮炎伴 2 型炎症",
+            species="Homo sapiens",
+            source_database="Open Targets Platform",
+            database_version="25.06",
+            source_query_id="EFO_0000274",
+            source_query_label="atopic eczema",
+            source_query_parameters={"datatypes": ["genetic_association"]},
+            query_date="2026-07-11",
+            retrieved_at="2026-07-11T08:30:00Z",
+            score_name="association_score",
+            applied_threshold=0.6,
+            threshold_operator="gte",
+            identifier_mapping="Ensembl target approvedSymbol",
+            identifier_mapping_version="25.06",
+            provenance_verification_status="server_verified_raw_artifact",
+            import_payload_sha256="a" * 64,
+            source_artifact_sha256="b" * 64,
+            source_artifact_filename="open-targets-25.06.jsonl",
+            source_artifact_media_type="application/x-ndjson",
+            usage_license_note="Open Targets Platform data usage terms apply.",
+            records=[
+                {
+                    "raw_identifier": "ENSG00000136244",
+                    "canonical_symbol": "IL6",
+                    "source_record_id": "EFO_0000274:ENSG00000136244",
+                    "source_score": 0.91,
+                }
+            ],
+        )
+
+        repo.upsert(
+            task_id="network-verified-disease-import",
+            query="消风散",
+            analysis_type="formula",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2026-07-11T00:00:00+00:00",
+            disease_target_import=imported,
+        )
+
+        persisted = repo.get("network-verified-disease-import")
+        assert persisted is not None
+        assert persisted.disease_target_import == imported
+
+        replacement = imported.model_copy(
+            update={
+                "database_version": "25.07",
+                "source_artifact_sha256": "c" * 64,
+            }
+        )
+        repo.upsert(
+            task_id="network-verified-disease-import",
+            query="消风散",
+            analysis_type="formula",
+            status="running",
+            progress=60,
+            poll_count=1,
+            result=None,
+            created_at="2026-07-11T00:00:00+00:00",
+            disease_target_import=replacement,
+        )
+
+        persisted_after_update = repo.get("network-verified-disease-import")
+        assert persisted_after_update is not None
+        assert persisted_after_update.disease_target_import == imported
+
+    def test_verified_compound_target_import_round_trips_and_is_immutable(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        imported = _verified_compound_snapshot()
+        repo.upsert(
+            task_id="network-verified-compound-import",
+            source_task_id="network-" + "a" * 32,
+            query="消风散",
+            analysis_type="formula",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2026-07-12T00:00:00+00:00",
+            compound_target_import=imported,
+        )
+
+        persisted = repo.get("network-verified-compound-import")
+        assert persisted is not None
+        assert persisted.compound_target_import == imported
+        assert persisted.source_task_id == "network-" + "a" * 32
+
+        replacement = imported.model_copy(
+            update={
+                "database_version": "35",
+                "source_artifact_sha256": "c" * 64,
+            }
+        )
+        repo.upsert(
+            task_id="network-verified-compound-import",
+            query="消风散",
+            analysis_type="formula",
+            status="running",
+            progress=60,
+            poll_count=1,
+            result=None,
+            created_at="2026-07-12T00:00:00+00:00",
+            compound_target_import=replacement,
+        )
+
+        persisted_after_update = repo.get("network-verified-compound-import")
+        assert persisted_after_update is not None
+        assert persisted_after_update.compound_target_import == imported
+        assert persisted_after_update.source_task_id == "network-" + "a" * 32
+
     def test_create_new_task(self, repo: NetworkTaskRepositoryProtocol) -> None:
         record = repo.upsert(
             task_id="network-create001",

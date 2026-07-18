@@ -57,7 +57,7 @@ Then retry. Do NOT fall back to `Grep` + `Read`.
 
 Qiyan Nexus — 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。仅医生/研究人员端，**不面向 C 端患者**，**不替代诊断**。所有 AI 输出必须附带免责声明 `非诊断结论、需结合临床。`
 
-仓库当前处于可运行的内部预览阶段：MVP-A 证据工作台已完成收尾，MVP-B 网络药理学 mock 起步链路已落地；后端默认用本地 JSON seed + runtime state + deterministic retrieval 跑 RAG，PDF 解析支持 `pypdf` 文本预览，无法抽取时回退到文件级占位说明。真实 LLM、真实 embedding、PostgreSQL/pgvector、Neo4j、Celery、Redis、MinIO、对象存储和支付均不进入默认路径；只允许按 `docs/current-state.md` / ADR 中的显式 opt-in 或 spike 边界推进。
+仓库当前处于可运行的内部预览阶段：MVP-A 证据工作台已完成收尾；网络药理学具备 mock/live 任务壳、三集合 lineage，以及离线 Open Targets 疾病侧与 `chembl_known_activity_v1` 成分侧的双侧 raw-artifact engineering provenance；owner-scoped 人工 adjudication 与 source-bound 可复算网络装配 gate 尚未完成。后端默认用本地 JSON seed + runtime state + deterministic retrieval 跑 RAG，PDF 解析支持 `pypdf` 文本预览，无法抽取时回退到文件级占位说明。真实 LLM、真实 embedding、PostgreSQL/pgvector、Neo4j、Celery、Redis、MinIO、对象存储和支付均不进入默认路径；只允许按 `docs/current-state.md` / ADR 中的显式 opt-in 或 spike 边界推进。
 
 ## Commands
 
@@ -154,7 +154,7 @@ Pages: `/` `/literature` `/literature/[id]` `/rag` `/evals/rag-ad` `/compliance`
 
 ### Module roadmap (ADR-0010)
 
-MVP-A (evidence workbench) is complete for internal preview. MVP-B network pharmacology has a mock/sample-data path (`/api/network/*`, `/network`, seed entities, graph visualization, enrichment mock, Markdown report export). MVP-C molecular docking / MD remains schema-only (`protein`, `ligand`, `simulation_task` etc.) with no router/service/repository and no real computation.
+MVP-A (evidence workbench) is complete for internal preview. MVP-B network pharmacology has a mock/sample-data path plus offline Open Targets disease verification (`POST /api/network/disease-import/verify`, `NETWORK_OPEN_TARGETS_MANIFEST_PATH`) and offline ChEMBL compound verification (`POST /api/network/compound-import/verify`, `NETWORK_CHEMBL_MANIFEST_PATH`). The compound path creates an immutable owner-scoped child, persists `source_task_id`, and returns a snapshot-only result without provider, PPI, pathway, or enrichment outputs; raw bytes persist under `NETWORK_RAW_ARTIFACT_DIR`. MVP-C molecular docking / MD remains schema-only (`protein`, `ligand`, `simulation_task` etc.) with no router/service/repository and no real computation.
 
 ## Conventions
 
@@ -166,6 +166,7 @@ MVP-A (evidence workbench) is complete for internal preview. MVP-B network pharm
 - **Secrets**: only `.env.example` is committed. `.env*` and `backend/uploads/` are gitignored.
 - **Access control (A2)**: `QIYAN_ACCESS_TOKENS` env (comma-separated allowlist) gates every API path except `/health` and CORS preflight. Empty value = open (dev default); set value requires `X-Access-Token`. Browser code must never receive or forward this token. In protected deployments nginx authenticates each reviewer, overwrites `X-Qiyan-Reviewer`, and injects the shared backend token; middleware trusts reviewer identity only after token validation and stores it in request state. Keep backend port 8000 loopback-only.
 - **Object ownership**: network tasks carry `owner_id`; repositories and services must query/advance by `task_id + owner_id`. Foreign and legacy ownerless tasks return 404 without state changes. The report endpoint observes state only: queued/running → 202, completed → 200, failed → 409. PDF/uploaded-chunk/RAG ownership is not implemented yet; do not describe the current preview as safe for mutually private uploads.
+- **Raw-artifact trust boundary**: uploaded bytes and client metadata are one attacker-controlled trust domain. Grant `server_verified_raw_artifact` only after server-side raw-byte hashing, lookup in an operator-controlled SHA-keyed manifest, strict multipart/GraphQL allowlists, bounded non-chunked request framing, server parsing, and atomic content-addressed persistence. Hash consistency is not release correctness, biological meaning, or human adjudication; keep `formal_network_ready=false`.
 - **SQLite concurrency**: network-task repositories sharing one canonical DB path share a process-level `RLock`; literature/chunk repositories currently use instance-level locks. Failed database operations rollback. None of these locks protect multiple Python workers; require a database claim/lease design before claiming cross-process exactly-once transitions.
 - **TDD slice cadence**: per `AGENTS.md`, write failing test → implement → refactor; commit small vertical slices rather than batched refactors.
 
