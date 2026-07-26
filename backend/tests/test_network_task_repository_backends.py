@@ -9,6 +9,7 @@ Or run both at once:
 """
 
 import json
+import sqlite3
 import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,7 @@ from threading import Barrier, Lock
 import pytest
 
 from app.repositories import network_tasks as network_tasks_module
+from app.repositories import sqlite_network_tasks
 from app.repositories.network_tasks import NetworkTaskRepository
 from app.repositories.postgres_network_tasks import _row_to_record as postgres_row_to_record
 from app.repositories.protocols import NetworkTaskRepositoryProtocol
@@ -32,8 +34,26 @@ from app.schemas.network import (
     NetworkCompoundTargetVerifiedSnapshot,
     NetworkDiseaseTargetImportSnapshot,
     NetworkDiseaseTargetVerifiedSnapshot,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
 )
+
+
+def _adjudication(
+    lineage_row_id: str,
+    *,
+    decision: str = "included",
+    decided_at: str = "2026-07-15T10:00:00+00:00",
+    reviewer_id: str = "reviewer-a",
+) -> NetworkTargetAdjudication:
+    return NetworkTargetAdjudication(
+        adjudication_id=f"adjudication-{'a' * 64}",
+        lineage_row_id=lineage_row_id,
+        decision=decision,  # type: ignore[arg-type]
+        reason="人工复核",
+        decided_at=decided_at,
+        reviewer_id=reviewer_id,
+    )
 
 
 def _write_empty_seed(path: Path) -> None:
@@ -114,6 +134,99 @@ class TestReadAll:
     def test_empty_initially(self, repo: NetworkTaskRepositoryProtocol) -> None:
         records = repo.read_all()
         assert records == []
+
+
+class TestListRecordsForOwner:
+    def test_empty_initially(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        assert repo.list_records_for_owner("reviewer-a") == []
+
+    def test_returns_only_records_owned_by_the_owner(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        for task_id, owner_id in (
+            ("network-owned-a1", "reviewer-a"),
+            ("network-owned-a2", "reviewer-a"),
+            ("network-owned-b1", "reviewer-b"),
+        ):
+            repo.upsert(
+                task_id=task_id,
+                owner_id=owner_id,
+                query="黄芪",
+                analysis_type="herb",
+                status="queued",
+                progress=0,
+                poll_count=0,
+                result=None,
+                created_at="2025-01-01T00:00:00",
+            )
+
+        owned = repo.list_records_for_owner("reviewer-a")
+
+        assert {record.task_id for record in owned} == {"network-owned-a1", "network-owned-a2"}
+        assert all(record.owner_id == "reviewer-a" for record in owned)
+
+    def test_empty_when_owner_has_no_records(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        repo.upsert(
+            task_id="network-other-owner",
+            owner_id="reviewer-a",
+            query="黄芪",
+            analysis_type="herb",
+            status="queued",
+            progress=0,
+            poll_count=0,
+            result=None,
+            created_at="2025-01-01T00:00:00",
+        )
+
+        assert repo.list_records_for_owner("reviewer-b") == []
+
+    def test_excludes_legacy_ownerless_records(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        assert (
+            repo.create(
+                NetworkTaskRecord(
+                    task_id="network-legacy-list",
+                    owner_id=None,
+                    query="黄芪",
+                    analysis_type="herb",
+                    status="queued",
+                    progress=0,
+                    poll_count=0,
+                    result=None,
+                    created_at="2025-01-01T00:00:00",
+                )
+            )
+            is True
+        )
+
+        assert repo.list_records_for_owner("local-preview") == []
+
+    def test_orders_by_created_at_desc_then_task_id_desc(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        for task_id, created_at in (
+            ("network-aaa", "2025-01-01T00:00:00"),
+            ("network-bbb", "2025-01-02T00:00:00"),
+            ("network-ccc", "2025-01-02T00:00:00"),
+        ):
+            repo.upsert(
+                task_id=task_id,
+                owner_id="reviewer-a",
+                query="黄芪",
+                analysis_type="herb",
+                status="queued",
+                progress=0,
+                poll_count=0,
+                result=None,
+                created_at=created_at,
+            )
+
+        ordered = repo.list_records_for_owner("reviewer-a")
+
+        assert [record.task_id for record in ordered] == [
+            "network-ccc",
+            "network-bbb",
+            "network-aaa",
+        ]
 
 
 def test_postgres_jsonb_row_preserves_verified_disease_snapshot() -> None:
@@ -741,6 +854,278 @@ class TestAdvance:
             close = getattr(legacy_repo, "close", None)
             if callable(close):
                 close()
+
+
+class TestAppendAdjudication:
+    def _seed_owned_task(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        repo.upsert(
+            task_id="network-adj-target",
+            owner_id="reviewer-a",
+            query="消风散",
+            analysis_type="formula",
+            status="completed",
+            progress=100,
+            poll_count=2,
+            result=None,
+            created_at="2026-07-15T00:00:00+00:00",
+        )
+
+    def test_append_and_get_round_trip_in_order(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        self._seed_owned_task(repo)
+        first = _adjudication("disease-" + "a" * 64, decision="included")
+        second = _adjudication(
+            "disease-" + "a" * 64,
+            decision="excluded",
+            decided_at="2026-07-15T11:00:00+00:00",
+        )
+
+        appended_first = repo.append_adjudication("network-adj-target", "reviewer-a", first)
+        appended_second = repo.append_adjudication("network-adj-target", "reviewer-a", second)
+
+        assert appended_first is not None
+        assert appended_first.adjudications == [first]
+        assert appended_second is not None
+        assert appended_second.adjudications == [first, second]
+        persisted = repo.get("network-adj-target")
+        assert persisted is not None
+        assert persisted.adjudications == [first, second]
+
+    def test_append_fails_closed_for_foreign_owner(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        self._seed_owned_task(repo)
+
+        result = repo.append_adjudication(
+            "network-adj-target", "reviewer-b", _adjudication("disease-" + "a" * 64)
+        )
+
+        assert result is None
+        persisted = repo.get("network-adj-target")
+        assert persisted is not None
+        assert persisted.adjudications == []
+
+    def test_append_fails_closed_for_legacy_ownerless_record(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        assert (
+            repo.create(
+                NetworkTaskRecord(
+                    task_id="network-adj-ownerless",
+                    owner_id=None,
+                    query="黄芪",
+                    analysis_type="herb",
+                    status="completed",
+                    progress=100,
+                    poll_count=2,
+                    result=None,
+                    created_at="2026-07-15T00:00:00+00:00",
+                )
+            )
+            is True
+        )
+
+        result = repo.append_adjudication(
+            "network-adj-ownerless", "local-preview", _adjudication("disease-" + "a" * 64)
+        )
+
+        assert result is None
+        persisted = repo.get("network-adj-ownerless")
+        assert persisted is not None
+        assert persisted.adjudications == []
+
+    def test_append_unknown_task_returns_none(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        assert (
+            repo.append_adjudication(
+                "network-missing", "reviewer-a", _adjudication("disease-" + "a" * 64)
+            )
+            is None
+        )
+
+    def test_adjudications_preserved_across_upsert(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        self._seed_owned_task(repo)
+        adjudication = _adjudication("disease-" + "a" * 64)
+        repo.append_adjudication("network-adj-target", "reviewer-a", adjudication)
+
+        repo.upsert(
+            task_id="network-adj-target",
+            owner_id="reviewer-a",
+            query="消风散",
+            analysis_type="formula",
+            status="completed",
+            progress=100,
+            poll_count=3,
+            result=None,
+            created_at="2026-07-15T00:00:00+00:00",
+        )
+
+        persisted = repo.get("network-adj-target")
+        assert persisted is not None
+        assert persisted.poll_count == 3
+        assert persisted.adjudications == [adjudication]
+
+    def test_adjudications_preserved_across_advance(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        self._seed_owned_task(repo)
+        adjudication = _adjudication("disease-" + "a" * 64)
+        repo.append_adjudication("network-adj-target", "reviewer-a", adjudication)
+
+        advanced = repo.advance(
+            "network-adj-target",
+            "reviewer-a",
+            lambda record: record.model_copy(update={"poll_count": record.poll_count + 1}),
+        )
+
+        assert advanced is not None
+        assert advanced.poll_count == 3
+        assert advanced.adjudications == [adjudication]
+        persisted = repo.get("network-adj-target")
+        assert persisted is not None
+        assert persisted.adjudications == [adjudication]
+
+    def test_sqlite_append_does_not_clobber_an_out_of_process_adjudication(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A writer outside this process must not lose its appended decision.
+
+        ``_PATH_LOCKS`` only serializes writers within one process, so a second
+        uvicorn worker can commit between our read and our write. This simulates that
+        by committing an out-of-band adjudication on a separate connection right
+        after the read; the guarded write must retry and keep both events.
+        """
+        db_path = tmp_path / "out-of-process-adjudication.sqlite3"
+        seed_path = tmp_path / "network_tasks_state.json"
+        _write_empty_seed(seed_path)
+        repo = SqliteNetworkTaskRepository(db_path, seed_path=seed_path)
+        self._seed_owned_task(repo)
+        outsider = _adjudication("disease-" + "b" * 64)
+        ours = _adjudication("disease-" + "a" * 64)
+        original_row_to_record = sqlite_network_tasks._row_to_record
+        interleaved = iter([True])
+
+        def row_to_record_then_interleave(row: sqlite3.Row) -> NetworkTaskRecord:
+            record = original_row_to_record(row)
+            if next(interleaved, False):
+                # Stand-in for the other worker process committing first.
+                external = sqlite3.connect(db_path)
+                try:
+                    external.execute(
+                        "UPDATE network_task SET adjudications = ? WHERE task_id = ?",
+                        (
+                            json.dumps(
+                                [outsider.model_dump(mode="json")],
+                                ensure_ascii=False,
+                            ),
+                            "network-adj-target",
+                        ),
+                    )
+                    external.commit()
+                finally:
+                    external.close()
+            return record
+
+        monkeypatch.setattr(sqlite_network_tasks, "_row_to_record", row_to_record_then_interleave)
+
+        try:
+            updated = repo.append_adjudication("network-adj-target", "reviewer-a", ours)
+
+            assert updated is not None
+            persisted_ids = [item.lineage_row_id for item in updated.adjudications]
+            assert persisted_ids == [outsider.lineage_row_id, ours.lineage_row_id]
+        finally:
+            repo.close()
+
+    @pytest.mark.parametrize("backend", ["json", "sqlite"])
+    def test_legacy_record_without_adjudications_field_reads_as_empty(
+        self, tmp_path: Path, backend: str
+    ) -> None:
+        seed_path = tmp_path / "legacy_network_tasks.json"
+        seed_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "task_id": "network-legacy-noadj",
+                        "owner_id": "reviewer-a",
+                        "query": "黄芪",
+                        "analysis_type": "herb",
+                        "status": "completed",
+                        "progress": 100,
+                        "poll_count": 2,
+                        "result": None,
+                        "created_at": "2025-01-01T00:00:00",
+                    }
+                ],
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        if backend == "json":
+            legacy_repo: NetworkTaskRepositoryProtocol = NetworkTaskRepository(seed_path)
+        else:
+            legacy_repo = SqliteNetworkTaskRepository(
+                tmp_path / "legacy-noadj.sqlite3", seed_path=seed_path
+            )
+
+        try:
+            record = legacy_repo.get("network-legacy-noadj")
+
+            assert record is not None
+            assert record.adjudications == []
+        finally:
+            close = getattr(legacy_repo, "close", None)
+            if callable(close):
+                close()
+
+
+def test_postgres_jsonb_row_preserves_adjudications() -> None:
+    adjudication = _adjudication("disease-" + "a" * 64, reviewer_id="reviewer-a")
+
+    record = postgres_row_to_record(
+        {
+            "task_id": "network-postgres-adj",
+            "owner_id": "reviewer-a",
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": None,
+            "disease_target_import": None,
+            "status": "completed",
+            "progress": 100,
+            "poll_count": 2,
+            "data_mode": "mock",
+            "result": None,
+            "error": None,
+            "warnings": [],
+            "adjudications": [adjudication.model_dump(mode="json")],
+            "created_at": "2026-07-15T00:00:00+00:00",
+        }
+    )
+
+    assert record.adjudications == [adjudication]
+
+
+def test_postgres_jsonb_row_without_adjudications_defaults_to_empty() -> None:
+    record = postgres_row_to_record(
+        {
+            "task_id": "network-postgres-noadj",
+            "owner_id": "reviewer-a",
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": None,
+            "disease_target_import": None,
+            "status": "queued",
+            "progress": 0,
+            "poll_count": 0,
+            "data_mode": "mock",
+            "result": None,
+            "error": None,
+            "warnings": [],
+            "created_at": "2026-07-15T00:00:00+00:00",
+        }
+    )
+
+    assert record.adjudications == []
 
 
 # ── Factory / Protocol tests ──────────────────────────────────────────

@@ -408,9 +408,38 @@ else {
     Add-Result -Flow "network_result" -Status $networkResult.Status -RequestId (Get-RequestId $networkResult.Headers) -Notes "mode=mock; chains=$($networkResult.Payload.result.chains.Count); enrichment=$($networkResult.Payload.result.enrichment.terms.Count)"
 }
 
+$networkTasks = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/tasks")
+Assert-True ($networkTasks.Status -eq 200) "Network task list failed."
+$listedTask = @($networkTasks.Payload.tasks | Where-Object { $_.task_id -eq $taskId })
+Assert-True ($listedTask.Count -eq 1) "Network task list did not contain the analyzed task."
+Assert-True ($null -eq $listedTask[0].owner_id) "Network task list leaked owner identity."
+Assert-True (-not $listedTask[0].formal_network_ready) "Network task list claimed formal research readiness."
+Add-Result -Flow "network_task_list" -Status $networkTasks.Status -RequestId (Get-RequestId $networkTasks.Headers) -Notes "tasks=$($networkTasks.Payload.tasks.Count)"
+
+$adjudicationRowId = $networkResult.Payload.result.target_lineage.disease_targets[0].lineage_row_id
+if ($adjudicationRowId) {
+    $adjudication = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/network/result/$taskId/adjudications") -Body @{
+        lineage_row_id = $adjudicationRowId
+        decision       = "needs_review"
+        reason         = "smoke check"
+    }
+    Assert-True ($adjudication.Status -eq 201) "Network adjudication submit failed."
+    Assert-True ($null -eq $adjudication.Payload.reviewer_id) "Network adjudication leaked reviewer identity."
+
+    $afterAdjudication = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/result/$taskId")
+    Assert-True ($afterAdjudication.Status -eq 200) "Network result after adjudication failed."
+    Assert-True ($afterAdjudication.Payload.adjudication.counts.needs_review -eq 1) "Adjudication was not projected back."
+    Assert-True (-not $afterAdjudication.Payload.result.readiness.formal_network_ready) "Adjudication flipped scientific readiness."
+    Add-Result -Flow "network_adjudication" -Status $adjudication.Status -RequestId (Get-RequestId $adjudication.Headers) -Notes "row=$adjudicationRowId; readiness=unchanged"
+}
+else {
+    Add-Result -Flow "network_adjudication" -Status 0 -RequestId "" -Notes "skipped=no adjudicable lineage row"
+}
+
 $networkReport = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/result/$taskId/report")
 Assert-True ($networkReport.Status -eq 200) "Network report failed."
 Assert-True (($networkReport.Payload | Out-String).Contains($disclaimer)) "Network report missing disclaimer."
+Assert-True (($networkReport.Payload | Out-String).Contains("## 人工判定")) "Network report missing adjudication section."
 Add-Result -Flow "network_report" -Status $networkReport.Status -RequestId (Get-RequestId $networkReport.Headers) -Notes "markdown=ok"
 
 $results | Format-Table -AutoSize

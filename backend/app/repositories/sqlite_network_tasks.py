@@ -23,6 +23,7 @@ from app.schemas.network import (
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -32,6 +33,9 @@ _DISEASE_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkDiseaseTargetSnapshot] = Ty
 )
 _COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = TypeAdapter(
     NetworkCompoundTargetSnapshot
+)
+_ADJUDICATION_LIST_ADAPTER: TypeAdapter[list[NetworkTargetAdjudication]] = TypeAdapter(
+    list[NetworkTargetAdjudication]
 )
 
 _CREATE_TABLE_SQL = """\
@@ -51,6 +55,7 @@ CREATE TABLE IF NOT EXISTS network_task (
     result         TEXT,
     error          TEXT,
     warnings       TEXT NOT NULL DEFAULT '[]',
+    adjudications  TEXT NOT NULL DEFAULT '[]',
     created_at     TEXT NOT NULL
 )
 """
@@ -73,6 +78,7 @@ _ALLOWED_COLUMNS = frozenset(
         "result",
         "error",
         "warnings",
+        "adjudications",
         "created_at",
     }
 )
@@ -132,6 +138,8 @@ def _row_to_record(row: sqlite3.Row) -> NetworkTaskRecord:
         )
     if data.get("warnings") is not None and isinstance(data["warnings"], str):
         data["warnings"] = json.loads(data["warnings"])
+    if data.get("adjudications") is not None and isinstance(data["adjudications"], str):
+        data["adjudications"] = _ADJUDICATION_LIST_ADAPTER.validate_json(data["adjudications"])
     return NetworkTaskRecord.model_validate(data)
 
 
@@ -207,6 +215,10 @@ class SqliteNetworkTaskRepository:
                 self._conn.execute(
                     "ALTER TABLE network_task ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'"
                 )
+            if "adjudications" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE network_task ADD COLUMN adjudications TEXT NOT NULL DEFAULT '[]'"
+                )
 
     # ------------------------------------------------------------------
     # Bootstrap
@@ -253,6 +265,7 @@ class SqliteNetworkTaskRepository:
             "result",
             "error",
             "warnings",
+            "adjudications",
             "created_at",
         ]
         if item.get("data_mode") is None:
@@ -276,6 +289,10 @@ class SqliteNetworkTaskRepository:
             item["warnings"] = []
         if not isinstance(item.get("warnings"), str):
             item["warnings"] = json.dumps(item.get("warnings", []), ensure_ascii=False)
+        if item.get("adjudications") is None:
+            item["adjudications"] = []
+        if not isinstance(item.get("adjudications"), str):
+            item["adjudications"] = json.dumps(item.get("adjudications", []), ensure_ascii=False)
         _validate_column_names(columns)  # Security: validate before SQL construction
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
@@ -334,6 +351,16 @@ class SqliteNetworkTaskRepository:
                 (task_id, owner_id),
             ).fetchone()
             return _row_to_record(row) if row else None
+
+    def list_records_for_owner(self, owner_id: str) -> list[NetworkTaskRecord]:
+        with self._lock:
+            rows = self._conn.execute(
+                """SELECT * FROM network_task
+                   WHERE owner_id = ?
+                   ORDER BY created_at DESC, task_id DESC""",
+                (owner_id,),
+            ).fetchall()
+            return [_row_to_record(row) for row in rows]
 
     def advance(
         self,
@@ -395,6 +422,51 @@ class SqliteNetworkTaskRepository:
                     (task_id, owner_id),
                 ).fetchone()
                 return _row_to_record(updated)
+
+    def append_adjudication(
+        self,
+        task_id: str,
+        owner_id: str,
+        adjudication: NetworkTargetAdjudication,
+    ) -> NetworkTaskRecord | None:
+        # ``self._lock`` only serializes writers inside this process, so the write is
+        # guarded by a compare-and-set on the adjudications column and retried on
+        # conflict — otherwise a second process could clobber an appended decision.
+        # Same pattern as ``advance``, which guards on ``poll_count``.
+        while True:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT * FROM network_task WHERE task_id = ? AND owner_id = ?",
+                    (task_id, owner_id),
+                ).fetchone()
+                if row is None:
+                    return None
+                record = _row_to_record(row)
+                observed_adjudications = row["adjudications"]
+                adjudications_json = json.dumps(
+                    [
+                        item.model_dump(mode="json")
+                        for item in (*record.adjudications, adjudication)
+                    ],
+                    ensure_ascii=False,
+                )
+                cursor = self._conn.execute(
+                    """UPDATE network_task
+                       SET adjudications = ?
+                       WHERE task_id = ?
+                         AND owner_id = ?
+                         AND adjudications IS ?""",
+                    (adjudications_json, task_id, owner_id, observed_adjudications),
+                )
+                if cursor.rowcount == 0:
+                    self._conn.rollback()
+                    continue
+                self._conn.commit()
+                updated = self._conn.execute(
+                    "SELECT * FROM network_task WHERE task_id = ? AND owner_id = ?",
+                    (task_id, owner_id),
+                ).fetchone()
+                return _row_to_record(updated) if updated else None
 
     def upsert(
         self,
@@ -468,8 +540,8 @@ class SqliteNetworkTaskRepository:
                     """INSERT INTO network_task
                        (task_id, source_task_id, owner_id, query, analysis_type, research_protocol,
                         disease_target_import, compound_target_import, status, progress, poll_count,
-                        data_mode, result, error, warnings, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        data_mode, result, error, warnings, adjudications, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         task_id,
                         source_task_id,
@@ -486,6 +558,7 @@ class SqliteNetworkTaskRepository:
                         result_json,
                         error,
                         warnings_json,
+                        "[]",
                         created_at,
                     ),
                 )

@@ -28,6 +28,7 @@ AutomaticExtractionStatus = Literal["extracted"]
 IntersectionDerivationStatus = Literal["derived"]
 AdjudicationStatus = Literal["pending", "accepted", "excluded", "needs_review"]
 TargetDecision = Literal["unreviewed", "include", "exclude"]
+ManualAdjudicationDecision = Literal["included", "excluded", "needs_review"]
 
 
 class NetworkResearchProtocol(BaseModel):
@@ -509,6 +510,70 @@ class NetworkAnalysisResult(BaseModel):
     disclaimer: str
 
 
+class NetworkTargetAdjudication(BaseModel):
+    """One append-only manual adjudication event stored on the task record.
+
+    ``reviewer_id`` is persisted for audit but is never projected back to any
+    API response.  Adjudications are additive audit data only: they must never
+    mutate the frozen target lineage rows, provenance hashes, or readiness.
+    """
+
+    adjudication_id: str = Field(min_length=1, max_length=120)
+    lineage_row_id: str = Field(min_length=1, max_length=120)
+    decision: ManualAdjudicationDecision
+    reason: str | None = Field(default=None, max_length=500)
+    decided_at: str = Field(min_length=1)
+    reviewer_id: str = Field(min_length=1, max_length=64)
+
+
+class NetworkAdjudicationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    lineage_row_id: str = Field(min_length=1, max_length=120)
+    decision: ManualAdjudicationDecision
+    reason: str | None = Field(default=None, max_length=500)
+
+    @field_validator("reason", mode="after")
+    @classmethod
+    def empty_reason_becomes_null(cls, value: str | None) -> str | None:
+        if value is not None and value == "":
+            return None
+        return value
+
+
+class NetworkTargetAdjudicationRecord(BaseModel):
+    """API projection of one adjudication event; reviewer identity is dropped."""
+
+    adjudication_id: str
+    lineage_row_id: str
+    decision: ManualAdjudicationDecision
+    reason: str | None = None
+    decided_at: str
+
+
+class NetworkAdjudicationCounts(BaseModel):
+    included: int = Field(default=0, ge=0)
+    excluded: int = Field(default=0, ge=0)
+    needs_review: int = Field(default=0, ge=0)
+    pending: int = Field(default=0, ge=0)
+
+
+class NetworkAdjudicationCurrentEntry(BaseModel):
+    """Latest adjudication for one lineage row; reviewer identity is dropped."""
+
+    lineage_row_id: str
+    decision: ManualAdjudicationDecision
+    reason: str | None = None
+    decided_at: str
+
+
+class NetworkAdjudicationSummary(BaseModel):
+    """Read-only adjudication projection over the frozen target lineage."""
+
+    counts: NetworkAdjudicationCounts = Field(default_factory=NetworkAdjudicationCounts)
+    current: list[NetworkAdjudicationCurrentEntry] = Field(default_factory=list)
+
+
 class NetworkResultResponse(BaseModel):
     task_id: str
     status: TaskStatus
@@ -517,6 +582,24 @@ class NetworkResultResponse(BaseModel):
     result: NetworkAnalysisResult | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    adjudication: NetworkAdjudicationSummary = Field(default_factory=NetworkAdjudicationSummary)
+
+
+class NetworkTaskSummary(BaseModel):
+    """Owner-scoped task summary for list responses; never exposes owner_id."""
+
+    task_id: str
+    source_task_id: str | None = Field(default=None, pattern=r"^network-[0-9a-f]{12,32}$")
+    query: str
+    analysis_type: AnalysisType
+    status: TaskStatus
+    data_mode: DataMode = "mock"
+    formal_network_ready: bool = False
+    created_at: str
+
+
+class NetworkTaskListResponse(BaseModel):
+    tasks: list[NetworkTaskSummary] = Field(default_factory=list)
 
 
 class NetworkTaskRecord(BaseModel):
@@ -535,6 +618,7 @@ class NetworkTaskRecord(BaseModel):
     result: NetworkAnalysisResult | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    adjudications: list[NetworkTargetAdjudication] = Field(default_factory=list)
     created_at: str
 
     @model_validator(mode="after")

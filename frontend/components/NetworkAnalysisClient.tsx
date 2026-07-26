@@ -11,15 +11,28 @@ import {
   getNetworkDataModeLabel,
   getNetworkEvidenceLevelLabel,
   getNetworkTargetEvidenceTypeLabel,
+  NetworkAdjudicationDecision,
+  NetworkAdjudicationProjection,
+  NetworkAdjudicationRecord,
   NetworkAnalysisResult,
   NetworkAnalysisType,
   NetworkEvidencePolicy,
   NetworkResearchProtocol,
   NetworkTargetLineageRow,
+  submitNetworkAdjudication,
   submitNetworkAnalysis,
   verifyNetworkCompoundImport,
   verifyNetworkDiseaseImport,
 } from "../lib/api/network";
+import {
+  buildNetworkAdjudicationDecisionMap,
+  countNetworkLineageRows,
+  getNetworkAdjudicationButtonLabel,
+  getNetworkAdjudicationDecisionLabel,
+  getNetworkAdjudicationInFlightMessage,
+  getNetworkAdjudicationUnavailableReason,
+} from "../lib/network-adjudication";
+import { parseNetworkTaskIdParam } from "../lib/network-tasks";
 import {
   buildNetworkFocusHref,
   fetchNetworkEntities,
@@ -44,13 +57,138 @@ function formatLineageScore(value: number, scoreName?: string | null) {
   return scoreName === "pchembl_value" ? String(value) : formatScore(value);
 }
 
-function TargetLineageTable({ rows }: { rows: NetworkTargetLineageRow[] }) {
+type RowAdjudicationControls = {
+  enabled: boolean;
+  // Locking is per row, not page-wide: reviewing dozens of rows must not serialize
+  // behind one in-flight submission.
+  busyRowIds: ReadonlySet<string>;
+  decisionMap: Map<string, NetworkAdjudicationRecord>;
+  onSubmit: (rowId: string, decision: NetworkAdjudicationDecision, reason: string) => void;
+};
+
+function getAdjudicationPillStyle(decision: NetworkAdjudicationDecision | null) {
+  switch (decision) {
+    case "included":
+      return { color: "#0f766e", background: "rgba(204, 251, 241, 0.72)", border: "1px solid rgba(13, 148, 136, 0.3)" };
+    case "excluded":
+      return { color: "#b91c1c", background: "rgba(254, 226, 226, 0.78)", border: "1px solid rgba(185, 28, 28, 0.28)" };
+    case "needs_review":
+      return { color: "#92400e", background: "rgba(255, 251, 235, 0.9)", border: "1px solid rgba(180, 83, 9, 0.28)" };
+    default:
+      return { color: "var(--qiyan-muted)", background: "var(--qiyan-surface-3)", border: "1px solid var(--qiyan-line)" };
+  }
+}
+
+const ADJUDICATION_DECISIONS: NetworkAdjudicationDecision[] = ["included", "excluded", "needs_review"];
+
+function LineageAdjudicationCell({
+  rowId,
+  controls,
+}: {
+  rowId: string | null | undefined;
+  controls: RowAdjudicationControls;
+}) {
+  if (!rowId) {
+    return <span style={{ color: "var(--qiyan-muted)", fontSize: 12 }}>无稳定 ID，不可判定</span>;
+  }
+  const record = controls.decisionMap.get(rowId);
+  // Remount on each newly recorded decision so the draft reason input resets
+  // instead of leaving stale text beside the persisted reason.
+  return (
+    <LineageAdjudicationForm
+      key={record?.decided_at ?? "undecided"}
+      rowId={rowId}
+      controls={controls}
+    />
+  );
+}
+
+function LineageAdjudicationForm({
+  rowId,
+  controls,
+}: {
+  rowId: string;
+  controls: RowAdjudicationControls;
+}) {
+  const [reason, setReason] = useState("");
+  const record = controls.decisionMap.get(rowId);
+  const decision = record?.decision ?? null;
+  const busy = controls.busyRowIds.has(rowId);
+  return (
+    <div style={{ display: "grid", gap: 6, minWidth: 230 }} aria-label={`人工判定 ${rowId}`}>
+      <span
+        style={{
+          ...getAdjudicationPillStyle(decision),
+          justifySelf: "start",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 700,
+          padding: "2px 10px",
+        }}
+      >
+        {decision ? getNetworkAdjudicationDecisionLabel(decision) : "未判定"}
+      </span>
+      {record?.reason ? (
+        <span style={{ color: "var(--qiyan-muted)", fontSize: 12, lineHeight: 1.5 }} title={record.reason}>
+          理由：{record.reason}
+        </span>
+      ) : null}
+      {controls.enabled ? (
+        <>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {ADJUDICATION_DECISIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                disabled={busy}
+                onClick={() => controls.onSubmit(rowId, option, reason)}
+                style={{
+                  border: "1px solid var(--qiyan-line)",
+                  borderRadius: 6,
+                  background: busy ? "var(--qiyan-surface-3)" : "var(--qiyan-surface)",
+                  color: "var(--qiyan-ink)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  minHeight: 30,
+                  padding: "4px 10px",
+                  cursor: busy ? "not-allowed" : "pointer",
+                }}
+              >
+                {getNetworkAdjudicationButtonLabel(option)}
+              </button>
+            ))}
+          </div>
+          <input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="理由（可选）"
+            aria-label={`判定理由 ${rowId}`}
+            style={{
+              border: "1px solid var(--qiyan-line)",
+              borderRadius: 6,
+              fontSize: 12,
+              padding: "6px 8px",
+            }}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function TargetLineageTable({
+  rows,
+  adjudication,
+}: {
+  rows: NetworkTargetLineageRow[];
+  adjudication: RowAdjudicationControls;
+}) {
   return (
     <div style={{ maxWidth: "100%", overflowX: "auto", marginBottom: 16 }}>
       <table
         style={{
           width: "100%",
-          minWidth: 1640,
+          minWidth: 1900,
           borderCollapse: "collapse",
           fontSize: 13,
           textAlign: "left",
@@ -72,6 +210,7 @@ function TargetLineageTable({ rows }: { rows: NetworkTargetLineageRow[] }) {
               "人工判定",
               "决策",
               "来源记录",
+              "Reviewer 判定操作",
             ].map((heading) => (
               <th
                 key={heading}
@@ -126,6 +265,9 @@ function TargetLineageTable({ rows }: { rows: NetworkTargetLineageRow[] }) {
               <td style={{ padding: "10px 8px", fontFamily: "monospace" }}>
                 {row.source_record_ids.join(", ") || "无"}
               </td>
+              <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                <LineageAdjudicationCell rowId={row.lineage_row_id} controls={adjudication} />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -137,6 +279,7 @@ function TargetLineageTable({ rows }: { rows: NetworkTargetLineageRow[] }) {
 export default function NetworkAnalysisClient() {
   const searchParams = useSearchParams();
   const focusEntityId = searchParams.get("focus");
+  const taskIdParam = parseNetworkTaskIdParam(searchParams.get("task_id"));
   const [query, setQuery] = useState("消风散");
   const [analysisType, setAnalysisType] = useState<NetworkAnalysisType>("formula");
   const [phenotype, setPhenotype] = useState("特应性皮炎伴 2 型炎症与皮肤屏障异常");
@@ -167,8 +310,18 @@ export default function NetworkAnalysisClient() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<NetworkAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [adjudication, setAdjudication] = useState<NetworkAdjudicationProjection | null>(null);
+  const [adjudicationError, setAdjudicationError] = useState<string | null>(null);
+  const [adjudicationBusyRowIds, setAdjudicationBusyRowIds] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+  const adjudicationBusyRowIdsRef = useRef<ReadonlySet<string>>(new Set<string>());
+  // Identifies the task the user is currently looking at, so a late response from a
+  // superseded task can never paint its lineage or decisions over the current one.
+  const activeTaskIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const appliedFocusRef = useRef<string | null>(null);
+  const appliedTaskIdRef = useRef<string | null>(null);
   const diseaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const compoundImportInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -179,14 +332,28 @@ export default function NetworkAnalysisClient() {
     };
   }, []);
 
+  function beginRun() {
+    // Invalidate any in-flight poll/refetch before a new run so its late response
+    // cannot land on top of the run the reviewer just started.
+    activeTaskIdRef.current = null;
+    setErrorMessage(null);
+    setResult(null);
+    setAdjudication(null);
+    setAdjudicationError(null);
+    setProgress(0);
+  }
+
   async function pollUntilCompleted(taskId: string) {
+    activeTaskIdRef.current = taskId;
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-      if (!mountedRef.current) {
+      // Bail out as soon as a newer task supersedes this one, so a slow poll for an
+      // abandoned task cannot overwrite the task the reviewer is now viewing.
+      if (!mountedRef.current || activeTaskIdRef.current !== taskId) {
         return;
       }
       try {
         const polled = await fetchNetworkResult(taskId);
-        if (!mountedRef.current) {
+        if (!mountedRef.current || activeTaskIdRef.current !== taskId) {
           return;
         }
         setProgress(polled.progress);
@@ -197,6 +364,7 @@ export default function NetworkAnalysisClient() {
         }
         if (polled.status === "completed" && polled.result) {
           setResult(polled.result);
+          setAdjudication(polled.adjudication ?? null);
           setPhase("completed");
           return;
         }
@@ -329,7 +497,12 @@ export default function NetworkAnalysisClient() {
       return;
     }
 
+    // Keeps the parent result on screen while the child task is created, but still
+    // invalidates any in-flight poll so its late response cannot win.
+    activeTaskIdRef.current = null;
     setErrorMessage(null);
+    setAdjudication(null);
+    setAdjudicationError(null);
     setProgress(0);
     setPhase("submitting");
     try {
@@ -387,9 +560,7 @@ export default function NetworkAnalysisClient() {
       setPhase("error");
       return;
     }
-    setErrorMessage(null);
-    setResult(null);
-    setProgress(0);
+    beginRun();
     setPhase("submitting");
     try {
       const accepted = await verifyNetworkDiseaseImport(
@@ -466,9 +637,7 @@ export default function NetworkAnalysisClient() {
       query_date: queryDate,
     },
   ) {
-    setErrorMessage(null);
-    setResult(null);
-    setProgress(0);
+    beginRun();
     setPhase("submitting");
 
     try {
@@ -493,8 +662,85 @@ export default function NetworkAnalysisClient() {
     }
   }
 
+  async function onSubmitAdjudication(
+    rowId: string,
+    decision: NetworkAdjudicationDecision,
+    reason: string,
+  ) {
+    const currentResult = result;
+    if (!currentResult) {
+      return;
+    }
+    // Synchronous ref guard: `disabled` only takes effect on the next commit, so a
+    // fast double-click would otherwise slip a duplicate audit event through.
+    if (adjudicationBusyRowIdsRef.current.has(rowId)) {
+      return;
+    }
+    const taskId = currentResult.task_id;
+    adjudicationBusyRowIdsRef.current = new Set(adjudicationBusyRowIdsRef.current).add(rowId);
+    setAdjudicationBusyRowIds(adjudicationBusyRowIdsRef.current);
+    setAdjudicationError(null);
+    try {
+      await submitNetworkAdjudication(taskId, {
+        lineage_row_id: rowId,
+        decision,
+        reason,
+      });
+    } catch {
+      if (mountedRef.current && activeTaskIdRef.current === taskId) {
+        setAdjudicationError("提交人工判定失败，请确认任务已完成、该 lineage 行存在，然后重试。");
+      }
+      releaseAdjudicationRow(rowId);
+      return;
+    }
+    // The write landed. A failed refresh must not be reported as a failed decision.
+    try {
+      const refreshed = await fetchNetworkResult(taskId);
+      if (!mountedRef.current || activeTaskIdRef.current !== taskId) {
+        return;
+      }
+      if (refreshed.result) {
+        setResult(refreshed.result);
+      }
+      setAdjudication(refreshed.adjudication ?? null);
+    } catch {
+      if (mountedRef.current && activeTaskIdRef.current === taskId) {
+        setAdjudicationError("人工判定已记录，但刷新判定进度失败；请重新加载任务以查看最新状态。");
+      }
+    } finally {
+      releaseAdjudicationRow(rowId);
+    }
+  }
+
+  function releaseAdjudicationRow(rowId: string) {
+    const next = new Set(adjudicationBusyRowIdsRef.current);
+    next.delete(rowId);
+    adjudicationBusyRowIdsRef.current = next;
+    if (mountedRef.current) {
+      setAdjudicationBusyRowIds(next);
+    }
+  }
+
+  useEffect(() => {
+    if (!taskIdParam) {
+      return;
+    }
+    if (appliedTaskIdRef.current === taskIdParam) {
+      return;
+    }
+    appliedTaskIdRef.current = taskIdParam;
+    beginRun();
+    setPhase("polling");
+    void pollUntilCompleted(taskIdParam);
+    // one-shot deep link from 我的研究: depend only on taskIdParam so re-renders do not re-poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskIdParam]);
+
   useEffect(() => {
     if (!focusEntityId) {
+      return;
+    }
+    if (taskIdParam) {
       return;
     }
     if (appliedFocusRef.current === focusEntityId) {
@@ -541,6 +787,24 @@ export default function NetworkAnalysisClient() {
   const verifiedDiseaseProvenance =
     result?.target_lineage.disease_import_provenance?.provenance_verification_status ===
     "server_verified_raw_artifact";
+  const adjudicationDecisionMap = buildNetworkAdjudicationDecisionMap(adjudication?.current);
+  const adjudicationCounts = adjudication?.counts ?? null;
+  const adjudicationRowCount = result ? countNetworkLineageRows(result.target_lineage) : 0;
+  const adjudicationUnavailableReason = getNetworkAdjudicationUnavailableReason({
+    taskCompleted: phase === "completed" && Boolean(result),
+    lineageRowCount: adjudicationRowCount,
+  });
+  const adjudicationInFlightMessage = getNetworkAdjudicationInFlightMessage(
+    adjudicationBusyRowIds.size,
+  );
+  const rowAdjudicationControls: RowAdjudicationControls = {
+    enabled: adjudicationUnavailableReason === null,
+    busyRowIds: adjudicationBusyRowIds,
+    decisionMap: adjudicationDecisionMap,
+    onSubmit: (rowId, decision, reason) => {
+      void onSubmitAdjudication(rowId, decision, reason);
+    },
+  };
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -727,7 +991,22 @@ export default function NetworkAnalysisClient() {
               ) : (
                 <span style={{ color: "var(--qiyan-muted)", fontSize: 13 }}>未导入</span>
               )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              <details
+                aria-label="部署方高级配置（operator）"
+                style={{
+                  border: "1px solid var(--qiyan-line)",
+                  borderRadius: 8,
+                  background: "var(--qiyan-surface)",
+                  padding: "10px 12px",
+                }}
+              >
+                <summary style={{ cursor: "pointer", color: "var(--qiyan-ink)", fontWeight: 700 }}>
+                  部署方高级配置（operator）
+                </summary>
+                <p style={{ color: "var(--qiyan-muted)", fontSize: 13, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                  以下字段由部署方按数据来源与合规要求冻结，普通使用无需修改；改动会进入服务端核验的导入声明。
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <label style={{ display: "grid", gap: 6, color: "var(--qiyan-ink)", fontWeight: 700 }}>
                   Open Targets release
                   <input value={openTargetsRelease} onChange={(event) => setOpenTargetsRelease(event.target.value)} />
@@ -748,7 +1027,8 @@ export default function NetworkAnalysisClient() {
                   Usage / license note
                   <input value={usageLicenseNote} onChange={(event) => setUsageLicenseNote(event.target.value)} />
                 </label>
-              </div>
+                </div>
+              </details>
               <span style={{ color: "var(--qiyan-muted)", fontSize: 13, lineHeight: 1.6 }}>
                 选择原始文件后，运行任务将由服务端核验 release、阈值与映射声明；客户端不提交 records、hash 或判定字段。
               </span>
@@ -873,7 +1153,9 @@ export default function NetworkAnalysisClient() {
           >
             <h3 style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "0 0 8px" }}>科研就绪门禁</h3>
             <p style={{ color: "var(--qiyan-muted-2)", margin: "0 0 8px", lineHeight: 1.65 }}>
-              formal_network_ready：{result.readiness?.formal_network_ready ? "是" : "否"}；协议完整：
+              formal_network_ready：
+              {result.readiness?.formal_network_ready ? "是（达到正式科研标准）" : "否（未达正式科研标准）"}
+              ；协议完整：
               {result.readiness?.protocol_complete ? "是" : "否"}。
             </p>
             {result.research_protocol ? (
@@ -905,6 +1187,48 @@ export default function NetworkAnalysisClient() {
               <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.65 }}>
                 疾病与成分靶点必须来自独立上游证据集合；交集只能由两者派生，自动抽取记录在人工判定前不得升级为正式研究事实。
               </p>
+            </div>
+
+            <div
+              aria-label="人工判定进度"
+              style={{
+                border: "1px solid var(--qiyan-line)",
+                borderRadius: 8,
+                background: "var(--qiyan-surface-3)",
+                padding: "12px 14px",
+                marginBottom: 16,
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <strong style={{ color: "var(--qiyan-ink)" }}>人工判定</strong>
+                <span style={{ color: "var(--qiyan-muted-2)", fontSize: 14 }}>
+                  已纳入 {adjudicationCounts?.included ?? 0} · 已排除 {adjudicationCounts?.excluded ?? 0} ·
+                  待复核 {adjudicationCounts?.needs_review ?? 0} · 未判定{" "}
+                  {adjudicationCounts?.pending ?? adjudicationRowCount}
+                </span>
+              </div>
+              <p style={{ color: "var(--qiyan-muted)", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                人工判定仅记录 reviewer 决策，不会修改快照数据，也不会单独使网络达到正式科研标准。
+              </p>
+              {adjudicationUnavailableReason ? (
+                <p role="note" style={{ color: "#92400e", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                  {adjudicationUnavailableReason}
+                </p>
+              ) : null}
+              <p
+                role="status"
+                aria-live="polite"
+                style={{ color: "var(--qiyan-muted-2)", fontSize: 13, margin: 0, lineHeight: 1.6 }}
+              >
+                {adjudicationInFlightMessage ?? ""}
+              </p>
+              {adjudicationError ? (
+                <p role="alert" style={{ color: "#b91c1c", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                  {adjudicationError}
+                </p>
+              ) : null}
             </div>
 
             <div
@@ -1208,14 +1532,20 @@ export default function NetworkAnalysisClient() {
                   : "未采集独立疾病靶点集合；当前不能计算疾病-成分靶点交集。"}
               </p>
             ) : (
-              <TargetLineageTable rows={result.target_lineage.disease_targets} />
+              <TargetLineageTable
+                rows={result.target_lineage.disease_targets}
+                adjudication={rowAdjudicationControls}
+              />
             )}
 
             <h4 style={{ color: "var(--qiyan-ink)", fontSize: 16, margin: "0 0 8px" }}>成分靶点逐行记录</h4>
             {result.target_lineage.compound_targets.length === 0 ? (
               <p style={{ color: "var(--qiyan-muted-2)", margin: "0 0 16px" }}>未提取成分靶点。</p>
             ) : (
-              <TargetLineageTable rows={result.target_lineage.compound_targets} />
+              <TargetLineageTable
+                rows={result.target_lineage.compound_targets}
+                adjudication={rowAdjudicationControls}
+              />
             )}
 
             <h4 style={{ color: "var(--qiyan-ink)", fontSize: 16, margin: "0 0 8px" }}>
@@ -1230,7 +1560,7 @@ export default function NetworkAnalysisClient() {
                 <table
                   style={{
                     width: "100%",
-                    minWidth: 1100,
+                    minWidth: 1360,
                     borderCollapse: "collapse",
                     fontSize: 13,
                     textAlign: "left",
@@ -1247,6 +1577,7 @@ export default function NetworkAnalysisClient() {
                         "自动状态",
                         "人工判定",
                         "决策",
+                        "Reviewer 判定操作",
                       ].map((heading) => (
                         <th
                           key={heading}
@@ -1279,6 +1610,12 @@ export default function NetworkAnalysisClient() {
                           {row.adjudication_status}
                         </td>
                         <td style={{ padding: "10px 8px" }}>{row.decision}</td>
+                        <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                          <LineageAdjudicationCell
+                            rowId={row.lineage_row_id}
+                            controls={rowAdjudicationControls}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

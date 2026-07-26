@@ -99,7 +99,7 @@ pnpm e2e
 
 ## 当前下一步候选
 
-**当前唯一工程主线（2026-07-15）**：Open Targets disease 与离线 `chembl_known_activity_v1` compound raw-artifact 均已进入 `server_verified_raw_artifact` 中间态，分别保存不可变 runtime artifact、与 raw hash 绑定的 operator manifest 元数据、raw-byte `source_artifact_sha256` 与 canonical `import_payload_sha256`；compound 仅能从同 owner 的 disease-verified parent 创建 immutable child task 并持久化 parent link。客户端不能提交 records/hash/判定字段冒充核验来源。child 当前只导出冻结 lineage/交集，不运行 provider、网络分析、PPI、通路或富集，`formal_network_ready` 仍恒为 false。下一且仅下一工程切片仍是 owner-scoped 的逐边人工 adjudication；它不能单独产生网络结论或翻转 readiness。之后必须另行定义、验证并批准可复算的 source-bound 网络装配 gate；在此之前不得把 artifact consistency 或人工判定写成 scientific readiness。
+**当前唯一工程主线（2026-07-26）**：Gate 2 双侧 raw-artifact provenance 与 owner-scoped 逐行人工 adjudication 均已完成（见 `docs/handoffs/2026-07-26-owner-scoped-adjudication.md`）。判定通过 `POST /api/network/result/{task_id}/adjudications` append-only 记录，`GET /api/network/tasks` 提供 owner-scoped 任务列表；projection 挂在结果响应信封而非冻结快照上，同一 row latest wins，`reviewer_id` 持久化但从不回投，未知/外人/legacy ownerless task 一律 `404`。`formal_network_ready` 仍恒为 false，冻结 lineage row 的 `adjudication_status` / `decision` 仍恒为 `pending` / `unreviewed`——新判定是并行审计流，不回写 lineage row。**判定能力已上线，但尚无任何真实领域 reviewer 判定过任何一行；能力不等于事实，事实也不等于科学有效。** 下一步先修 `-IncludeE2E` 既有红线（`main-path` 与 `literature-data-source` 两条 spec 的 `networkidle` 超时，已确认与本切片无关）恢复绿色基线，之后必须另行定义、验证并批准可复算的 source-bound 网络装配 gate；在此之前不得把 artifact consistency 或人工判定写成 scientific readiness。
 
 **并行 HITL（不占工程主线）**：由一名未参与 ranker 调参的真实临床或科研 reviewer 接受 held-out Track A 问题集并完成 150 个 blinded 二元相关性标签，产出诚实的 `precision@5` / `MRR@5`；在真人数字出现前不声称检索有效。
 

@@ -10,11 +10,14 @@ from app.core.reviewer_identity import require_reviewer_id
 from app.schemas.network import (
     AnalysisType,
     EvidencePolicy,
+    NetworkAdjudicationRequest,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
     NetworkCompoundTargetVerifyMetadata,
     NetworkDiseaseTargetVerifyMetadata,
     NetworkResultResponse,
+    NetworkTargetAdjudicationRecord,
+    NetworkTaskListResponse,
 )
 from app.schemas.network_entities import NetworkEntitiesResponse
 from app.services.network import (
@@ -25,6 +28,8 @@ from app.services.network import (
     get_network_analysis_result,
     get_network_analysis_task,
     list_all_entities,
+    list_network_analysis_tasks,
+    submit_network_target_adjudication,
 )
 
 router = APIRouter(prefix="/api/network", tags=["network"])
@@ -195,12 +200,45 @@ async def verify_compound_import_endpoint(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.get("/tasks", response_model=NetworkTaskListResponse)
+def network_task_list_endpoint(
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+) -> NetworkTaskListResponse:
+    return list_network_analysis_tasks(reviewer_id)
+
+
 @router.get("/result/{task_id}", response_model=NetworkResultResponse)
 def network_result_endpoint(
     task_id: str,
     reviewer_id: Annotated[str, Depends(require_reviewer_id)],
 ) -> NetworkResultResponse:
     state, payload = get_network_analysis_result(task_id, reviewer_id)
+    if state == "not_found" or payload is None:
+        raise HTTPException(status_code=404, detail="Network analysis task not found")
+    return payload
+
+
+@router.post(
+    "/result/{task_id}/adjudications",
+    response_model=NetworkTargetAdjudicationRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_network_adjudication_endpoint(
+    task_id: str,
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+    request: NetworkAdjudicationRequest = Body(),
+) -> NetworkTargetAdjudicationRecord:
+    state, payload = submit_network_target_adjudication(task_id, reviewer_id, request)
+    if state == "not_completed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only a completed network analysis task can be adjudicated",
+        )
+    if state == "unknown_row":
+        raise HTTPException(
+            status_code=422,
+            detail="lineage_row_id does not exist in the task target lineage",
+        )
     if state == "not_found" or payload is None:
         raise HTTPException(status_code=404, detail="Network analysis task not found")
     return payload
@@ -220,7 +258,7 @@ def network_report_endpoint(
         raise HTTPException(status_code=202, detail="Network analysis task is still running")
     if payload.result is None:
         raise HTTPException(status_code=500, detail="Task completed but result is missing")
-    markdown = build_network_report_markdown(payload.result)
+    markdown = build_network_report_markdown(payload.result, adjudication=payload.adjudication)
     return PlainTextResponse(content=markdown, media_type="text/plain; charset=utf-8")
 
 

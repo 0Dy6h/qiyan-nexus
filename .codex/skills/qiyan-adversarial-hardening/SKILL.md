@@ -23,6 +23,7 @@ Use this workflow to turn an adversarial finding into a small, verifiable, fail-
 - Freeze source database, version, query date, species, score, threshold, identifier mapping, and source record IDs before claiming reproducibility. Missing values must lower readiness rather than disappear from the UI or report.
 - Keep artifact consistency separate from scientific readiness. Internal agreement proves neither source validity nor biological or clinical truth.
 - When a verified artifact establishes only a frozen upstream snapshot, return a snapshot-only projection: do not invoke downstream providers or populate graph, pathway, PPI, enrichment, or other derived-analysis fields. Keep readiness false with an explicit remaining-gate blocker, and have the independent validator, report, and UI enforce the same boundary.
+- Keep a human-decision audit stream parallel to the frozen snapshot, never inside it. Project it on the response envelope, resolve repeat decisions as latest-wins over an append-only history, persist reviewer identity without ever projecting it back, and keep it structurally unable to flip readiness. Recording a decision is not the same as a decision having been made, and neither is scientific validity.
 - Build important validators independently of the producer path. Recompute counts, intersections, protocol consistency, canonical payload hashes, and raw-byte hashes without importing the service that generated the artifact. State explicitly when a validator does not independently replay the producer's parser.
 
 ## Write the adversarial test first
@@ -45,6 +46,8 @@ Create a RED test for the smallest counterexample:
 
 Confirm the test fails for the intended reason before implementing.
 
+A concurrency test must be able to observe the race it claims to cover. Two repository instances in one process share the module-level path lock, so they cannot demonstrate a cross-process lost update — such a test passes with the guard removed and proves nothing. Force the interleaving explicitly, for example by committing an out-of-band write on a separate connection between the read and the guarded write, then delete the guard and confirm the test actually fails.
+
 ## Implement fail-closed boundaries
 
 - Build reviewer identity only after access-token verification. Ignore untrusted reviewer headers in open mode.
@@ -58,11 +61,17 @@ Confirm the test fails for the intended reason before implementing.
 - Reject unsupported transfer framing and enforce byte/row/resource caps before multipart parsing, spooling, domain parsing, or repository writes.
 - Persist content-addressed artifacts through a same-directory temporary file, complete write plus flush/fsync, server-side rehash, and atomic replace. A hash-shaped filename alone does not make a partial write safe.
 - Escape or structurally encode provenance fields at every HTML/Markdown/export boundary; provenance is attacker-controlled output even after its bytes are integrity-checked.
-- Share network-task SQLite locks by canonical database path and rollback on failure. Treat literature/chunk locks as instance-local until code proves otherwise. Never claim cross-process safety from an in-process lock.
+- Share network-task SQLite locks by canonical database path and rollback on failure. Treat literature/chunk locks as instance-local until code proves otherwise. Never claim cross-process safety from an in-process lock. Any new read-modify-write on a shared row needs the same compare-and-set plus retry the neighbouring methods already use — an existing guard in the same file is the requirement statement, and a new method that skips it is a defect.
+- Keep a write and the read that refreshes the UI afterwards in separate error paths. Sharing one `catch` reports a durable write as failed, which in an append-only audit domain invites a retry that pollutes the history with an event that should never have existed.
+- Assert the location of a cross-boundary field on both sides. A projection the backend returns on the response envelope but the client reads off the nested snapshot yields zeros with no error anywhere — silent data loss that no type checker or happy-path test catches.
 - Pass executable arguments structurally. Never place unvalidated operator input or secrets into `PowerShell -Command` or shell fragments. A curl config may be generated only from strict allowlisted input and passed through stdin or another controlled non-command channel.
 - Keep real LLM, embedding, PostgreSQL, and heavy infrastructure opt-in unless an ADR explicitly changes the default.
 
 ## Verify the complete slice
+
+When a gate is red, rule out the toolchain before editing code. pnpm writes absolute symlinks, so moving the repository leaves every frontend dependency dangling and every frontend gate failing for reasons unrelated to the diff; `rm -rf frontend/node_modules && pnpm install --frozen-lockfile` restores it. Attribute a pre-existing failure by stashing the working changes and re-running: a failure that reproduces on the clean tree is not this slice's, and saying so requires having checked.
+
+Inheriting an unverified work-in-progress means running the gate first, not adding features. Unverified code carries defects that only a green baseline can expose.
 
 Run focused tests during RED -> GREEN, then execute:
 
