@@ -11,9 +11,9 @@ import {
 
 const navItems = [
   { href: "/network", label: "网络药理学" },
+  { href: "/tasks", label: "我的研究" },
   { href: "/literature", label: "文献检索" },
   { href: "/rag", label: "证据问答" },
-  { href: "/evals/rag-ad", label: "证据评估" },
   { href: "/compliance", label: "合规边界" },
 ];
 
@@ -25,10 +25,6 @@ const railSignals = [
 function getCurrentNavHref(pathname: string) {
   if (pathname.startsWith("/literature")) {
     return "/literature";
-  }
-
-  if (pathname.startsWith("/evals/rag-ad")) {
-    return "/evals/rag-ad";
   }
 
   return navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.href;

@@ -18,6 +18,7 @@ from app.schemas.network import (
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -27,6 +28,9 @@ _DISEASE_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkDiseaseTargetSnapshot] = Ty
 )
 _COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = TypeAdapter(
     NetworkCompoundTargetSnapshot
+)
+_ADJUDICATION_LIST_ADAPTER: TypeAdapter[list[NetworkTargetAdjudication]] = TypeAdapter(
+    list[NetworkTargetAdjudication]
 )
 
 _POSTGRES_DSN_ENV = "QIYAN_POSTGRES_DSN"
@@ -65,6 +69,12 @@ def _row_to_record(row: dict[str, Any]) -> NetworkTaskRecord:
         row["warnings"] = []
     elif isinstance(row["warnings"], str):
         row["warnings"] = json.loads(row["warnings"])
+    if row.get("adjudications") is None:
+        row.pop("adjudications", None)
+    else:
+        if isinstance(row["adjudications"], str):
+            row["adjudications"] = json.loads(row["adjudications"])
+        row["adjudications"] = _ADJUDICATION_LIST_ADAPTER.validate_python(row["adjudications"])
     return NetworkTaskRecord.model_validate(row)
 
 
@@ -101,9 +111,10 @@ class PostgresNetworkTaskRepository:
                     INSERT INTO network_tasks (
                         task_id, source_task_id, owner_id, query, analysis_type, status, progress,
                         poll_count, research_protocol, disease_target_import,
-                        compound_target_import, data_mode, result, error, warnings, created_at
+                        compound_target_import, data_mode, result, error, warnings, adjudications,
+                        created_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (task_id) DO NOTHING
                     RETURNING task_id
                     """,
@@ -131,6 +142,12 @@ class PostgresNetworkTaskRepository:
                         else None,
                         record.error,
                         Jsonb(record.warnings),
+                        Jsonb(
+                            [
+                                adjudication.model_dump(mode="json")
+                                for adjudication in record.adjudications
+                            ]
+                        ),
                         record.created_at,
                     ),
                 )
@@ -154,6 +171,20 @@ class PostgresNetworkTaskRepository:
                 )
                 row = cur.fetchone()
                 return _row_to_record(dict(row)) if row else None
+
+    def list_records_for_owner(self, owner_id: str) -> list[NetworkTaskRecord]:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    SELECT * FROM network_tasks
+                    WHERE owner_id = %s
+                    ORDER BY created_at DESC, task_id DESC
+                    """,
+                    (owner_id,),
+                )
+                rows = cur.fetchall()
+                return [_row_to_record(dict(row)) for row in rows]
 
     def advance(
         self,
@@ -211,6 +242,40 @@ class PostgresNetworkTaskRepository:
                 conn.commit()
                 return _row_to_record(dict(updated_row))
 
+    def append_adjudication(
+        self,
+        task_id: str,
+        owner_id: str,
+        adjudication: NetworkTargetAdjudication,
+    ) -> NetworkTaskRecord | None:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    "SELECT * FROM network_tasks WHERE task_id = %s AND owner_id = %s FOR UPDATE",
+                    (task_id, owner_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                record = _row_to_record(dict(row))
+                adjudications = [*record.adjudications, adjudication]
+                cur.execute(
+                    """
+                    UPDATE network_tasks
+                    SET adjudications = %s
+                    WHERE task_id = %s AND owner_id = %s
+                    RETURNING *
+                    """,
+                    (
+                        Jsonb([item.model_dump(mode="json") for item in adjudications]),
+                        task_id,
+                        owner_id,
+                    ),
+                )
+                updated_row = cur.fetchone()
+                conn.commit()
+                return _row_to_record(dict(updated_row))
+
     def upsert(
         self,
         task_id: str,
@@ -253,10 +318,11 @@ class PostgresNetworkTaskRepository:
                     """
                     INSERT INTO network_tasks (
                         task_id, source_task_id, owner_id, query, analysis_type, status, progress,
-                        poll_count, research_protocol, disease_target_import, compound_target_import,
-                        data_mode, result, error, warnings, created_at
+                        poll_count, research_protocol, disease_target_import,
+                        compound_target_import, data_mode, result, error, warnings, adjudications,
+                        created_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (task_id) DO UPDATE SET
                         query = EXCLUDED.query,
                         analysis_type = EXCLUDED.analysis_type,
@@ -286,6 +352,7 @@ class PostgresNetworkTaskRepository:
                         result_json,
                         error,
                         warnings_json,
+                        Jsonb([]),
                         created_at,
                     ),
                 )

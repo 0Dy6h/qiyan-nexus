@@ -13,6 +13,7 @@ from app.schemas.network import (
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -22,6 +23,9 @@ _DISEASE_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkDiseaseTargetSnapshot] = Ty
 )
 _COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = TypeAdapter(
     NetworkCompoundTargetSnapshot
+)
+_ADJUDICATION_LIST_ADAPTER: TypeAdapter[list[NetworkTargetAdjudication]] = TypeAdapter(
+    list[NetworkTargetAdjudication]
 )
 
 
@@ -68,6 +72,12 @@ class NetworkTaskRepository:
                 return None
             return record
 
+    def list_records_for_owner(self, owner_id: str) -> list[NetworkTaskRecord]:
+        with self._lock:
+            records = [record for record in self.read_all() if record.owner_id == owner_id]
+            records.sort(key=lambda record: (record.created_at, record.task_id), reverse=True)
+            return records
+
     def advance(
         self,
         task_id: str,
@@ -98,6 +108,31 @@ class NetworkTaskRepository:
                 warnings=next_record.warnings,
             )
 
+    def append_adjudication(
+        self,
+        task_id: str,
+        owner_id: str,
+        adjudication: NetworkTargetAdjudication,
+    ) -> NetworkTaskRecord | None:
+        with self._lock:
+            raw_items: list[dict[str, Any]] = json.loads(self.data_path.read_text(encoding="utf-8"))
+            for index, existing in enumerate(raw_items):
+                if existing.get("task_id") != task_id:
+                    continue
+                record = NetworkTaskRecord.model_validate(existing)
+                if record.owner_id != owner_id:
+                    return None
+                next_record = record.model_copy(
+                    update={"adjudications": [*record.adjudications, adjudication]}
+                )
+                raw_items[index] = next_record.model_dump(mode="json")
+                self.data_path.write_text(
+                    json.dumps(raw_items, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                return next_record
+            return None
+
     def upsert(
         self,
         task_id: str,
@@ -125,6 +160,7 @@ class NetworkTaskRepository:
             persisted_disease_target_import = disease_target_import
             persisted_compound_target_import = compound_target_import
             persisted_source_task_id = source_task_id
+            persisted_adjudications: list[NetworkTargetAdjudication] = []
             for index, existing in enumerate(raw_items):
                 if existing.get("task_id") == task_id:
                     existing_index = index
@@ -148,6 +184,12 @@ class NetworkTaskRepository:
                         else None
                     )
                     persisted_source_task_id = existing.get("source_task_id")
+                    existing_adjudications = existing.get("adjudications")
+                    persisted_adjudications = (
+                        _ADJUDICATION_LIST_ADAPTER.validate_python(existing_adjudications)
+                        if existing_adjudications is not None
+                        else []
+                    )
                     break
             record = NetworkTaskRecord(
                 task_id=task_id,
@@ -165,6 +207,7 @@ class NetworkTaskRepository:
                 result=result,
                 error=error,
                 warnings=warnings or [],
+                adjudications=persisted_adjudications,
                 created_at=created_at,
             )
             payload = record.model_dump(mode="json")

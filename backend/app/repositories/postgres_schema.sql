@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS network_tasks (
     result        JSONB,
     error         TEXT,
     warnings      JSONB NOT NULL DEFAULT '[]',
+    adjudications JSONB NOT NULL DEFAULT '[]',
     created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -104,6 +105,8 @@ ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS error TEXT;
 ALTER TABLE network_tasks
     ADD COLUMN IF NOT EXISTS warnings JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE network_tasks
+    ADD COLUMN IF NOT EXISTS adjudications JSONB NOT NULL DEFAULT '[]';
 
 -- Indexes for network_tasks table
 CREATE INDEX IF NOT EXISTS idx_network_tasks_status ON network_tasks(status);

@@ -16,6 +16,7 @@ from app.schemas.network import (
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -76,12 +77,35 @@ class NetworkTaskRepositoryProtocol(Protocol):
 
     def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None: ...
 
+    def list_records_for_owner(self, owner_id: str) -> list[NetworkTaskRecord]:
+        """Return records owned by ``owner_id``, newest first.
+
+        Legacy ownerless records (``owner_id is None``) never match — listing
+        fails closed just like ``get_owned``. Ordering is deterministic:
+        ``created_at`` descending, ties broken by ``task_id`` descending.
+        """
+        ...
+
     def advance(
         self,
         task_id: str,
         owner_id: str,
         transition: Callable[[NetworkTaskRecord], NetworkTaskRecord],
     ) -> NetworkTaskRecord | None: ...
+
+    def append_adjudication(
+        self,
+        task_id: str,
+        owner_id: str,
+        adjudication: NetworkTargetAdjudication,
+    ) -> NetworkTaskRecord | None:
+        """Append one adjudication to the owned task and return the record.
+
+        Append-only: existing adjudications are never reordered, updated, or
+        removed.  Fails closed (returns ``None``) for unknown, foreign, or
+        legacy ownerless records, mirroring ``get_owned``/``advance``.
+        """
+        ...
 
     def upsert(
         self,

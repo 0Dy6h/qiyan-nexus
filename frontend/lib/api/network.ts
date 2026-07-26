@@ -253,6 +253,52 @@ export type NetworkAnalyzeAccepted = {
   data_mode: NetworkDataMode;
 };
 
+export type NetworkAdjudicationDecision = "included" | "excluded" | "needs_review";
+
+export type NetworkAdjudicationRecord = {
+  lineage_row_id: string;
+  decision: NetworkAdjudicationDecision;
+  reason: string | null;
+  decided_at: string;
+};
+
+export type NetworkAdjudicationCounts = {
+  included: number;
+  excluded: number;
+  needs_review: number;
+  pending: number;
+};
+
+export type NetworkAdjudicationProjection = {
+  counts: NetworkAdjudicationCounts;
+  current: NetworkAdjudicationRecord[];
+};
+
+export type NetworkAdjudicationAccepted = NetworkAdjudicationRecord & {
+  adjudication_id: string;
+};
+
+export type NetworkAdjudicationSubmission = {
+  lineage_row_id: string;
+  decision: NetworkAdjudicationDecision;
+  reason?: string | null;
+};
+
+export type NetworkTaskSummary = {
+  task_id: string;
+  source_task_id: string | null;
+  query: string;
+  analysis_type: NetworkAnalysisType;
+  status: NetworkTaskStatus;
+  data_mode: NetworkDataMode;
+  formal_network_ready: boolean;
+  created_at: string;
+};
+
+export type NetworkTaskListResponse = {
+  tasks: NetworkTaskSummary[];
+};
+
 export type NetworkResultResponse = {
   task_id: string;
   status: NetworkTaskStatus;
@@ -261,6 +307,9 @@ export type NetworkResultResponse = {
   result: NetworkAnalysisResult | null;
   error?: string | null;
   warnings?: string[];
+  // Append-only manual adjudication projection. Lives on the response, not on
+  // the frozen result snapshot, because adjudications never mutate the result.
+  adjudication?: NetworkAdjudicationProjection | null;
 };
 
 export function buildNetworkAnalyzeUrl() {
@@ -286,12 +335,40 @@ export function buildNetworkReportUrl(taskId: string) {
   ).toString();
 }
 
+export function buildNetworkTasksUrl() {
+  return new URL("/api/network/tasks", getBackendBaseUrl()).toString();
+}
+
+export function buildNetworkAdjudicationsUrl(taskId: string) {
+  return new URL(
+    `/api/network/result/${encodeURIComponent(taskId)}/adjudications`,
+    getBackendBaseUrl(),
+  ).toString();
+}
+
 export function getNetworkAnalysisTypeLabel(type: NetworkAnalysisType) {
   return type === "herb" ? "单味中药" : "复方";
 }
 
 export function getNetworkDataModeLabel(mode: NetworkDataMode | undefined) {
   return mode === "live" ? "真实数据 opt-in" : "Mock 演示数据";
+}
+
+export function getNetworkTaskStatusLabel(status: NetworkTaskStatus) {
+  switch (status) {
+    case "completed":
+      return "已完成";
+    case "running":
+      return "运行中";
+    case "failed":
+      return "失败";
+    default:
+      return "排队中";
+  }
+}
+
+export function getNetworkTaskReadinessLabel(formalNetworkReady: boolean) {
+  return formalNetworkReady ? "达到正式科研标准" : "未达正式科研标准";
 }
 
 export function getNetworkTargetEvidenceTypeLabel(type: NetworkTargetEvidenceType | undefined) {
@@ -409,4 +486,37 @@ export async function fetchNetworkReportMarkdown(taskId: string): Promise<string
   }
 
   return response.text();
+}
+
+export async function fetchNetworkTasks(): Promise<NetworkTaskListResponse> {
+  const response = await apiFetch(buildNetworkTasksUrl());
+
+  if (!response.ok) {
+    throw new Error("Network tasks request failed");
+  }
+
+  return response.json();
+}
+
+export async function submitNetworkAdjudication(
+  taskId: string,
+  submission: NetworkAdjudicationSubmission,
+): Promise<NetworkAdjudicationAccepted> {
+  const trimmedReason = submission.reason?.trim() ?? "";
+  const body = {
+    lineage_row_id: submission.lineage_row_id,
+    decision: submission.decision,
+    reason: trimmedReason.length > 0 ? trimmedReason : null,
+  };
+  const response = await apiFetch(buildNetworkAdjudicationsUrl(taskId), {
+    method: "POST",
+    headers: buildApiHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error("Network adjudication request failed");
+  }
+
+  return response.json();
 }

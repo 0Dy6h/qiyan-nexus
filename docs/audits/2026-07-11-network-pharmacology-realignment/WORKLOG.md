@@ -72,3 +72,18 @@
 - 工具边界：`pnpm audit --prod` 因 npm quick/fallback audit endpoint HTTP 410 retired 未形成 advisory 结果；不得解释为 0 vulnerabilities，也不得复用旧 audit 结果冒充当前结论。
 - 经验回灌：项目规则与 `qiyan-adversarial-hardening` skill 新增 derived-parent、legacy read-only failure、snapshot-only projection 和 audit-tool failure 的长期约束。
 - 当前判断：本切片已完成且主动收工，不是 blocked。下一且仅下一工程切片为 owner-scoped 人工 adjudication；其后仍需独立 source-bound network-assembly gate。
+
+## 2026-07-26 — owner-scoped 人工 adjudication 与任务列表收口
+
+- 第一性原则不变量：人工判定是**与冻结快照平行的 append-only 审计流**，不是快照的一部分。因此它必须挂在响应信封而非 `NetworkAnalysisResult` 上，必须 latest-wins 而非原地改写，且必须无法翻转 `formal_network_ready`。判定**能力**上线不等于判定**事实**发生，更不等于科学有效。
+- 会话起点即为「未验证的既有实现」：切片已有约 1200 行未提交代码，但从未跑过门禁，且带 7 个真实缺陷。接手未验证的在制品时，第一步必须是先让门禁跑起来，而不是继续加功能。
+- 环境优先于代码：目录迁移使 pnpm 绝对 symlink 全部悬空，前端门禁全红且与代码无关。**门禁红色的第一假设应是工具链而非逻辑**；未先排除环境因素就去改代码会追错方向。
+- 最高危缺陷是静默的：后端把 projection 放在响应信封，前端读 `result.adjudication`，于是判定计数恒为 0 —— reviewer 提交成功、无任何报错、看不到变化。**跨端字段位置不一致不会报错，只会静默丢数据**；契约两侧必须各写一个断言把位置钉死。
+- 第二高危缺陷是错误方向的报错：POST 与刷新 GET 共用一个 `catch`，导致「写入成功但刷新失败」被报成「提交失败请重试」。在 append-only 审计域里，误报失败会诱导 reviewer 重试并污染审计流。**写操作与其后的读刷新必须分别捕获**。
+- 并发与丢更新：`append_adjudication` 是无保护 read-modify-write，而同文件的 `advance()` 早已因同样原因使用 CAS。**同一文件内已存在的防护模式就是需求说明**；新方法未复用它即为缺陷。已套用 CAS + 重试。
+- 测试必须能失败：为 CAS 写的第一版并发测试用两个同进程 repository 实例，但它们共享 `_PATH_LOCKS`，去掉守卫后测试仍然通过——**该测试无法证明任何东西**。改为在读之后用独立 sqlite 连接提交一次外部写入，再变异测试确认去掉守卫后确实失败。既有的 `test_two_sqlite_instances_do_not_lose_concurrent_advances` 同样存在此问题。
+- 单测通过不等于契约成立：全部不变量另经活体 dev backend 回归确认（reviewer 身份不回投、readiness 不翻转、冻结 row 保持 pending、latest-wins、422/404 边界、报告段落），并用 8 路并发确认审计 ID 唯一且无丢失 append。
+- 既有红线必须与本次改动分离归因：`-IncludeE2E` 两条 literature spec 失败，**stash 全部改动后复现同样失败**，据此判定为此前引入的回归而非本切片责任。不做这一步就会误认或误赖。
+- 范围纪律：JSON backend 的跨进程守卫缺失是该 backend 所有写方法的整体属性，本次刻意不只加固单个方法，留作单独决策；lineage row 上的 `adjudication_status` 与新审计流并存的双语义也刻意保留，记入边界待 ADR。
+- 收口验证：backend `851 passed, 1 skipped`，ruff/mypy 通过；frontend `278 passed`（+37），typecheck/build 通过；`verify-local.ps1` 通过；`git diff --check` 干净；未 stage/commit/push。
+- 唯一下一步：先修 E2E 既有红线恢复绿色基线，再定义并独立验证 source-bound network-assembly gate。

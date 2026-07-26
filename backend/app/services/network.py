@@ -15,6 +15,11 @@ from app.schemas.network import (
     DataMode,
     EvidenceLevel,
     EvidencePolicy,
+    ManualAdjudicationDecision,
+    NetworkAdjudicationCounts,
+    NetworkAdjudicationCurrentEntry,
+    NetworkAdjudicationRequest,
+    NetworkAdjudicationSummary,
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
@@ -32,11 +37,16 @@ from app.schemas.network import (
     NetworkResearchProtocol,
     NetworkResearchReadiness,
     NetworkResultResponse,
+    NetworkTargetAdjudication,
+    NetworkTargetAdjudicationRecord,
     NetworkTargetIntersectionRow,
     NetworkTargetLineage,
     NetworkTargetLineageRow,
+    NetworkTaskListResponse,
     NetworkTaskRecord,
+    NetworkTaskSummary,
     TargetEvidenceOrigin,
+    TaskStatus,
 )
 from app.schemas.network_entities import (
     Compound,
@@ -903,6 +913,121 @@ def _result_response(record: NetworkTaskRecord) -> NetworkResultResponse:
         result=record.result,
         error=record.error,
         warnings=record.warnings,
+        adjudication=_adjudication_summary(record),
+    )
+
+
+def _lineage_row_ids(result: NetworkAnalysisResult) -> set[str]:
+    """Collect every adjudicable lineage row id from the frozen target sets."""
+    lineage = result.target_lineage
+    row_ids: set[str] = set()
+    for target_row in (*lineage.disease_targets, *lineage.compound_targets):
+        if target_row.lineage_row_id is not None:
+            row_ids.add(target_row.lineage_row_id)
+    for intersection_row in lineage.intersection_targets:
+        row_ids.add(intersection_row.lineage_row_id)
+    return row_ids
+
+
+def _adjudication_summary(record: NetworkTaskRecord) -> NetworkAdjudicationSummary:
+    """Project append-only adjudications over the frozen lineage.
+
+    Latest decision per lineage row wins; reviewer identity is intentionally
+    dropped.  Pure projection: never mutates the record or its lineage.
+    """
+    row_ids = _lineage_row_ids(record.result) if record.result is not None else set()
+    latest_by_row: dict[str, NetworkTargetAdjudication] = {}
+    for adjudication in record.adjudications:
+        if adjudication.lineage_row_id in row_ids:
+            latest_by_row[adjudication.lineage_row_id] = adjudication
+    counts = NetworkAdjudicationCounts(
+        included=sum(1 for item in latest_by_row.values() if item.decision == "included"),
+        excluded=sum(1 for item in latest_by_row.values() if item.decision == "excluded"),
+        needs_review=sum(1 for item in latest_by_row.values() if item.decision == "needs_review"),
+        pending=len(row_ids) - len(latest_by_row),
+    )
+    current = [
+        NetworkAdjudicationCurrentEntry(
+            lineage_row_id=row_id,
+            decision=latest_by_row[row_id].decision,
+            reason=latest_by_row[row_id].reason,
+            decided_at=latest_by_row[row_id].decided_at,
+        )
+        for row_id in sorted(latest_by_row)
+    ]
+    return NetworkAdjudicationSummary(counts=counts, current=current)
+
+
+def _build_adjudication_id(
+    task_id: str,
+    lineage_row_id: str,
+    decision: ManualAdjudicationDecision,
+    decided_at: str,
+    sequence: int,
+    nonce: str,
+) -> str:
+    """Derive the audit id for one adjudication event.
+
+    ``sequence`` comes from a pre-write snapshot, so two concurrent submissions of
+    the same decision on the same row can observe the same value; ``nonce`` keeps
+    the id unique per event so it stays a stable handle into the audit trail.
+    """
+    identity_payload = {
+        "task_id": task_id,
+        "lineage_row_id": lineage_row_id,
+        "decision": decision,
+        "decided_at": decided_at,
+        "sequence": sequence,
+        "nonce": nonce,
+    }
+    return f"adjudication-{_canonical_sha256(identity_payload)}"
+
+
+def submit_network_target_adjudication(
+    task_id: str,
+    reviewer_id: str,
+    request: NetworkAdjudicationRequest,
+) -> tuple[str, NetworkTargetAdjudicationRecord | None]:
+    """Append one manual adjudication to a frozen completed task.
+
+    Fail closed: unknown/foreign/legacy-ownerless tasks are ``not_found``;
+    only a ``completed`` task with a frozen result may be adjudicated;
+    ``lineage_row_id`` must exist in the frozen target lineage.  The
+    reviewer identity is persisted for audit but never projected back.
+    """
+    repo = _get_repository()
+    record = repo.get_owned(task_id, reviewer_id)
+    if record is None:
+        return "not_found", None
+    if record.status != "completed" or record.result is None:
+        return "not_completed", None
+    if request.lineage_row_id not in _lineage_row_ids(record.result):
+        return "unknown_row", None
+    decided_at = _now_iso()
+    adjudication = NetworkTargetAdjudication(
+        adjudication_id=_build_adjudication_id(
+            task_id,
+            request.lineage_row_id,
+            request.decision,
+            decided_at,
+            len(record.adjudications),
+            uuid4().hex,
+        ),
+        lineage_row_id=request.lineage_row_id,
+        decision=request.decision,
+        reason=request.reason,
+        decided_at=decided_at,
+        reviewer_id=reviewer_id,
+    )
+    updated = repo.append_adjudication(task_id, reviewer_id, adjudication)
+    if updated is None:
+        return "not_found", None
+    return "ok", NetworkTargetAdjudicationRecord(
+        adjudication_id=adjudication.adjudication_id,
+        lineage_row_id=adjudication.lineage_row_id,
+        decision=adjudication.decision,
+        reason=adjudication.reason,
+        decided_at=adjudication.decided_at,
     )
 
 
@@ -952,6 +1077,35 @@ def get_network_analysis_task(
     if _has_unlinked_compound_child(record):
         return "ok", _unlinked_compound_child_response(record)
     return "ok", _result_response(record)
+
+
+def _task_summary(record: NetworkTaskRecord) -> NetworkTaskSummary:
+    """Project a record to its list summary; owner_id is intentionally dropped."""
+    status: TaskStatus = "failed" if _has_unlinked_compound_child(record) else record.status
+    formal_network_ready = (
+        record.result.readiness.formal_network_ready if record.result is not None else False
+    )
+    return NetworkTaskSummary(
+        task_id=record.task_id,
+        source_task_id=record.source_task_id,
+        query=record.query,
+        analysis_type=record.analysis_type,
+        status=status,
+        data_mode=record.data_mode,
+        formal_network_ready=formal_network_ready,
+        created_at=record.created_at,
+    )
+
+
+def list_network_analysis_tasks(reviewer_id: str = "local-preview") -> NetworkTaskListResponse:
+    """List owner-scoped task summaries without advancing any state machine.
+
+    Legacy ownerless records are excluded at the repository layer (fail
+    closed); legacy unlinked compound children are projected as failed,
+    matching the read-only result/report projection.
+    """
+    records = _get_repository().list_records_for_owner(reviewer_id)
+    return NetworkTaskListResponse(tasks=[_task_summary(record) for record in records])
 
 
 def list_all_entities(
@@ -1093,6 +1247,7 @@ def _evidence_level_label(level: EvidenceLevel | None) -> str:
 def build_network_report_markdown(
     result: NetworkAnalysisResult,
     exported_at: str | None = None,
+    adjudication: NetworkAdjudicationSummary | None = None,
 ) -> str:
     """Build a Markdown report string equivalent to the frontend
     ``buildNetworkReportMarkdown`` function.
@@ -1100,6 +1255,7 @@ def build_network_report_markdown(
     The output format is strictly aligned with
     ``frontend/lib/network-report-export.ts``.
     """
+    adjudication = adjudication or NetworkAdjudicationSummary()
     has_compound_provenance = result.target_lineage.compound_import_provenance is not None
     if has_compound_provenance and result.source_task_id is None:
         raise ValueError("compound target lineage is missing its immutable source task link")
@@ -1364,6 +1520,38 @@ def build_network_report_markdown(
             lines.append(f"| {' | '.join(_escape_table_cell(cell) for cell in cells)} |")
     else:
         lines.append("（没有服务端派生的候选交集；禁止从成分靶点集合自我构造疾病交集。）")
+    lines.append("")
+
+    # ── Manual adjudication section (append-only audit data) ──
+    lines.append("## 人工判定")
+    lines.append("")
+    lines.append(
+        "> 逐行人工判定是附加审计数据：不改变冻结的靶点 lineage、来源 provenance 或 "
+        "formal_network_ready；同一行多次判定时仅展示最新一条。"
+    )
+    lines.append("")
+    lines.append(
+        "| Included（纳入） | Excluded（排除） | Needs review（待复核） | Pending（待判定） |"
+    )
+    lines.append("|---:|---:|---:|---:|")
+    lines.append(
+        f"| {adjudication.counts.included} | {adjudication.counts.excluded} | "
+        f"{adjudication.counts.needs_review} | {adjudication.counts.pending} |"
+    )
+    lines.append("")
+    if not adjudication.current:
+        lines.append("（尚无人工判定记录。）")
+    else:
+        lines.append("| Lineage row ID | 判定 | 理由 | 判定时间（UTC） |")
+        lines.append("|---|---|---|---|")
+        for entry in adjudication.current:
+            adjudication_cells: list[str | int | float | None] = [
+                entry.lineage_row_id,
+                entry.decision,
+                entry.reason,
+                entry.decided_at,
+            ]
+            lines.append(f"| {' | '.join(_escape_table_cell(c) for c in adjudication_cells)} |")
     lines.append("")
 
     if result.data_mode == "live" and not is_imported_compound_snapshot:
