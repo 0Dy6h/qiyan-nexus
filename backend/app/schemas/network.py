@@ -29,6 +29,7 @@ IntersectionDerivationStatus = Literal["derived"]
 AdjudicationStatus = Literal["pending", "accepted", "excluded", "needs_review"]
 TargetDecision = Literal["unreviewed", "include", "exclude"]
 ManualAdjudicationDecision = Literal["included", "excluded", "needs_review"]
+AssemblyGateState = Literal["blocked", "assembly_input_ready"]
 
 
 class NetworkResearchProtocol(BaseModel):
@@ -574,6 +575,59 @@ class NetworkAdjudicationSummary(BaseModel):
     current: list[NetworkAdjudicationCurrentEntry] = Field(default_factory=list)
 
 
+class NetworkAssemblyGateBlocker(BaseModel):
+    code: str
+    row_ids: list[str] = Field(default_factory=list)
+
+
+class NetworkAssemblySelectedIntersection(BaseModel):
+    lineage_row_id: str
+    canonical_symbol: str
+    frozen_disease_lineage_row_ids: list[str]
+    frozen_compound_lineage_row_ids: list[str]
+    selected_disease_lineage_row_ids: list[str] = Field(min_length=1)
+    selected_compound_lineage_row_ids: list[str] = Field(min_length=1)
+
+
+class NetworkAssemblyPlan(BaseModel):
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    canonicalization_id: Literal["qiyan_canonical_json_v1"] = "qiyan_canonical_json_v1"
+    task_id: str
+    source_task_id: str
+    parent_protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    child_protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    disease_source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    compound_source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    disease_import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    compound_import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    target_lineage_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    adjudication_selection_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    selected_intersections: list[NetworkAssemblySelectedIntersection] = Field(min_length=1)
+    plan_sequence: int = Field(ge=1)
+    created_at: str
+    assembly_input_ready: Literal[True] = True
+    formal_network_ready: Literal[False] = False
+
+
+class NetworkAssemblyPlanSummary(BaseModel):
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    selected_intersection_count: int = Field(ge=1)
+    created_at: str
+    assembly_input_ready: Literal[True] = True
+    formal_network_ready: Literal[False] = False
+
+
+class NetworkAssemblyGateProjection(BaseModel):
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    state: AssemblyGateState = "blocked"
+    blockers: list[NetworkAssemblyGateBlocker] = Field(default_factory=list)
+    latest_plan: NetworkAssemblyPlanSummary | None = None
+
+
 class NetworkResultResponse(BaseModel):
     task_id: str
     status: TaskStatus
@@ -583,6 +637,9 @@ class NetworkResultResponse(BaseModel):
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
     adjudication: NetworkAdjudicationSummary = Field(default_factory=NetworkAdjudicationSummary)
+    assembly_gate: NetworkAssemblyGateProjection = Field(
+        default_factory=NetworkAssemblyGateProjection
+    )
 
 
 class NetworkTaskSummary(BaseModel):

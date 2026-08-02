@@ -10,6 +10,7 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
@@ -39,7 +40,25 @@ class NetworkTaskRepository:
 
     def __init__(self, data_path: Path):
         self.data_path = data_path
+        self._assembly_plan_path = data_path.with_name(f"{data_path.stem}.assembly-plans.json")
         self._lock = RLock()
+
+    def _read_assembly_plans(self) -> list[NetworkAssemblyPlan]:
+        if not self._assembly_plan_path.exists():
+            return []
+        payload = json.loads(self._assembly_plan_path.read_text(encoding="utf-8"))
+        return [NetworkAssemblyPlan.model_validate(item) for item in payload]
+
+    def _write_assembly_plans(self, plans: list[NetworkAssemblyPlan]) -> None:
+        self._assembly_plan_path.write_text(
+            json.dumps(
+                [plan.model_dump(mode="json") for plan in plans],
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     def read_all(self) -> list[NetworkTaskRecord]:
         with self._lock:
@@ -132,6 +151,59 @@ class NetworkTaskRepository:
                 )
                 return next_record
             return None
+
+    def list_assembly_plans(self, task_id: str, owner_id: str) -> list[NetworkAssemblyPlan]:
+        with self._lock:
+            record = self.get_owned(task_id, owner_id)
+            if record is None:
+                return []
+            return [plan for plan in self._read_assembly_plans() if plan.task_id == task_id]
+
+    def get_assembly_plan(
+        self, task_id: str, owner_id: str, plan_id: str
+    ) -> NetworkAssemblyPlan | None:
+        return next(
+            (
+                plan
+                for plan in self.list_assembly_plans(task_id, owner_id)
+                if plan.plan_id == plan_id
+            ),
+            None,
+        )
+
+    def seal_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        plan: NetworkAssemblyPlan,
+    ) -> tuple[str, NetworkAssemblyPlan | None]:
+        with self._lock:
+            record = self.get_owned(task_id, owner_id)
+            if record is None:
+                return "not_found", None
+            if (
+                tuple(item.adjudication_id for item in record.adjudications)
+                != expected_adjudication_ids
+            ):
+                return "conflict", None
+            plans = self._read_assembly_plans()
+            existing = next(
+                (
+                    item
+                    for item in plans
+                    if item.task_id == task_id
+                    and item.canonical_plan_input_sha256 == plan.canonical_plan_input_sha256
+                ),
+                None,
+            )
+            if existing is not None:
+                return "existing", existing
+            task_plans = [item for item in plans if item.task_id == task_id]
+            persisted = plan.model_copy(update={"plan_sequence": len(task_plans) + 1})
+            plans.append(persisted)
+            self._write_assembly_plans(plans)
+            return "created", persisted
 
     def upsert(
         self,

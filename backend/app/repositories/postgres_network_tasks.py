@@ -15,6 +15,7 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
@@ -275,6 +276,92 @@ class PostgresNetworkTaskRepository:
                 updated_row = cur.fetchone()
                 conn.commit()
                 return _row_to_record(dict(updated_row))
+
+    def list_assembly_plans(self, task_id: str, owner_id: str) -> list[NetworkAssemblyPlan]:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """SELECT p.plan_json FROM network_assembly_plans p
+                       JOIN network_tasks t ON t.task_id = p.task_id
+                       WHERE p.task_id = %s AND p.owner_id = %s AND t.owner_id = %s
+                       ORDER BY p.plan_sequence""",
+                    (task_id, owner_id, owner_id),
+                )
+                return [
+                    NetworkAssemblyPlan.model_validate(row["plan_json"]) for row in cur.fetchall()
+                ]
+
+    def get_assembly_plan(
+        self, task_id: str, owner_id: str, plan_id: str
+    ) -> NetworkAssemblyPlan | None:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """SELECT p.plan_json FROM network_assembly_plans p
+                       JOIN network_tasks t ON t.task_id = p.task_id
+                       WHERE p.task_id = %s AND p.owner_id = %s AND t.owner_id = %s
+                         AND p.plan_id = %s""",
+                    (task_id, owner_id, owner_id, plan_id),
+                )
+                row = cur.fetchone()
+                return NetworkAssemblyPlan.model_validate(row["plan_json"]) if row else None
+
+    def seal_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        plan: NetworkAssemblyPlan,
+    ) -> tuple[str, NetworkAssemblyPlan | None]:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """SELECT adjudications FROM network_tasks
+                       WHERE task_id = %s AND owner_id = %s FOR UPDATE""",
+                    (task_id, owner_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    conn.rollback()
+                    return "not_found", None
+                current = _ADJUDICATION_LIST_ADAPTER.validate_python(row["adjudications"])
+                if tuple(item.adjudication_id for item in current) != expected_adjudication_ids:
+                    conn.rollback()
+                    return "conflict", None
+                cur.execute(
+                    """SELECT plan_json FROM network_assembly_plans
+                       WHERE task_id = %s AND owner_id = %s
+                         AND canonical_plan_input_sha256 = %s""",
+                    (task_id, owner_id, plan.canonical_plan_input_sha256),
+                )
+                existing = cur.fetchone()
+                if existing is not None:
+                    conn.rollback()
+                    return "existing", NetworkAssemblyPlan.model_validate(existing["plan_json"])
+                cur.execute(
+                    """SELECT COALESCE(MAX(plan_sequence), 0) + 1 AS next_sequence
+                       FROM network_assembly_plans WHERE task_id = %s AND owner_id = %s""",
+                    (task_id, owner_id),
+                )
+                sequence = int(cur.fetchone()["next_sequence"])
+                persisted = plan.model_copy(update={"plan_sequence": sequence})
+                cur.execute(
+                    """INSERT INTO network_assembly_plans
+                       (plan_id, task_id, owner_id, canonical_plan_input_sha256,
+                        plan_sequence, plan_json, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        persisted.plan_id,
+                        task_id,
+                        owner_id,
+                        persisted.canonical_plan_input_sha256,
+                        sequence,
+                        Jsonb(persisted.model_dump(mode="json")),
+                        persisted.created_at,
+                    ),
+                )
+                conn.commit()
+                return "created", persisted
 
     def upsert(
         self,

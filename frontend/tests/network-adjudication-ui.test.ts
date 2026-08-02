@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildNetworkAdjudicationsUrl,
+  buildNetworkAssemblyPlansUrl,
+  sealNetworkAssemblyPlan,
   submitNetworkAdjudication,
   type NetworkAdjudicationRecord,
   type NetworkTargetLineage,
@@ -47,6 +49,39 @@ test("buildNetworkAdjudicationsUrl encodes a hostile task id instead of splittin
     buildNetworkAdjudicationsUrl("../../admin"),
     "http://127.0.0.1:8000/api/network/result/..%2F..%2Fadmin/adjudications",
   );
+});
+
+test("assembly plan URL is task-scoped and safely encoded", () => {
+  assert.equal(
+    buildNetworkAssemblyPlansUrl("network-abc123abc123"),
+    "http://127.0.0.1:8000/api/network/result/network-abc123abc123/assembly-plans",
+  );
+  assert.equal(
+    buildNetworkAssemblyPlansUrl("../../admin"),
+    "http://127.0.0.1:8000/api/network/result/..%2F..%2Fadmin/assembly-plans",
+  );
+});
+
+test("sealNetworkAssemblyPlan posts without client-supplied gate fields", async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: { url: URL | RequestInfo; init?: RequestInit }[] = [];
+  globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    captured.push({ url, init });
+    return {
+      ok: true,
+      async json() {
+        return {};
+      },
+    } as Response;
+  }) as typeof globalThis.fetch;
+  try {
+    await sealNetworkAssemblyPlan("network-abc123abc123");
+    assert.equal(captured[0]?.url, buildNetworkAssemblyPlansUrl("network-abc123abc123"));
+    assert.equal(captured[0]?.init?.method, "POST");
+    assert.equal(captured[0]?.init?.body, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("decision labels distinguish the three reviewer outcomes", () => {
@@ -281,6 +316,18 @@ test("network client states that manual adjudication does not move the readiness
 
   assert.match(source, /不会修改快照数据/);
   assert.match(source, /不会单独使网络达到正式科研标准/);
+});
+
+test("assembly gate is read from the response envelope and never labeled scientific readiness", () => {
+  const source = getSource("components/NetworkAnalysisClient.tsx");
+
+  assert.match(source, /setAssemblyGate\(polled\.assembly_gate \?\? null\)/);
+  assert.match(source, /aria-label="候选装配输入门禁"/);
+  assert.match(source, /封存只绑定当前协议/);
+  assert.match(source, /不授权后续 writer/);
+  assert.match(source, /不翻转 formal_network_ready/);
+  assert.doesNotMatch(source, /装配输入已达到科研就绪/);
+  assert.doesNotMatch(source, /网络已就绪/);
 });
 
 test("network client deep links a task id from 我的研究 exactly once", () => {

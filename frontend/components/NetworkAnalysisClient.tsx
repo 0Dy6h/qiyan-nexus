@@ -16,9 +16,11 @@ import {
   NetworkAdjudicationRecord,
   NetworkAnalysisResult,
   NetworkAnalysisType,
+  NetworkAssemblyGateProjection,
   NetworkEvidencePolicy,
   NetworkResearchProtocol,
   NetworkTargetLineageRow,
+  sealNetworkAssemblyPlan,
   submitNetworkAdjudication,
   submitNetworkAnalysis,
   verifyNetworkCompoundImport,
@@ -55,6 +57,23 @@ function formatScore(value: number) {
 
 function formatLineageScore(value: number, scoreName?: string | null) {
   return scoreName === "pchembl_value" ? String(value) : formatScore(value);
+}
+
+function getAssemblyGateBlockerLabel(code: string) {
+  const labels: Record<string, string> = {
+    adjudication_incomplete: "仍有未判定或待复核的 lineage 行",
+    no_included_intersection: "没有可纳入的派生交集",
+    included_intersection_missing_backing: "纳入交集缺少双侧已纳入来源行",
+    broken_parent_link: "疾病父任务链接不可审计",
+    protocol_mismatch: "父子任务研究协议不一致",
+    disease_provenance_unverified: "疾病来源未通过服务端 raw-artifact 核验",
+    compound_provenance_unverified: "成分来源未通过服务端 raw-artifact 核验",
+    snapshot_only_boundary_violated: "冻结快照包含不应生成的网络输出",
+    task_not_completed: "任务尚未完成",
+    not_compound_child: "当前任务不是双侧来源的成分 child",
+    assembly_input_capacity_exceeded: "任务规模超过当前受控封存上限",
+  };
+  return labels[code] ?? code;
 }
 
 type RowAdjudicationControls = {
@@ -311,6 +330,9 @@ export default function NetworkAnalysisClient() {
   const [result, setResult] = useState<NetworkAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [adjudication, setAdjudication] = useState<NetworkAdjudicationProjection | null>(null);
+  const [assemblyGate, setAssemblyGate] = useState<NetworkAssemblyGateProjection | null>(null);
+  const [assemblyPlanError, setAssemblyPlanError] = useState<string | null>(null);
+  const [assemblyPlanBusy, setAssemblyPlanBusy] = useState(false);
   const [adjudicationError, setAdjudicationError] = useState<string | null>(null);
   const [adjudicationBusyRowIds, setAdjudicationBusyRowIds] = useState<ReadonlySet<string>>(
     () => new Set<string>(),
@@ -339,6 +361,8 @@ export default function NetworkAnalysisClient() {
     setErrorMessage(null);
     setResult(null);
     setAdjudication(null);
+    setAssemblyGate(null);
+    setAssemblyPlanError(null);
     setAdjudicationError(null);
     setProgress(0);
   }
@@ -365,6 +389,7 @@ export default function NetworkAnalysisClient() {
         if (polled.status === "completed" && polled.result) {
           setResult(polled.result);
           setAdjudication(polled.adjudication ?? null);
+          setAssemblyGate(polled.assembly_gate ?? null);
           setPhase("completed");
           return;
         }
@@ -502,6 +527,8 @@ export default function NetworkAnalysisClient() {
     activeTaskIdRef.current = null;
     setErrorMessage(null);
     setAdjudication(null);
+    setAssemblyGate(null);
+    setAssemblyPlanError(null);
     setAdjudicationError(null);
     setProgress(0);
     setPhase("submitting");
@@ -703,12 +730,51 @@ export default function NetworkAnalysisClient() {
         setResult(refreshed.result);
       }
       setAdjudication(refreshed.adjudication ?? null);
+      setAssemblyGate(refreshed.assembly_gate ?? null);
     } catch {
       if (mountedRef.current && activeTaskIdRef.current === taskId) {
         setAdjudicationError("人工判定已记录，但刷新判定进度失败；请重新加载任务以查看最新状态。");
       }
     } finally {
       releaseAdjudicationRow(rowId);
+    }
+  }
+
+  async function onSealAssemblyPlan() {
+    const currentResult = result;
+    if (!currentResult || assemblyPlanBusy) {
+      return;
+    }
+    const taskId = currentResult.task_id;
+    setAssemblyPlanBusy(true);
+    setAssemblyPlanError(null);
+    try {
+      await sealNetworkAssemblyPlan(taskId);
+    } catch {
+      if (mountedRef.current && activeTaskIdRef.current === taskId) {
+        setAssemblyPlanError("装配输入仍被门禁阻塞；请完成全部逐行判定，并保留至少一条有双侧纳入依据的交集。");
+      }
+      setAssemblyPlanBusy(false);
+      return;
+    }
+    try {
+      const refreshed = await fetchNetworkResult(taskId);
+      if (!mountedRef.current || activeTaskIdRef.current !== taskId) {
+        return;
+      }
+      if (refreshed.result) {
+        setResult(refreshed.result);
+      }
+      setAdjudication(refreshed.adjudication ?? null);
+      setAssemblyGate(refreshed.assembly_gate ?? null);
+    } catch {
+      if (mountedRef.current && activeTaskIdRef.current === taskId) {
+        setAssemblyPlanError("装配输入已封存，但刷新门禁状态失败；请重新加载任务查看最新计划。");
+      }
+    } finally {
+      if (mountedRef.current) {
+        setAssemblyPlanBusy(false);
+      }
     }
   }
 
@@ -1230,6 +1296,71 @@ export default function NetworkAnalysisClient() {
                 </p>
               ) : null}
             </div>
+
+            {isImportedSnapshotResult ? (
+              <div
+                aria-label="候选装配输入门禁"
+                style={{
+                  border: "1px solid var(--qiyan-line)",
+                  borderRadius: 8,
+                  background: "var(--qiyan-surface-3)",
+                  padding: "12px 14px",
+                  marginBottom: 16,
+                  display: "grid",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <strong style={{ color: "var(--qiyan-ink)" }}>候选装配输入</strong>
+                  <span style={{ color: "var(--qiyan-muted-2)", fontSize: 14 }}>
+                    {assemblyGate?.state === "assembly_input_ready" ? "已封存" : "仍被门禁阻塞"}
+                  </span>
+                </div>
+                <p style={{ color: "var(--qiyan-muted)", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                  封存只绑定当前协议、双侧 artifact、冻结 lineage 与 latest-wins 判定快照；不生成网络边，不授权后续 writer，也不翻转 formal_network_ready。
+                </p>
+                {assemblyGate?.blockers.length ? (
+                  <ul style={{ margin: 0, paddingLeft: 20, color: "#92400e", fontSize: 13, lineHeight: 1.6 }}>
+                    {assemblyGate.blockers.map((blocker) => (
+                      <li key={`${blocker.code}-${blocker.row_ids.join("-")}`}>
+                        {getAssemblyGateBlockerLabel(blocker.code)}
+                        {blocker.row_ids.length ? `（${blocker.row_ids.length} 行）` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {assemblyGate?.latest_plan ? (
+                  <p style={{ color: "var(--qiyan-muted-2)", fontSize: 13, margin: 0, overflowWrap: "anywhere" }}>
+                    最新计划：{assemblyGate.latest_plan.plan_id} · 纳入交集 {assemblyGate.latest_plan.selected_intersection_count}
+                  </p>
+                ) : null}
+                <div>
+                  <button
+                    type="button"
+                    onClick={onSealAssemblyPlan}
+                    disabled={assemblyPlanBusy}
+                    aria-label="封存候选装配输入"
+                    style={{
+                      border: "1px solid #0d9488",
+                      borderRadius: 8,
+                      background: assemblyPlanBusy ? "var(--qiyan-surface-3)" : "var(--qiyan-surface)",
+                      color: "#0f766e",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      minHeight: 40,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    {assemblyPlanBusy ? "封存中..." : "封存候选装配输入"}
+                  </button>
+                </div>
+                {assemblyPlanError ? (
+                  <p role="alert" style={{ color: "#b91c1c", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                    {assemblyPlanError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div
               style={{

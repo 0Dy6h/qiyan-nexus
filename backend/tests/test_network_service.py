@@ -979,6 +979,9 @@ def test_concurrent_sqlite_polls_advance_without_losing_state(
         def advance(self, current_task_id: str, owner_id: str, transition):
             return repo.advance(current_task_id, owner_id, transition)
 
+        def list_assembly_plans(self, current_task_id: str, owner_id: str):
+            return repo.list_assembly_plans(current_task_id, owner_id)
+
         def upsert(self, **kwargs):
             return repo.upsert(**kwargs)
 

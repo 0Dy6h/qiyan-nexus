@@ -284,6 +284,43 @@ export type NetworkAdjudicationSubmission = {
   reason?: string | null;
 };
 
+export type NetworkAssemblyGateBlocker = {
+  code: string;
+  row_ids: string[];
+};
+
+export type NetworkAssemblyPlanSummary = {
+  plan_id: string;
+  policy_id: "source_bound_network_assembly_v1";
+  canonical_plan_input_sha256: string;
+  selected_intersection_count: number;
+  created_at: string;
+  assembly_input_ready: true;
+  formal_network_ready: false;
+};
+
+export type NetworkAssemblyGateProjection = {
+  policy_id: "source_bound_network_assembly_v1";
+  state: "blocked" | "assembly_input_ready";
+  blockers: NetworkAssemblyGateBlocker[];
+  latest_plan: NetworkAssemblyPlanSummary | null;
+};
+
+export type NetworkAssemblyPlan = NetworkAssemblyPlanSummary & {
+  canonicalization_id: "qiyan_canonical_json_v1";
+  task_id: string;
+  source_task_id: string;
+  plan_sequence: number;
+  selected_intersections: Array<{
+    lineage_row_id: string;
+    canonical_symbol: string;
+    frozen_disease_lineage_row_ids: string[];
+    frozen_compound_lineage_row_ids: string[];
+    selected_disease_lineage_row_ids: string[];
+    selected_compound_lineage_row_ids: string[];
+  }>;
+};
+
 export type NetworkTaskSummary = {
   task_id: string;
   source_task_id: string | null;
@@ -310,6 +347,8 @@ export type NetworkResultResponse = {
   // Append-only manual adjudication projection. Lives on the response, not on
   // the frozen result snapshot, because adjudications never mutate the result.
   adjudication?: NetworkAdjudicationProjection | null;
+  // Candidate assembly input projection. This remains separate from scientific readiness.
+  assembly_gate?: NetworkAssemblyGateProjection | null;
 };
 
 export function buildNetworkAnalyzeUrl() {
@@ -342,6 +381,13 @@ export function buildNetworkTasksUrl() {
 export function buildNetworkAdjudicationsUrl(taskId: string) {
   return new URL(
     `/api/network/result/${encodeURIComponent(taskId)}/adjudications`,
+    getBackendBaseUrl(),
+  ).toString();
+}
+
+export function buildNetworkAssemblyPlansUrl(taskId: string) {
+  return new URL(
+    `/api/network/result/${encodeURIComponent(taskId)}/assembly-plans`,
     getBackendBaseUrl(),
   ).toString();
 }
@@ -518,5 +564,13 @@ export async function submitNetworkAdjudication(
     throw new Error("Network adjudication request failed");
   }
 
+  return response.json();
+}
+
+export async function sealNetworkAssemblyPlan(taskId: string): Promise<NetworkAssemblyPlan> {
+  const response = await apiFetch(buildNetworkAssemblyPlansUrl(taskId), { method: "POST" });
+  if (!response.ok) {
+    throw new Error("Network assembly gate blocked");
+  }
   return response.json();
 }

@@ -30,6 +30,7 @@ from app.repositories.runtime_storage import (
 from app.repositories.sqlite_network_tasks import SqliteNetworkTaskRepository
 from app.schemas.network import (
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
     NetworkChain,
     NetworkCompoundTargetVerifiedSnapshot,
     NetworkDiseaseTargetImportSnapshot,
@@ -53,6 +54,35 @@ def _adjudication(
         reason="人工复核",
         decided_at=decided_at,
         reviewer_id=reviewer_id,
+    )
+
+
+def _assembly_plan(task_id: str, source_task_id: str) -> NetworkAssemblyPlan:
+    return NetworkAssemblyPlan(
+        plan_id=f"assembly-plan-{'c' * 64}",
+        task_id=task_id,
+        source_task_id=source_task_id,
+        parent_protocol_sha256="1" * 64,
+        child_protocol_sha256="1" * 64,
+        disease_source_artifact_sha256="2" * 64,
+        compound_source_artifact_sha256="3" * 64,
+        disease_import_payload_sha256="4" * 64,
+        compound_import_payload_sha256="5" * 64,
+        target_lineage_sha256="6" * 64,
+        adjudication_selection_sha256="7" * 64,
+        canonical_plan_input_sha256="c" * 64,
+        selected_intersections=[
+            {
+                "lineage_row_id": "intersection-row",
+                "canonical_symbol": "IL6",
+                "frozen_disease_lineage_row_ids": ["disease-row"],
+                "frozen_compound_lineage_row_ids": ["compound-row"],
+                "selected_disease_lineage_row_ids": ["disease-row"],
+                "selected_compound_lineage_row_ids": ["compound-row"],
+            }
+        ],
+        plan_sequence=1,
+        created_at="2026-08-02T00:00:00+00:00",
     )
 
 
@@ -179,6 +209,81 @@ class TestListRecordsForOwner:
         )
 
         assert repo.list_records_for_owner("reviewer-b") == []
+
+
+class TestAssemblyPlanPersistence:
+    def test_seals_idempotently_and_keeps_plans_owner_scoped(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        task_id = "network-assembly-child"
+        source_task_id = "network-aaaaaaaaaaaa"
+        repo.upsert(
+            task_id=task_id,
+            source_task_id=source_task_id,
+            owner_id="reviewer-a",
+            query="消风散",
+            analysis_type="formula",
+            status="completed",
+            progress=100,
+            poll_count=2,
+            result=None,
+            compound_target_import=_verified_compound_snapshot(),
+            created_at="2026-08-02T00:00:00+00:00",
+        )
+        event = _adjudication("intersection-row")
+        updated = repo.append_adjudication(task_id, "reviewer-a", event)
+        assert updated is not None
+        plan = _assembly_plan(task_id, source_task_id)
+
+        created_state, created = repo.seal_assembly_plan(
+            task_id, "reviewer-a", (event.adjudication_id,), plan
+        )
+        existing_state, existing = repo.seal_assembly_plan(
+            task_id, "reviewer-a", (event.adjudication_id,), plan
+        )
+
+        assert created_state == "created"
+        assert existing_state == "existing"
+        assert created == existing
+        assert repo.get_assembly_plan(task_id, "reviewer-a", plan.plan_id) == created
+        assert repo.list_assembly_plans(task_id, "reviewer-b") == []
+        assert repo.get_assembly_plan(task_id, "reviewer-b", plan.plan_id) is None
+
+    def test_rejects_a_plan_evaluated_against_a_stale_adjudication_stream(
+        self, repo: NetworkTaskRepositoryProtocol
+    ) -> None:
+        task_id = "network-assembly-stale"
+        source_task_id = "network-aaaaaaaaaaaa"
+        repo.upsert(
+            task_id=task_id,
+            source_task_id=source_task_id,
+            owner_id="reviewer-a",
+            query="消风散",
+            analysis_type="formula",
+            status="completed",
+            progress=100,
+            poll_count=2,
+            result=None,
+            compound_target_import=_verified_compound_snapshot(),
+            created_at="2026-08-02T00:00:00+00:00",
+        )
+        first_event = _adjudication("intersection-row")
+        assert repo.append_adjudication(task_id, "reviewer-a", first_event) is not None
+        second_event = first_event.model_copy(
+            update={"adjudication_id": f"adjudication-{'b' * 64}", "decision": "excluded"}
+        )
+        assert repo.append_adjudication(task_id, "reviewer-a", second_event) is not None
+
+        state, persisted = repo.seal_assembly_plan(
+            task_id,
+            "reviewer-a",
+            (first_event.adjudication_id,),
+            _assembly_plan(task_id, source_task_id),
+        )
+
+        assert state == "conflict"
+        assert persisted is None
+        assert repo.list_assembly_plans(task_id, "reviewer-a") == []
 
     def test_excludes_legacy_ownerless_records(self, repo: NetworkTaskRepositoryProtocol) -> None:
         assert (

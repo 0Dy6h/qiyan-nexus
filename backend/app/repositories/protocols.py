@@ -13,6 +13,7 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
@@ -104,6 +105,25 @@ class NetworkTaskRepositoryProtocol(Protocol):
         Append-only: existing adjudications are never reordered, updated, or
         removed.  Fails closed (returns ``None``) for unknown, foreign, or
         legacy ownerless records, mirroring ``get_owned``/``advance``.
+        """
+        ...
+
+    def list_assembly_plans(self, task_id: str, owner_id: str) -> list[NetworkAssemblyPlan]: ...
+
+    def get_assembly_plan(
+        self, task_id: str, owner_id: str, plan_id: str
+    ) -> NetworkAssemblyPlan | None: ...
+
+    def seal_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        plan: NetworkAssemblyPlan,
+    ) -> tuple[str, NetworkAssemblyPlan | None]:
+        """Atomically seal a plan if the adjudication stream is unchanged.
+
+        Returns ``created``, ``existing``, ``conflict``, or ``not_found``.
         """
         ...
 

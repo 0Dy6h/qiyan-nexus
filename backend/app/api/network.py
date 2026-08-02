@@ -1,7 +1,7 @@
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile
@@ -13,6 +13,7 @@ from app.schemas.network import (
     NetworkAdjudicationRequest,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
+    NetworkAssemblyPlan,
     NetworkCompoundTargetVerifyMetadata,
     NetworkDiseaseTargetVerifyMetadata,
     NetworkResultResponse,
@@ -27,8 +28,10 @@ from app.services.network import (
     create_verified_network_analysis_task,
     get_network_analysis_result,
     get_network_analysis_task,
+    get_network_assembly_plan,
     list_all_entities,
     list_network_analysis_tasks,
+    seal_network_assembly_plan,
     submit_network_target_adjudication,
 )
 
@@ -244,6 +247,54 @@ def submit_network_adjudication_endpoint(
     return payload
 
 
+@router.post(
+    "/result/{task_id}/assembly-plans",
+    response_model=NetworkAssemblyPlan,
+    status_code=status.HTTP_201_CREATED,
+)
+def seal_network_assembly_plan_endpoint(
+    task_id: str,
+    response: Response,
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+) -> NetworkAssemblyPlan:
+    state, payload = seal_network_assembly_plan(task_id, reviewer_id)
+    if state == "not_found" or payload is None:
+        raise HTTPException(status_code=404, detail="Network analysis task not found")
+    if state == "blocked":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "assembly_gate_blocked",
+                "gate": payload.model_dump(mode="json"),
+            },
+        )
+    if state == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "gate_input_changed"},
+        )
+    if not isinstance(payload, NetworkAssemblyPlan):
+        raise HTTPException(status_code=500, detail="Assembly plan persistence failed")
+    if state == "existing":
+        response.status_code = status.HTTP_200_OK
+    return payload
+
+
+@router.get(
+    "/result/{task_id}/assembly-plans/{plan_id}",
+    response_model=NetworkAssemblyPlan,
+)
+def get_network_assembly_plan_endpoint(
+    task_id: str,
+    plan_id: str,
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+) -> NetworkAssemblyPlan:
+    plan = get_network_assembly_plan(task_id, plan_id, reviewer_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Network assembly plan not found")
+    return plan
+
+
 @router.get("/result/{task_id}/report", response_class=PlainTextResponse)
 def network_report_endpoint(
     task_id: str,
@@ -258,7 +309,11 @@ def network_report_endpoint(
         raise HTTPException(status_code=202, detail="Network analysis task is still running")
     if payload.result is None:
         raise HTTPException(status_code=500, detail="Task completed but result is missing")
-    markdown = build_network_report_markdown(payload.result, adjudication=payload.adjudication)
+    markdown = build_network_report_markdown(
+        payload.result,
+        adjudication=payload.adjudication,
+        assembly_gate=payload.assembly_gate,
+    )
     return PlainTextResponse(content=markdown, media_type="text/plain; charset=utf-8")
 
 

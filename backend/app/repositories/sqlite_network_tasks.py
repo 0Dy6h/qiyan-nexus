@@ -20,6 +20,7 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
     NetworkResearchProtocol,
@@ -37,6 +38,20 @@ _COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = 
 _ADJUDICATION_LIST_ADAPTER: TypeAdapter[list[NetworkTargetAdjudication]] = TypeAdapter(
     list[NetworkTargetAdjudication]
 )
+
+_CREATE_ASSEMBLY_PLAN_TABLE_SQL = """\
+CREATE TABLE IF NOT EXISTS network_assembly_plan (
+    plan_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    canonical_plan_input_sha256 TEXT NOT NULL,
+    plan_sequence INTEGER NOT NULL,
+    plan_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (task_id, owner_id, canonical_plan_input_sha256),
+    UNIQUE (task_id, owner_id, plan_sequence)
+)
+"""
 
 _CREATE_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS network_task (
@@ -171,6 +186,7 @@ class SqliteNetworkTaskRepository:
                 self._conn.row_factory = sqlite3.Row
                 self._conn.execute("PRAGMA journal_mode=WAL")
                 self._conn.execute(_CREATE_TABLE_SQL)
+                self._conn.execute(_CREATE_ASSEMBLY_PLAN_TABLE_SQL)
                 self._ensure_columns()
                 self._conn.commit()
 
@@ -467,6 +483,94 @@ class SqliteNetworkTaskRepository:
                     (task_id, owner_id),
                 ).fetchone()
                 return _row_to_record(updated) if updated else None
+
+    def list_assembly_plans(self, task_id: str, owner_id: str) -> list[NetworkAssemblyPlan]:
+        with self._lock:
+            owned = self._conn.execute(
+                "SELECT 1 FROM network_task WHERE task_id = ? AND owner_id = ?",
+                (task_id, owner_id),
+            ).fetchone()
+            if owned is None:
+                return []
+            rows = self._conn.execute(
+                """SELECT plan_json FROM network_assembly_plan
+                   WHERE task_id = ? AND owner_id = ?
+                   ORDER BY plan_sequence""",
+                (task_id, owner_id),
+            ).fetchall()
+            return [NetworkAssemblyPlan.model_validate_json(row["plan_json"]) for row in rows]
+
+    def get_assembly_plan(
+        self, task_id: str, owner_id: str, plan_id: str
+    ) -> NetworkAssemblyPlan | None:
+        with self._lock:
+            row = self._conn.execute(
+                """SELECT plan_json FROM network_assembly_plan
+                   WHERE task_id = ? AND owner_id = ? AND plan_id = ?""",
+                (task_id, owner_id, plan_id),
+            ).fetchone()
+            return NetworkAssemblyPlan.model_validate_json(row["plan_json"]) if row else None
+
+    def seal_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        plan: NetworkAssemblyPlan,
+    ) -> tuple[str, NetworkAssemblyPlan | None]:
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._conn.execute(
+                    "SELECT adjudications FROM network_task WHERE task_id = ? AND owner_id = ?",
+                    (task_id, owner_id),
+                ).fetchone()
+                if row is None:
+                    self._conn.rollback()
+                    return "not_found", None
+                current = _ADJUDICATION_LIST_ADAPTER.validate_json(row["adjudications"])
+                if tuple(item.adjudication_id for item in current) != expected_adjudication_ids:
+                    self._conn.rollback()
+                    return "conflict", None
+                existing = self._conn.execute(
+                    """SELECT plan_json FROM network_assembly_plan
+                       WHERE task_id = ? AND owner_id = ?
+                         AND canonical_plan_input_sha256 = ?""",
+                    (task_id, owner_id, plan.canonical_plan_input_sha256),
+                ).fetchone()
+                if existing is not None:
+                    self._conn.rollback()
+                    return "existing", NetworkAssemblyPlan.model_validate_json(
+                        existing["plan_json"]
+                    )
+                sequence_row = self._conn.execute(
+                    """SELECT COALESCE(MAX(plan_sequence), 0) + 1 AS next_sequence
+                       FROM network_assembly_plan WHERE task_id = ? AND owner_id = ?""",
+                    (task_id, owner_id),
+                ).fetchone()
+                persisted = plan.model_copy(
+                    update={"plan_sequence": int(sequence_row["next_sequence"])}
+                )
+                self._conn.execute(
+                    """INSERT INTO network_assembly_plan
+                       (plan_id, task_id, owner_id, canonical_plan_input_sha256,
+                        plan_sequence, plan_json, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        persisted.plan_id,
+                        task_id,
+                        owner_id,
+                        persisted.canonical_plan_input_sha256,
+                        persisted.plan_sequence,
+                        persisted.model_dump_json(),
+                        persisted.created_at,
+                    ),
+                )
+                self._conn.commit()
+                return "created", persisted
+            except BaseException:
+                self._conn.rollback()
+                raise
 
     def upsert(
         self,

@@ -23,6 +23,11 @@ from app.schemas.network import (
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
+    NetworkAssemblyGateBlocker,
+    NetworkAssemblyGateProjection,
+    NetworkAssemblyPlan,
+    NetworkAssemblyPlanSummary,
+    NetworkAssemblySelectedIntersection,
     NetworkChain,
     NetworkCompoundTargetImportProvenance,
     NetworkCompoundTargetSnapshot,
@@ -914,6 +919,7 @@ def _result_response(record: NetworkTaskRecord) -> NetworkResultResponse:
         error=record.error,
         warnings=record.warnings,
         adjudication=_adjudication_summary(record),
+        assembly_gate=_assembly_gate_projection(record),
     )
 
 
@@ -956,6 +962,243 @@ def _adjudication_summary(record: NetworkTaskRecord) -> NetworkAdjudicationSumma
         for row_id in sorted(latest_by_row)
     ]
     return NetworkAdjudicationSummary(counts=counts, current=current)
+
+
+def _latest_adjudications(
+    record: NetworkTaskRecord,
+) -> dict[str, NetworkTargetAdjudication]:
+    row_ids = _lineage_row_ids(record.result) if record.result is not None else set()
+    latest_by_row: dict[str, NetworkTargetAdjudication] = {}
+    for adjudication in record.adjudications:
+        if adjudication.lineage_row_id in row_ids:
+            latest_by_row[adjudication.lineage_row_id] = adjudication
+    return latest_by_row
+
+
+def _assembly_plan_summary(plan: NetworkAssemblyPlan) -> NetworkAssemblyPlanSummary:
+    return NetworkAssemblyPlanSummary(
+        plan_id=plan.plan_id,
+        canonical_plan_input_sha256=plan.canonical_plan_input_sha256,
+        selected_intersection_count=len(plan.selected_intersections),
+        created_at=plan.created_at,
+    )
+
+
+def _assembly_gate_blockers(
+    record: NetworkTaskRecord,
+    parent: NetworkTaskRecord | None,
+) -> tuple[list[NetworkAssemblyGateBlocker], list[NetworkAssemblySelectedIntersection]]:
+    blockers: list[NetworkAssemblyGateBlocker] = []
+    result = record.result
+    if record.status != "completed" or result is None:
+        blockers.append(NetworkAssemblyGateBlocker(code="task_not_completed"))
+        return blockers, []
+    if record.source_task_id is None or record.compound_target_import is None:
+        blockers.append(NetworkAssemblyGateBlocker(code="not_compound_child"))
+    if parent is None or parent.source_task_id is not None or parent.status != "completed":
+        blockers.append(NetworkAssemblyGateBlocker(code="broken_parent_link"))
+    elif (
+        parent.research_protocol is None
+        or record.research_protocol is None
+        or _canonical_sha256(parent.research_protocol.model_dump(mode="json"))
+        != _canonical_sha256(record.research_protocol.model_dump(mode="json"))
+    ):
+        blockers.append(NetworkAssemblyGateBlocker(code="protocol_mismatch"))
+
+    lineage = result.target_lineage
+    disease_provenance = lineage.disease_import_provenance
+    compound_provenance = lineage.compound_import_provenance
+    if (
+        disease_provenance is None
+        or disease_provenance.provenance_verification_status != "server_verified_raw_artifact"
+        or not disease_provenance.source_artifact_sha256
+    ):
+        blockers.append(NetworkAssemblyGateBlocker(code="disease_provenance_unverified"))
+    if (
+        compound_provenance is None
+        or compound_provenance.provenance_verification_status != "server_verified_raw_artifact"
+        or not compound_provenance.source_artifact_sha256
+    ):
+        blockers.append(NetworkAssemblyGateBlocker(code="compound_provenance_unverified"))
+    if (
+        result.chains
+        or result.enrichment is not None
+        or result.ppi_edges
+        or result.data_sources
+        or result.pipeline_steps
+    ):
+        blockers.append(NetworkAssemblyGateBlocker(code="snapshot_only_boundary_violated"))
+
+    row_ids = _lineage_row_ids(result)
+    if len(row_ids) > 10_000 or len(record.adjudications) > 100_000:
+        blockers.append(NetworkAssemblyGateBlocker(code="assembly_input_capacity_exceeded"))
+        return sorted(blockers, key=lambda item: item.code), []
+    latest = _latest_adjudications(record)
+    incomplete = sorted(
+        row_id
+        for row_id in row_ids
+        if row_id not in latest or latest[row_id].decision == "needs_review"
+    )
+    if incomplete:
+        blockers.append(
+            NetworkAssemblyGateBlocker(code="adjudication_incomplete", row_ids=incomplete)
+        )
+
+    included_disease = {
+        row_id
+        for row_id in (row.lineage_row_id for row in lineage.disease_targets if row.lineage_row_id)
+        if row_id in latest and latest[row_id].decision == "included"
+    }
+    included_compound = {
+        row_id
+        for row_id in (row.lineage_row_id for row in lineage.compound_targets if row.lineage_row_id)
+        if row_id in latest and latest[row_id].decision == "included"
+    }
+    selected: list[NetworkAssemblySelectedIntersection] = []
+    missing_backing: list[str] = []
+    for row in sorted(lineage.intersection_targets, key=lambda item: item.lineage_row_id):
+        decision = latest.get(row.lineage_row_id)
+        if decision is None or decision.decision != "included":
+            continue
+        selected_disease = sorted(set(row.disease_lineage_row_ids) & included_disease)
+        selected_compound = sorted(set(row.compound_lineage_row_ids) & included_compound)
+        if not selected_disease or not selected_compound:
+            missing_backing.append(row.lineage_row_id)
+            continue
+        selected.append(
+            NetworkAssemblySelectedIntersection(
+                lineage_row_id=row.lineage_row_id,
+                canonical_symbol=row.canonical_symbol,
+                frozen_disease_lineage_row_ids=sorted(row.disease_lineage_row_ids),
+                frozen_compound_lineage_row_ids=sorted(row.compound_lineage_row_ids),
+                selected_disease_lineage_row_ids=selected_disease,
+                selected_compound_lineage_row_ids=selected_compound,
+            )
+        )
+    if missing_backing:
+        blockers.append(
+            NetworkAssemblyGateBlocker(
+                code="included_intersection_missing_backing",
+                row_ids=sorted(missing_backing),
+            )
+        )
+    if not selected:
+        blockers.append(NetworkAssemblyGateBlocker(code="no_included_intersection"))
+    return sorted(blockers, key=lambda item: item.code), selected
+
+
+def _assembly_gate_projection(record: NetworkTaskRecord) -> NetworkAssemblyGateProjection:
+    repo = _get_repository()
+    parent = (
+        repo.get_owned(record.source_task_id, record.owner_id)
+        if record.source_task_id is not None and record.owner_id is not None
+        else None
+    )
+    blockers, _ = _assembly_gate_blockers(record, parent)
+    plans = (
+        repo.list_assembly_plans(record.task_id, record.owner_id)
+        if record.owner_id is not None
+        else []
+    )
+    latest = max(plans, key=lambda item: item.plan_sequence) if plans else None
+    return NetworkAssemblyGateProjection(
+        state="blocked" if blockers else "assembly_input_ready",
+        blockers=blockers,
+        latest_plan=_assembly_plan_summary(latest) if latest is not None else None,
+    )
+
+
+def _build_assembly_plan(
+    record: NetworkTaskRecord,
+    parent: NetworkTaskRecord,
+    selected: list[NetworkAssemblySelectedIntersection],
+) -> NetworkAssemblyPlan:
+    if record.result is None or record.source_task_id is None:
+        raise ValueError("assembly plan requires a linked frozen result")
+    if record.research_protocol is None or parent.research_protocol is None:
+        raise ValueError("assembly plan requires matching protocols")
+    lineage = record.result.target_lineage
+    disease_provenance = lineage.disease_import_provenance
+    compound_provenance = lineage.compound_import_provenance
+    if (
+        disease_provenance is None
+        or compound_provenance is None
+        or disease_provenance.source_artifact_sha256 is None
+        or compound_provenance.source_artifact_sha256 is None
+    ):
+        raise ValueError("assembly plan requires verified source artifacts")
+    latest = _latest_adjudications(record)
+    adjudication_snapshot = [
+        {
+            "adjudication_id": item.adjudication_id,
+            "lineage_row_id": row_id,
+            "decision": item.decision,
+            "reason": item.reason,
+            "decided_at": item.decided_at,
+        }
+        for row_id, item in sorted(latest.items())
+    ]
+    parent_protocol_hash = _canonical_sha256(parent.research_protocol.model_dump(mode="json"))
+    child_protocol_hash = _canonical_sha256(record.research_protocol.model_dump(mode="json"))
+    plan_input = {
+        "policy_id": "source_bound_network_assembly_v1",
+        "canonicalization_id": "qiyan_canonical_json_v1",
+        "task_id": record.task_id,
+        "source_task_id": record.source_task_id,
+        "parent_protocol_sha256": parent_protocol_hash,
+        "child_protocol_sha256": child_protocol_hash,
+        "disease_source_artifact_sha256": disease_provenance.source_artifact_sha256,
+        "compound_source_artifact_sha256": compound_provenance.source_artifact_sha256,
+        "disease_import_payload_sha256": disease_provenance.import_payload_sha256,
+        "compound_import_payload_sha256": compound_provenance.import_payload_sha256,
+        "target_lineage_sha256": _canonical_sha256(lineage.model_dump(mode="json")),
+        "adjudication_selection_sha256": _canonical_sha256(adjudication_snapshot),
+        "selected_intersections": [item.model_dump(mode="json") for item in selected],
+    }
+    input_hash = _canonical_sha256(plan_input)
+    return NetworkAssemblyPlan.model_validate(
+        {
+            "plan_id": f"assembly-plan-{input_hash}",
+            **plan_input,
+            "canonical_plan_input_sha256": input_hash,
+            "plan_sequence": 1,
+            "created_at": _now_iso(),
+        }
+    )
+
+
+def seal_network_assembly_plan(
+    task_id: str,
+    reviewer_id: str,
+) -> tuple[str, NetworkAssemblyPlan | NetworkAssemblyGateProjection | None]:
+    repo = _get_repository()
+    record = repo.get_owned(task_id, reviewer_id)
+    if record is None:
+        return "not_found", None
+    parent = (
+        repo.get_owned(record.source_task_id, reviewer_id)
+        if record.source_task_id is not None
+        else None
+    )
+    blockers, selected = _assembly_gate_blockers(record, parent)
+    if blockers:
+        return "blocked", NetworkAssemblyGateProjection(state="blocked", blockers=blockers)
+    if parent is None:
+        return "blocked", NetworkAssemblyGateProjection(
+            state="blocked", blockers=[NetworkAssemblyGateBlocker(code="broken_parent_link")]
+        )
+    plan = _build_assembly_plan(record, parent, selected)
+    expected_ids = tuple(item.adjudication_id for item in record.adjudications)
+    state, persisted = repo.seal_assembly_plan(task_id, reviewer_id, expected_ids, plan)
+    return state, persisted
+
+
+def get_network_assembly_plan(
+    task_id: str,
+    plan_id: str,
+    reviewer_id: str,
+) -> NetworkAssemblyPlan | None:
+    return _get_repository().get_assembly_plan(task_id, reviewer_id, plan_id)
 
 
 def _build_adjudication_id(
@@ -1248,6 +1491,7 @@ def build_network_report_markdown(
     result: NetworkAnalysisResult,
     exported_at: str | None = None,
     adjudication: NetworkAdjudicationSummary | None = None,
+    assembly_gate: NetworkAssemblyGateProjection | None = None,
 ) -> str:
     """Build a Markdown report string equivalent to the frontend
     ``buildNetworkReportMarkdown`` function.
@@ -1256,6 +1500,7 @@ def build_network_report_markdown(
     ``frontend/lib/network-report-export.ts``.
     """
     adjudication = adjudication or NetworkAdjudicationSummary()
+    assembly_gate = assembly_gate or NetworkAssemblyGateProjection()
     has_compound_provenance = result.target_lineage.compound_import_provenance is not None
     if has_compound_provenance and result.source_task_id is None:
         raise ValueError("compound target lineage is missing its immutable source task link")
@@ -1326,6 +1571,28 @@ def build_network_report_markdown(
         lines.append("- 阻塞项：")
         for reason in result.readiness.blocking_reasons:
             lines.append(f"  - {_escape_table_cell(reason)}")
+    lines.append("")
+
+    lines.append("## 候选装配输入门禁")
+    lines.append("")
+    lines.append(f"- Policy：{assembly_gate.policy_id}")
+    lines.append(f"- 状态：{assembly_gate.state}")
+    lines.append("- formal_network_ready：否")
+    lines.append(
+        "> 候选计划只封存协议、双侧 artifact、冻结 lineage 与判定快照；"
+        "不生成网络边，不授权后续 writer，也不表示科研就绪。"
+    )
+    if assembly_gate.blockers:
+        lines.append("- 阻塞项：")
+        for blocker in assembly_gate.blockers:
+            row_suffix = f"（{len(blocker.row_ids)} 行）" if blocker.row_ids else ""
+            lines.append(f"  - {blocker.code}{row_suffix}")
+    if assembly_gate.latest_plan is not None:
+        lines.append(f"- 最新计划：{assembly_gate.latest_plan.plan_id}")
+        lines.append(f"- 纳入交集：{assembly_gate.latest_plan.selected_intersection_count}")
+        lines.append(
+            f"- Plan input SHA-256：{assembly_gate.latest_plan.canonical_plan_input_sha256}"
+        )
     lines.append("")
 
     lines.append("## 靶点集合与逐行 Lineage")

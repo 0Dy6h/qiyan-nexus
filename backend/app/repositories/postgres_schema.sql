@@ -113,6 +113,21 @@ CREATE INDEX IF NOT EXISTS idx_network_tasks_status ON network_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_network_tasks_owner_id ON network_tasks(owner_id);
 CREATE INDEX IF NOT EXISTS idx_network_tasks_created_at ON network_tasks(created_at DESC);
 
+CREATE TABLE IF NOT EXISTS network_assembly_plans (
+    plan_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES network_tasks(task_id) ON DELETE CASCADE,
+    owner_id TEXT NOT NULL,
+    canonical_plan_input_sha256 TEXT NOT NULL,
+    plan_sequence INTEGER NOT NULL,
+    plan_json JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE (task_id, owner_id, canonical_plan_input_sha256),
+    UNIQUE (task_id, owner_id, plan_sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_network_assembly_plans_task_owner
+    ON network_assembly_plans(task_id, owner_id, plan_sequence);
+
 -- Helper function: update updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -133,4 +148,5 @@ CREATE TRIGGER trigger_literature_updated_at
 COMMENT ON TABLE literature IS 'Literature items from various sources (sample, PubMed, CNKI, uploaded PDFs)';
 COMMENT ON TABLE chunks IS 'Evidence chunks extracted from literature at section level';
 COMMENT ON TABLE network_tasks IS 'Network pharmacology analysis tasks and results';
+COMMENT ON TABLE network_assembly_plans IS 'Append-only candidate network assembly input plans';
 COMMENT ON COLUMN chunks.embedding IS 'BGE-small-zh-v1.5 embedding (384 dimensions) for semantic search';

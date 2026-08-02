@@ -175,6 +175,10 @@ def _create_completed_compound_child_task(
 ) -> tuple[str, dict[str, object]]:
     """Create a completed double-sided snapshot task and return (task_id, result GET payload)."""
     source_task_id = _create_verified_disease_task(client, headers)
+    assert client.get(f"/api/network/result/{source_task_id}", headers=headers).status_code == 200
+    completed_parent = client.get(f"/api/network/result/{source_task_id}", headers=headers)
+    assert completed_parent.status_code == 200
+    assert completed_parent.json()["status"] == "completed"
     child_task_id = _create_compound_child_task(client, source_task_id, headers)
     running = client.get(f"/api/network/result/{child_task_id}", headers=headers)
     assert running.json()["status"] == "running"
@@ -208,6 +212,25 @@ def _post_adjudication(
         json=body,
         headers=headers,
     )
+
+
+def _adjudicate_all_rows(
+    client: TestClient,
+    task_id: str,
+    payload: dict[str, object],
+    *,
+    decision: str = "included",
+    headers: dict[str, str] | None = None,
+) -> None:
+    for row_ids in _lineage_row_ids(payload).values():
+        for row_id in row_ids:
+            response = _post_adjudication(
+                client,
+                task_id,
+                {"lineage_row_id": row_id, "decision": decision},
+                headers,
+            )
+            assert response.status_code == 201
 
 
 # ── Happy path ──────────────────────────────────────────────────────
@@ -730,3 +753,135 @@ def test_report_shows_zeroed_adjudication_section_before_any_decision() -> None:
     persisted = get_network_task_repository().get_owned(task_id, "local-preview")
     assert persisted is not None
     assert persisted.adjudications == []
+
+
+# ── Source-bound assembly input gate ────────────────────────────────
+
+
+def test_assembly_plan_blocks_until_every_lineage_row_has_a_terminal_decision() -> None:
+    client = TestClient(app)
+    task_id, payload = _create_completed_compound_child_task(client)
+
+    response = client.post(f"/api/network/result/{task_id}/assembly-plans")
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["detail"]["code"] == "assembly_gate_blocked"
+    assert body["detail"]["gate"]["state"] == "blocked"
+    assert body["detail"]["gate"]["policy_id"] == "source_bound_network_assembly_v1"
+    blocker_codes = [item["code"] for item in body["detail"]["gate"]["blockers"]]
+    assert "adjudication_incomplete" in blocker_codes
+    assert payload["result"]["readiness"]["formal_network_ready"] is False  # type: ignore[index]
+
+
+def test_assembly_plan_is_immutable_idempotent_and_never_flips_scientific_readiness() -> None:
+    client = TestClient(app)
+    task_id, payload = _create_completed_compound_child_task(client)
+    _adjudicate_all_rows(client, task_id, payload)
+
+    created = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    repeated = client.post(f"/api/network/result/{task_id}/assembly-plans")
+
+    assert created.status_code == 201
+    assert repeated.status_code == 200
+    plan = created.json()
+    assert repeated.json() == plan
+    assert plan["policy_id"] == "source_bound_network_assembly_v1"
+    assert plan["canonicalization_id"] == "qiyan_canonical_json_v1"
+    assert re.fullmatch(r"assembly-plan-[0-9a-f]{64}", plan["plan_id"])
+    assert re.fullmatch(r"[0-9a-f]{64}", plan["canonical_plan_input_sha256"])
+    assert plan["assembly_input_ready"] is True
+    assert plan["formal_network_ready"] is False
+    assert plan["selected_intersections"]
+    assert "owner_id" not in plan
+    assert "reviewer_id" not in json.dumps(plan)
+
+    current = client.get(f"/api/network/result/{task_id}")
+    assert current.status_code == 200
+    current_payload = current.json()
+    assert current_payload["result"]["readiness"]["formal_network_ready"] is False
+    assert current_payload["result"]["chains"] == []
+    assert current_payload["result"]["enrichment"] is None
+    assert current_payload["assembly_gate"]["state"] == "assembly_input_ready"
+    assert current_payload["assembly_gate"]["latest_plan"]["plan_id"] == plan["plan_id"]
+
+    historical = client.get(f"/api/network/result/{task_id}/assembly-plans/{plan['plan_id']}")
+    assert historical.status_code == 200
+    assert historical.json() == plan
+
+    report = client.get(f"/api/network/result/{task_id}/report")
+    assert report.status_code == 200
+    assert "## 候选装配输入门禁" in report.text
+    assert "状态：assembly_input_ready" in report.text
+    assert plan["plan_id"] in report.text
+    assert "formal_network_ready：否" in report.text
+
+
+def test_assembly_plan_blocks_needs_review_and_zero_included_intersections() -> None:
+    client = TestClient(app)
+    task_id, payload = _create_completed_compound_child_task(client)
+    row_ids = _lineage_row_ids(payload)
+    _adjudicate_all_rows(client, task_id, payload, decision="excluded")
+    needs_review = _post_adjudication(
+        client,
+        task_id,
+        {"lineage_row_id": row_ids["disease_targets"][0], "decision": "needs_review"},
+    )
+    assert needs_review.status_code == 201
+
+    incomplete = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    assert incomplete.status_code == 409
+    assert [item["code"] for item in incomplete.json()["detail"]["gate"]["blockers"]] == [
+        "adjudication_incomplete",
+        "no_included_intersection",
+    ]
+
+    terminal = _post_adjudication(
+        client,
+        task_id,
+        {"lineage_row_id": row_ids["disease_targets"][0], "decision": "excluded"},
+    )
+    assert terminal.status_code == 201
+    no_intersection = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    assert no_intersection.status_code == 409
+    assert [item["code"] for item in no_intersection.json()["detail"]["gate"]["blockers"]] == [
+        "no_included_intersection"
+    ]
+
+
+def test_later_adjudication_event_seals_a_new_plan_without_mutating_the_old_plan() -> None:
+    client = TestClient(app)
+    task_id, payload = _create_completed_compound_child_task(client)
+    _adjudicate_all_rows(client, task_id, payload)
+    first = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    assert first.status_code == 201
+    first_plan = first.json()
+
+    row_id = _lineage_row_ids(payload)["disease_targets"][0]
+    changed = _post_adjudication(
+        client,
+        task_id,
+        {"lineage_row_id": row_id, "decision": "excluded", "reason": "复核后排除"},
+    )
+    assert changed.status_code == 201
+    blocked = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    assert blocked.status_code == 409
+    assert "included_intersection_missing_backing" in [
+        item["code"] for item in blocked.json()["detail"]["gate"]["blockers"]
+    ]
+
+    restored = _post_adjudication(
+        client,
+        task_id,
+        {"lineage_row_id": row_id, "decision": "included", "reason": "补充证据后纳入"},
+    )
+    assert restored.status_code == 201
+    second = client.post(f"/api/network/result/{task_id}/assembly-plans")
+    assert second.status_code == 201
+    second_plan = second.json()
+    assert second_plan["plan_id"] != first_plan["plan_id"]
+    assert second_plan["plan_sequence"] == 2
+
+    first_read = client.get(f"/api/network/result/{task_id}/assembly-plans/{first_plan['plan_id']}")
+    assert first_read.status_code == 200
+    assert first_read.json() == first_plan
