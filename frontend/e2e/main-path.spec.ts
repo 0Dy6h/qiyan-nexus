@@ -12,9 +12,10 @@ import { expect, test } from "@playwright/test";
  */
 test("main path: literature search → detail → rag answer with citations + disclaimer", async ({ page }) => {
   // 1. /literature loads with default query and renders shell + nav.
+  // page.goto waits for "load"; assertions below wait for the UI contract.
+  // Avoid networkidle because dev-only background activity makes it brittle.
   await page.goto("/literature");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("navigation", { name: "工作台导航" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "工作台导航" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("textbox", { name: "检索关键词", exact: true })).toHaveValue("特应性皮炎");
 
   // 2. Trigger the search; deterministic seed always returns the cn-ad-gbs-001 card.
@@ -35,8 +36,7 @@ test("main path: literature search → detail → rag answer with citations + di
 
   // 4. Navigate to /rag and submit the seed AD question.
   await page.goto("/rag");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("textbox", { name: "RAG 问题" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "RAG 问题" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("textbox", { name: "RAG 问题" }).fill("特应性皮炎 肠皮轴");
   await page.getByRole("button", { name: /生成回答|生成中/ }).click();
 
