@@ -3,19 +3,19 @@
 > 每次项目级对抗性 review、架构整改或事实源收口后更新。
 > 评分体系：A = 无债务，B = 轻微债务（< 3 缺口），C = 中度债务（3-10 缺口），D = 严重债务
 
-## 当前质量评分（2026-07-15 Gate 2 双侧 raw-artifact provenance）
+## 当前质量评分（2026-08-15：Gate 2 + owner-scoped adjudication + 候选装配计划；ADR-0018 方向草案）
 
 | 领域 | 评分 | 缺口 | 最后更新 |
 |------|------|------|---------|
-| 产品需求 | C | 主轴已纠偏且双侧 artifact workflow 可用，但研究项目、逐边人工证据与真实最小科研闭环尚未完成 | 2026-07-15 |
-| 技术架构 | B | 分层、安全、immutable disease/compound snapshot、双 trusted manifest、raw/canonical 双 hash、双侧 intersection refs 与独立复算已落地；多 worker claim 与科学验证仍未设计 | 2026-07-15 |
-| 任务拆解 | B | Open Targets 与 ChEMBL offline raw-artifact slice 已收口；唯一下一切片为 owner-scoped 人工 adjudication，不再扩展 provider | 2026-07-15 |
-| 前端设计 | A | `/network` 已支持疾病 artifact 与第二阶段 ChEMBL artifact 上传、immutable child task、来源区分和三集合审计表；既有页面壳与可访问性门禁保持全绿 | 2026-07-15 |
-| 后端 API | B | strict multipart、owner-scoped parent lookup、双 server-controlled manifest、双 hash、immutable child task 与 fail-closed readiness 已落地；人工 adjudication API 与科学复核尚未实现 | 2026-07-15 |
-| 合规 | A | 免责声明、mock 边界、reviewer 访问边界、客户端未验证路径与 `server_verified_raw_artifact` 中间态均明确 | 2026-07-15 |
-| 领域文档 | B | ADR-0017、双侧 artifact guide、整改工作区与 handoff 已建立；历史“证据工作台主轴”表述仍需逐步归档 | 2026-07-15 |
-| 科研就绪度 | D | 双侧 raw bytes 与 canonical snapshots 均有 hash 锚点，但 hash 不证明 release 选择、官方来源、映射正确性或靶点意义；人工作业判定与科学验证仍缺失 | 2026-07-15 |
-| 可观测性 | A | Request ID、structured logging、nginx reviewer access log、disease/compound raw artifact hash 与 import payload hash 均有明确路径 | 2026-07-15 |
+| 产品需求 | C | 主轴已纠偏，双侧 artifact workflow、逐行判定与候选装配计划已具备工程能力；但尚无真人判定、真实最小科研闭环与组学验证 | 2026-08-15 |
+| 技术架构 | B | 分层、安全、immutable snapshot、双 manifest、双 hash、lineage、独立复算、append-only adjudication 与 assembly plan 已落地；writer 消费契约、PG parity 与多 worker claim 仍未完成 | 2026-08-15 |
+| 任务拆解 | B | 0017 Gate 2、adjudication 与 source-bound 装配门禁已收口；下一步为 writer 消费契约、PG parity 与真人 reviewer 判定；组学数据层仅方向规划（ADR-0018） | 2026-08-15 |
+| 前端设计 | A | `/network` 支持双侧 artifact 上传、immutable child task、三集合审计表、adjudication 与装配计划面板；既有页面壳与可访问性门禁保持全绿 | 2026-08-15 |
+| 后端 API | B | strict multipart、双 manifest、双 hash、owner-scoped lineage/adjudication/assembly-plan API 与 fail-closed readiness 已落地；writer 消费契约与科学复核仍未完成 | 2026-08-15 |
+| 合规 | A | 免责声明、mock 边界、reviewer 访问边界、客户端未验证路径、`server_verified_raw_artifact` 中间态与组学数据默认不外发边界均明确 | 2026-08-15 |
+| 领域文档 | B | ADR-0017、ADR-0018、双侧 artifact guide、整改工作区与 handoff 已建立；EMNLP 论文产出等历史方向材料待归档 | 2026-08-15 |
+| 科研就绪度 | D | 工程 provenance、判定与装配计划均可用，但无真人判定记录；`formal_network_ready` 恒 false；真实组学验证尚未实现 | 2026-08-15 |
+| 可观测性 | A | Request ID、structured logging、nginx reviewer access log、raw artifact/import payload/plan hash 均有明确路径 | 2026-08-15 |
 
 ## 开发启动后需追踪的领域
 

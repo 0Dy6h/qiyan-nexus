@@ -27,9 +27,9 @@ Qiyan Nexus 把「定研究协议 → 构建方药-成分-靶点-通路网络 �
 
 > 详细 API 示例、env 配置、本地门禁与状态事实源见下文与 `docs/current-state.md`。
 
-当前状态：2026-07-15 已按 ADR-0017 完成方向纠偏 Gate 1，并完成 Gate 2 的双侧 raw-artifact 工程 provenance：首页与导航以网络药理学为主轴；网络任务强制持久化研究协议；结果、前端与报告分开展示疾病靶点、成分靶点、派生候选交集及逐行 lineage；离线 Open Targets 和 `chembl_known_activity_v1` ChEMBL artifact 都由服务端计算字节 SHA-256、静态解析并封存为不可变 `server_verified_raw_artifact` task，独立脚本可复算 artifact hash、集合计数、阈值与双侧 refs。后者是离线 artifact profile，不是 live ChEMBL API 集成。该状态不证明 release 选对、artifact 来自官方渠道或靶点具有生物学意义；两侧逐边人工 adjudication 和科学验证尚未完成，`formal_network_ready=false`。MVP-A 既有文献/PDF/RAG 能力保留为证据服务层；网络真实富集和 scientific readiness 仍未完成。默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。
+当前状态：2026-07-15 已按 ADR-0017 完成方向纠偏 Gate 1，并完成 Gate 2 的双侧 raw-artifact 工程 provenance：首页与导航以网络药理学为主轴；网络任务强制持久化研究协议；结果、前端与报告分开展示疾病靶点、成分靶点、派生候选交集及逐行 lineage；离线 Open Targets 和 `chembl_known_activity_v1` ChEMBL artifact 都由服务端计算字节 SHA-256、静态解析并封存为不可变 `server_verified_raw_artifact` task，独立脚本可复算 artifact hash、集合计数、阈值与双侧 refs。后者是离线 artifact profile，不是 live ChEMBL API 集成。该状态不证明 release 选对、artifact 来自官方渠道或靶点具有生物学意义；两侧逐边人工 adjudication 和科学验证尚未完成，`formal_network_ready=false`。MVP-A 既有文献/PDF/RAG 能力保留为证据服务层；网络真实富集和 scientific readiness 仍未完成。默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。2026-08-15 已起草 ADR-0018（Proposed）：在 ADR-0017 当前契约之上，将底层逻辑升级为组学策略，网络药理学为系统层核心，真实组学数据只作显式 opt-in 验证层；该方向不改变当前实现、默认路径与 `formal_network_ready=false`。
 
-当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
+当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\螃蟹's Projects\Tcm_tech`。
 
 ## 目录
 

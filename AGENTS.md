@@ -4,7 +4,7 @@
 
 ## 仓库性质
 
-项目已从纯规划阶段切换到可运行开发阶段。2026-07-11 起，唯一产品主轴是窄领域网络药理学自动化科研辅助；MVP-A 文献/PDF/RAG 能力作为证据服务层保留。网络药理学已具备 mock/live 任务壳、最小研究协议门禁、双侧离线 raw-artifact engineering provenance 与 owner-scoped 逐行人工 adjudication（2026-07-26 上线，但尚无任何真人判定记录——「能记录判定」不等于「已有人判定」），真实科研数据闭环仍未完成；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。
+项目已从纯规划阶段切换到可运行开发阶段。2026-07-11 起，唯一产品主轴是窄领域网络药理学自动化科研辅助；MVP-A 文献/PDF/RAG 能力作为证据服务层保留。网络药理学已具备 mock/live 任务壳、最小研究协议门禁、双侧离线 raw-artifact engineering provenance 与 owner-scoped 逐行人工 adjudication（2026-07-26 上线，但尚无任何真人判定记录——「能记录判定」不等于「已有人判定」），真实科研数据闭环仍未完成；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。2026-08-15 ADR-0018（Accepted，Gate 1 已确认）：在 ADR-0017 当前契约之上，把底层逻辑升级为组学策略，网络药理学为系统层核心，真实组学数据只作显式 opt-in 验证层。
 
 当前代码目录：
 - `frontend/` — Next.js 前端应用
@@ -22,7 +22,7 @@
 | 入口 | `README.md` | 每个已实现 endpoint 的 curl 示例 |
 | 命令与架构细节 | `CLAUDE.md` | 后端分层、RAG 管线、PDF 流、前端测试机制、codegraph 决策树；若命令冲突，以本文件的 Windows PowerShell 写法为准 |
 | 领域语言 | `CONTEXT.md` | TCM 术语表、共享语言 |
-| 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md`、`0017-network-pharmacology-first-product-contract.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留；0017 是产品主轴契约 |
+| 长期模块路线图 | `docs/adr/0010-research-workbench-module-roadmap.md`、`0017-network-pharmacology-first-product-contract.md`、`0018-omics-strategy-platform-contract.md` | 证据工作台、网络药理学、分子对接/MD 的分阶段边界与概念预留；0017 是当前产品主轴契约基线，0018 是组学策略方向演进 |
 | 最近交接 | `docs/handoffs/` | 越新的 handoff 越接近当前事实，用于跨会话续接 |
 | 开发计划 | `docs/plans/` | 已落地或待执行的纵向切片计划 |
 | 质量 | `docs/quality-score.md` | 各领域质量评分 |

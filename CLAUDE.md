@@ -55,9 +55,9 @@ Then retry. Do NOT fall back to `Grep` + `Read`.
 
 ## Project identity
 
-Qiyan Nexus — 面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。仅医生/研究人员端，**不面向 C 端患者**，**不替代诊断**。所有 AI 输出必须附带免责声明 `非诊断结论、需结合临床。`
+Qiyan Nexus — 面向特应性皮炎（AD）医生与科研人员的中医药窄领域网络药理学自动化科研辅助平台（ADR-0017 当前契约基线；ADR-0018 为组学策略方向演进）。仅医生/研究人员端，**不面向 C 端患者**，**不替代诊断**。所有 AI 输出必须附带免责声明 `非诊断结论、需结合临床。`
 
-仓库当前处于可运行的内部预览阶段：MVP-A 证据工作台已完成收尾；网络药理学具备 mock/live 任务壳、三集合 lineage，以及离线 Open Targets 疾病侧与 `chembl_known_activity_v1` 成分侧的双侧 raw-artifact engineering provenance；owner-scoped 人工 adjudication 与 source-bound 可复算网络装配 gate 尚未完成。后端默认用本地 JSON seed + runtime state + deterministic retrieval 跑 RAG，PDF 解析支持 `pypdf` 文本预览，无法抽取时回退到文件级占位说明。真实 LLM、真实 embedding、PostgreSQL/pgvector、Neo4j、Celery、Redis、MinIO、对象存储和支付均不进入默认路径；只允许按 `docs/current-state.md` / ADR 中的显式 opt-in 或 spike 边界推进。
+仓库当前处于可运行的内部预览阶段：MVP-A 证据工作台已完成收尾；网络药理学具备 mock/live 任务壳、三集合 lineage，以及离线 Open Targets 疾病侧与 `chembl_known_activity_v1` 成分侧的双侧 raw-artifact engineering provenance；owner-scoped 逐行人工 adjudication 与 source-bound 候选装配计划已落地；尚无真人判定记录，`formal_network_ready` 仍为 false。后端默认用本地 JSON seed + runtime state + deterministic retrieval 跑 RAG，PDF 解析支持 `pypdf` 文本预览，无法抽取时回退到文件级占位说明。真实 LLM、真实 embedding、PostgreSQL/pgvector、Neo4j、Celery、Redis、MinIO、对象存储和支付均不进入默认路径；只允许按 `docs/current-state.md` / ADR 中的显式 opt-in 或 spike 边界推进。
 
 ## Commands
 
