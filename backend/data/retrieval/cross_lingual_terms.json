@@ -52,8 +52,18 @@
     },
     {
       "canonical": "therapy",
-      "zh": ["治疗", "干预", "治法", "外治", "针灸", "拔罐"],
-      "en": ["therapy", "treatment", "intervention", "acupuncture", "topical", "external"]
+      "zh": ["治疗", "干预", "治法"],
+      "en": ["therapy", "treatment", "intervention"]
+    },
+    {
+      "canonical": "topical_therapy",
+      "zh": ["外治"],
+      "en": ["topical", "external"]
+    },
+    {
+      "canonical": "acupuncture",
+      "zh": ["针灸", "拔罐"],
+      "en": ["acupuncture"]
     },
     {
       "canonical": "mechanism",

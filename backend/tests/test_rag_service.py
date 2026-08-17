@@ -55,8 +55,8 @@ def test_answer_question_includes_relevant_citations_for_english_barrier_questio
     response = answer_question("atopic dermatitis barrier")
 
     assert [c.literature_id for c in response.citations] == [
-        "cn-ad-gbs-001",
         "cn-ad-barrier-006",
+        "cn-ad-gbs-001",
     ]
 
 
@@ -64,10 +64,9 @@ def test_answer_question_limits_citations_by_top_k():
     response = answer_question("特应性皮炎", top_k=1)
 
     assert len(response.citations) == 1
-    # After Slice 2, score-primary sort + cross-lingual token injection changes
-    # which item ranks first for a bare Chinese query. Pin the deterministic top
-    # result (against the seed dataset) so a ranking regression is caught.
-    assert response.citations[0].literature_id == "cn-ad-microbiome-003"
+    # After field-weighted scoring + multi-char CJK term recognition, a PubMed
+    # item with a strong title match for "atopic dermatitis" outranks seed items.
+    assert response.citations[0].literature_id == "pmid-40100004"
 
 
 def test_answer_question_filters_citations_by_source():

@@ -54,6 +54,45 @@ _KEYWORD_ALIASES: dict[str, list[str]] = {
     "pediatric": ["儿童", "pediatric"],
 }
 
+# ---------------------------------------------------------------------------
+# Multi-character CJK medical term dictionary with cross-lingual mapping
+# ---------------------------------------------------------------------------
+
+_CJK_MEDICAL_TERMS_PATH = (
+    Path(__file__).resolve().parents[3] / "data" / "retrieval" / "cjk_medical_terms.json"
+)
+
+_cjk_medical_terms_cache: list[dict[str, Any]] | None = None
+
+
+def _load_cjk_medical_terms() -> list[dict[str, Any]]:
+    """Load the multi-character CJK medical term dictionary.
+
+    Each entry has ``zh`` (Chinese term), ``en`` (list of English equivalents),
+    and ``canonical`` (a canonical token).  Terms are sorted by ``zh`` length
+    descending so that longest-match-first recognition prevents
+    ``神经酰胺`` from being split into single characters.
+    """
+    global _cjk_medical_terms_cache
+    if _cjk_medical_terms_cache is not None:
+        return _cjk_medical_terms_cache
+    try:
+        raw = _CJK_MEDICAL_TERMS_PATH.read_text(encoding="utf-8")
+        parsed = json.loads(raw)
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        _LOGGER.warning("cjk_medical_terms.json unreadable (%s); using empty list", exc)
+        _cjk_medical_terms_cache = []
+        return _cjk_medical_terms_cache
+    terms = parsed.get("terms", []) if isinstance(parsed, dict) else []
+    if not isinstance(terms, list):
+        _LOGGER.warning("cjk_medical_terms.json has unexpected shape; using empty list")
+        _cjk_medical_terms_cache = []
+        return _cjk_medical_terms_cache
+    # Sort by zh length descending for longest-match-first
+    terms.sort(key=lambda e: len(str(e.get("zh", ""))), reverse=True)
+    _cjk_medical_terms_cache = terms
+    return _cjk_medical_terms_cache
+
 
 # Short ASCII abbreviation tokens (e.g. "ad") substring-match inside many
 # unrelated English words (adult, adverse, gradient, leading...). Matching them
@@ -192,35 +231,53 @@ def tokenize_query(question: str) -> list[str]:
         if any(_token_matches(keyword, normalized) for keyword in keywords):
             tokens.add(alias)
 
-    # Step 2: CJK char extraction
-    for char in normalized:
+    # Step 2: multi-character CJK medical term recognition + cross-lingual mapping
+    # Longest-match-first: recognize multi-char terms BEFORE single-char
+    # extraction so that e.g. "神经酰胺" is treated as one unit and its
+    # English equivalents (ceramide) are injected, rather than being split
+    # into 神/经/酰/胺 which cannot match English PubMed text.
+    remaining = normalized
+    for entry in _load_cjk_medical_terms():
+        zh_term = str(entry.get("zh", ""))
+        if zh_term and zh_term in remaining:
+            en_terms = entry.get("en", [])
+            canonical = entry.get("canonical", "")
+            for en_kw in en_terms:
+                tokens.add(en_kw)
+            if canonical:
+                tokens.add(canonical)
+            # Remove matched substring so its chars aren't extracted as singles
+            remaining = remaining.replace(zh_term, " ", 1)
+
+    # Step 3: CJK char extraction (on remaining text after multi-char removal)
+    for char in remaining:
         if "一" <= char <= "鿿":
             tokens.add(char)
 
-    # Step 3: cross-lingual token injection (Slice 2)
+    # Step 4: cross-lingual token injection (Slice 2)
     # For each alias entry, if ANY zh keyword appears in the query,
     # inject ALL en tokens from that entry (and vice versa for en→zh).
     cross_map = _load_cross_lingual_aliases()
     for entry in cross_map.get("alias_map", []):
         zh_keywords: list[str] = entry.get("zh", [])
         en_keywords: list[str] = entry.get("en", [])
-        canonical: str = entry.get("canonical", "")
+        cross_canonical: str = entry.get("canonical", "")
 
         # zh keywords matched → inject en tokens
         if any(_token_matches(kw, normalized) for kw in zh_keywords):
             for en_kw in en_keywords:
                 tokens.add(en_kw)
-            if canonical:
-                tokens.add(canonical)
+            if cross_canonical:
+                tokens.add(cross_canonical)
 
         # en keywords matched → inject zh tokens
         if any(_token_matches(kw, normalized) for kw in en_keywords):
             for zh_kw in zh_keywords:
                 tokens.add(zh_kw)
-            if canonical:
-                tokens.add(canonical)
+            if cross_canonical:
+                tokens.add(cross_canonical)
 
-    # Step 4: TCM formula/herb entity injection from the network seed.
+    # Step 5: TCM formula/herb entity injection from the network seed.
     for entry in _load_network_entity_aliases():
         terms = [term for term in entry.get("terms", set()) if term]
         if any(_token_matches(term, normalized) for term in terms):
@@ -229,22 +286,47 @@ def tokenize_query(question: str) -> list[str]:
     return sorted(tokens)
 
 
+# Field weights for weighted scoring: title > keywords/evidence_tags/entity_ids > snippet/abstract/chunk_text
+# Per-token scoring takes the MAX weight across all fields where it matches,
+# not the sum, so a token matching both title and abstract earns 3 (not 4).
+_FIELD_WEIGHTS: list[tuple[int, str]] = [
+    (3, "title"),
+    (2, "keywords"),
+    (2, "evidence_tags"),
+    (2, "related_entity_ids"),
+    (1, "snippet"),
+    (1, "abstract"),
+    (1, "chunk_text"),
+    (2, "chunk_evidence_tags"),
+    (2, "chunk_related_entity_ids"),
+]
+
+
+def _build_haystacks(item: LiteratureItem, chunk: LiteratureChunk | None) -> dict[str, str]:
+    return {
+        "title": item.title.lower(),
+        "keywords": " ".join(item.keywords).lower(),
+        "evidence_tags": " ".join(item.evidence_tags).lower(),
+        "related_entity_ids": " ".join(item.related_entity_ids).lower(),
+        "snippet": item.snippet.lower(),
+        "abstract": (item.abstract or "").lower(),
+        "chunk_text": chunk.text.lower() if chunk else "",
+        "chunk_evidence_tags": " ".join(chunk.evidence_tags).lower() if chunk else "",
+        "chunk_related_entity_ids": " ".join(chunk.related_entity_ids).lower() if chunk else "",
+    }
+
+
 def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens: list[str]) -> int:
-    haystacks = [
-        item.title.lower(),
-        item.snippet.lower(),
-        (item.abstract or "").lower(),
-        " ".join(item.keywords).lower(),
-        " ".join(item.evidence_tags).lower(),
-        " ".join(item.related_entity_ids).lower(),
-        chunk.text.lower() if chunk else "",
-        " ".join(chunk.evidence_tags).lower() if chunk else "",
-        " ".join(chunk.related_entity_ids).lower() if chunk else "",
-    ]
+    haystacks = _build_haystacks(item, chunk)
     score = 0
     for token in query_tokens:
-        if any(_token_matches(token, haystack) for haystack in haystacks if haystack):
-            score += 1
+        best_weight = 0
+        for weight, field_name in _FIELD_WEIGHTS:
+            haystack = haystacks.get(field_name, "")
+            if haystack and _token_matches(token, haystack):
+                if weight > best_weight:
+                    best_weight = weight
+        score += best_weight
     return score
 
 
@@ -269,8 +351,9 @@ def _canonical_token_set() -> set[str]:
 def domain_vocabulary() -> set[str]:
     """Tokens that signal an in-domain (AD) query.
 
-    Union of the in-code ``_KEYWORD_ALIASES`` keys and every cross-lingual
-    term/canonical. ``tokenize_query`` only emits these when a real domain term
+    Union of the in-code ``_KEYWORD_ALIASES`` keys, every cross-lingual
+    term/canonical, and multi-character CJK medical term canonicals/en tokens.
+    ``tokenize_query`` only emits these when a real domain term
     matched, so their presence in a tokenized query separates an AD question
     from off-topic input that merely accumulates single-CJK-char noise (e.g. a
     hypertension question whose only "matches" are common characters like 的/是/药).
@@ -288,6 +371,15 @@ def domain_vocabulary() -> set[str]:
         canonical = entry.get("canonical", "")
         if canonical:
             vocab.add(canonical.lower())
+    for entry in _load_cjk_medical_terms():
+        for keyword in entry.get("en", []):
+            vocab.add(str(keyword).lower())
+        canonical = entry.get("canonical", "")
+        if canonical:
+            vocab.add(str(canonical).lower())
+        zh = entry.get("zh", "")
+        if zh:
+            vocab.add(str(zh).lower())
     for entry in _load_network_entity_aliases():
         for term in entry.get("terms", set()):
             if term:

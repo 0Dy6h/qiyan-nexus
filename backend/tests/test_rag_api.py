@@ -76,10 +76,9 @@ def test_rag_answer_endpoint_limits_citations_by_top_k():
 
     assert response.status_code == 200
     assert len(response.json()["citations"]) == 1
-    # After Slice 2, score-primary sort + cross-lingual token injection changes
-    # which item ranks first for a bare Chinese query. Pin the deterministic top
-    # result (against the seed dataset) so a ranking regression is caught.
-    assert response.json()["citations"][0]["literature_id"] == "cn-ad-microbiome-003"
+    # After field-weighted scoring + multi-char CJK term recognition, a PubMed
+    # item with a strong title match for "atopic dermatitis" outranks seed items.
+    assert response.json()["citations"][0]["literature_id"] == "pmid-40100004"
 
 
 def test_rag_answer_endpoint_filters_citations_by_source():
