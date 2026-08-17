@@ -23,11 +23,13 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
     # After Slice 2 (score-primary sort + cross-lingual token injection),
     # available_citation_count increased because more items now match.
     assert payload["retrieval"]["available_citation_count"] >= 17
-    # Slice 7: microbiome-003 edges out gbs-001 as top-1 (see test_rag_service.py for
-    # the +14-vs-+7 alias_tag_bonus rationale).
-    assert payload["citations"][0]["literature_id"] == "cn-ad-microbiome-003"
-    assert payload["citations"][1]["literature_id"] == "cn-ad-gbs-001"
-    assert payload["citations"][0]["chunk_id"] == "chunk-cn-ad-microbiome-003-abstract"
+    # After IDF-weighted scoring, gbs-001 ranks #1 — its title literally contains
+    # ``肠-脑-皮肤轴`` (the exact query topic), and the rare single-CJK tokens
+    # ``脑``/``轴`` get high IDF values amplified by the title field weight (×3).
+    # See test_rag_service.py for the full rationale.
+    assert payload["citations"][0]["literature_id"] == "cn-ad-gbs-001"
+    assert payload["citations"][1]["literature_id"] == "cn-ad-microbiome-003"
+    assert payload["citations"][0]["chunk_id"] == "chunk-cn-ad-gbs-001-abstract"
     assert "deterministic retrieval" in payload["answer"]
     assert payload["provider_name"] == "deterministic"
     assert payload["grounding"] == {
@@ -36,8 +38,8 @@ def test_rag_answer_endpoint_returns_ranked_citations_for_gut_skin_axis_question
         "checked": False,
         "blocked_reason": None,
         "allowed_evidence_refs": [
-            "chunk-cn-ad-microbiome-003-abstract",
             "chunk-cn-ad-gbs-001-abstract",
+            "chunk-cn-ad-microbiome-003-abstract",
         ],
         "matched_evidence_refs": [],
         "unsupported_evidence_refs": [],

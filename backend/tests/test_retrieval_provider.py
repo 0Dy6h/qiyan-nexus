@@ -30,11 +30,11 @@ def _load_seed():
 
 
 def test_keyword_provider_reproduces_existing_ranking_for_zh_question():
-    """After Slice 7, alias_tag_bonus also recognises cross-lingual canonicals
-    (microbiome, atopic_dermatitis, ...). The query "特应性皮炎和肠-脑-皮肤轴..." injects
-    both ``gut`` (legacy) and ``microbiome`` (cross-lingual) canonicals; chunk-microbiome-003
-    has both tags so it edges ahead of chunk-gbs-001 (only ``gut_skin_axis`` matches).
-    Both docs remain top-2 — the change is a tie-break swap.
+    """After IDF-weighted scoring, gbs-001 ranks #1 for this query because its title
+    literally contains ``肠-脑-皮肤轴`` (the exact query topic). The rare single-CJK
+    tokens ``脑``/``轴`` get high IDF values, amplified by the title field weight (×3),
+    which outweighs microbiome-003's extra alias_tag_bonus from having both ``microbiome``
+    and ``gut_skin_axis`` chunk tags. Both docs remain top-2.
     """
     items, chunks_by_item = _load_seed()
     provider = KeywordRetrievalProvider()
@@ -47,8 +47,8 @@ def test_keyword_provider_reproduces_existing_ranking_for_zh_question():
     )
 
     top_two = [(c.item.id, c.chunk.chunk_id if c.chunk else None) for c in candidates[:2]]
-    assert top_two[0] == ("cn-ad-microbiome-003", "chunk-cn-ad-microbiome-003-abstract")
-    assert top_two[1][0] == "cn-ad-gbs-001"
+    assert top_two[0] == ("cn-ad-gbs-001", "chunk-cn-ad-gbs-001-abstract")
+    assert top_two[1][0] == "cn-ad-microbiome-003"
 
 
 def test_keyword_provider_reproduces_pubmed_priority_for_english_question():

@@ -77,12 +77,17 @@
     },
     {
       "canonical": "clinical",
-      "zh": ["临床", "疗效", "有效率", "随机对照", "meta"],
+      "zh": ["临床", "有效率"],
+      "en": ["clinical", "efficacy"]
+    },
+    {
+      "canonical": "rct",
+      "zh": ["疗效", "随机对照", "meta"],
       "en": ["clinical", "efficacy", "randomized", "meta-analysis", "rct", "systematic review"]
     },
     {
       "canonical": "biomarker",
-      "zh": ["生物标志物", "指标", "ige", "嗜酸性粒细胞", "tarc"],
+      "zh": ["生物标志物", "ige", "嗜酸性粒细胞", "tarc"],
       "en": ["biomarker", "ige", "eosinophil", "tarc", "scorad", "easi"]
     },
     {

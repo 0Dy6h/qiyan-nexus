@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -236,10 +237,17 @@ def tokenize_query(question: str) -> list[str]:
     # extraction so that e.g. "神经酰胺" is treated as one unit and its
     # English equivalents (ceramide) are injected, rather than being split
     # into 神/经/酰/胺 which cannot match English PubMed text.
+    #
+    # Terms are checked against the ORIGINAL query (not ``remaining``) so that
+    # overlapping shorter terms are still detected: e.g. when "雷公藤多苷" matches,
+    # "雷公藤" within it is also recognized and its English equivalents
+    # ("tripterygium", "triptolide", "celastrol") are injected. Without this,
+    # articles titled "Tripterygium agents..." cannot match because the only
+    # injected token is the multi-word "tripterygium glycosides".
     remaining = normalized
     for entry in _load_cjk_medical_terms():
         zh_term = str(entry.get("zh", ""))
-        if zh_term and zh_term in remaining:
+        if zh_term and zh_term in normalized:
             en_terms = entry.get("en", [])
             canonical = entry.get("canonical", "")
             for en_kw in en_terms:
@@ -316,9 +324,61 @@ def _build_haystacks(item: LiteratureItem, chunk: LiteratureChunk | None) -> dic
     }
 
 
-def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens: list[str]) -> int:
+def _compute_token_idf(
+    items: list[LiteratureItem],
+    chunks_by_item: dict[str, list[LiteratureChunk]],
+    tokens: list[str],
+) -> dict[str, float]:
+    """Compute smoothed inverse document frequency for each query token.
+
+    Uses the formula: idf = log((N + 1) / (df + 1)) + 1
+    where N = total items and df = number of items whose combined text
+    contains the token. The +1 smoothing prevents division by zero; the
+    trailing +1 ensures even ubiquitous tokens contribute positively
+    (minimum IDF = 1.0).
+
+    This down-weights generic tokens that appear in most articles (e.g.
+    "atopic dermatitis", "immune", "inflammation") and up-weights rare
+    specific tokens (e.g. "baicalin", "cyclosporine", "celastrol"), so
+    that a single specific-token title match can outweigh many generic-
+    token abstract matches from a broad review article.
+
+    When the corpus is large (N > 100), tokens appearing in >50% of articles
+    are treated as stop words (IDF = 0) so they cannot inflate the score of
+    broad review articles that match many generic terms. In small seed corpora
+    (N <= 100) this threshold is disabled to preserve existing ranking behaviour.
+    """
+    n = len(items)
+    if n == 0 or not tokens:
+        return {}
+
+    df: dict[str, int] = {token: 0 for token in tokens}
+    for item in items:
+        chunks = chunks_by_item.get(item.id, [])
+        haystacks = _build_haystacks(item, chunks[0] if chunks else None)
+        combined = " ".join(haystacks.values())
+        for chunk in chunks[1:] if chunks else []:
+            ch = _build_haystacks(item, chunk)
+            combined += " " + " ".join(ch.values())
+        for token in tokens:
+            if df[token] < n and _token_matches(token, combined):
+                df[token] += 1
+
+    df_cutoff = n * 0.5 if n > 100 else n + 1
+    return {
+        token: (0.0 if freq > df_cutoff else math.log((n + 1) / (freq + 1)) + 1)
+        for token, freq in df.items()
+    }
+
+
+def score_item(
+    item: LiteratureItem,
+    chunk: LiteratureChunk | None,
+    query_tokens: list[str],
+    token_weights: dict[str, float] | None = None,
+) -> float:
     haystacks = _build_haystacks(item, chunk)
-    score = 0
+    score: float = 0.0
     for token in query_tokens:
         best_weight = 0
         for weight, field_name in _FIELD_WEIGHTS:
@@ -326,15 +386,20 @@ def score_item(item: LiteratureItem, chunk: LiteratureChunk | None, query_tokens
             if haystack and _token_matches(token, haystack):
                 if weight > best_weight:
                     best_weight = weight
-        score += best_weight
+        if best_weight > 0:
+            if token_weights is not None:
+                score += best_weight * token_weights.get(token, 1.0)
+            else:
+                score += best_weight
     return score
 
 
 def _canonical_token_set() -> set[str]:
     """Tokens eligible for the ``alias_tag_bonus`` substring-against-tag bonus.
 
-    Union of the in-code ``_KEYWORD_ALIASES`` keys and every ``canonical`` declared
-    in ``cross_lingual_terms.json``. Recomputed each call — the set is ~25 items so
+    Union of the in-code ``_KEYWORD_ALIASES`` keys, every ``canonical`` declared
+    in ``cross_lingual_terms.json``, and every ``canonical`` from
+    ``cjk_medical_terms.json``. Recomputed each call — the set is ~80 items so
     cost is negligible, and skipping memoisation keeps the existing monkeypatch
     pattern (``setattr(provider_module, "_cross_lingual_cache", None)``) sufficient
     for cache invalidation in tests.
@@ -342,6 +407,10 @@ def _canonical_token_set() -> set[str]:
     canonicals: set[str] = set(_KEYWORD_ALIASES.keys())
     cross_map = _load_cross_lingual_aliases()
     for entry in cross_map.get("alias_map", []):
+        canonical = entry.get("canonical", "")
+        if canonical:
+            canonicals.add(canonical)
+    for entry in _load_cjk_medical_terms():
         canonical = entry.get("canonical", "")
         if canonical:
             canonicals.add(canonical)
@@ -419,12 +488,13 @@ def _is_real_evidence(item: LiteratureItem) -> bool:
 class ScoredCandidate:
     """One ``(item, chunk)`` ranking candidate.
 
-    ``score`` is an integer so hybrid providers can synthesise a value
-    consistent with the keyword path's integer counts; ``language_bonus`` is
-    0 or 1 and is honoured by ``answer_question`` when composing the answer.
+    ``score`` is a float (IDF-weighted when token_weights are provided, plain
+    integer sum otherwise) so hybrid providers can synthesise a value
+    consistent with the keyword path; ``language_bonus`` is 0 or 1 and is
+    honoured by ``answer_question`` when composing the answer.
     """
 
-    score: int
+    score: float
     language_bonus: int
     item: LiteratureItem
     chunk: LiteratureChunk | None
@@ -444,12 +514,20 @@ class RetrievalProvider(Protocol):
 
 
 class KeywordRetrievalProvider:
-    """Deterministic keyword + alias-table ranker (current behaviour).
+    """Deterministic keyword + alias-table ranker with IDF weighting.
 
-    Iterates ``(item, chunk)`` pairs, computes the integer score, applies the
-    ``score (desc) → language_bonus (desc) → year (desc)`` ordering. Items
+    Iterates ``(item, chunk)`` pairs, computes the IDF-weighted score, applies
+    the ``score (desc) → language_bonus (desc) → year (desc)`` ordering. Items
     with no chunks contribute a single ``(item, None)`` candidate so the
     fallback path still works.
+
+    IDF (inverse document frequency) down-weights generic tokens that appear in
+    most corpus articles (e.g. "atopic dermatitis", "immune") and up-weights
+    rare specific tokens (e.g. "baicalin", "cyclosporine"), so that a single
+    specific-token title match can outweigh many generic-token abstract matches
+    from a broad review article. When the corpus has only one item, IDF
+    degenerates to uniform weighting (every token gets IDF = 1.0), preserving
+    the original behaviour for small seed corpora.
     """
 
     name = "keyword"
@@ -462,13 +540,14 @@ class KeywordRetrievalProvider:
         preferred_source_type: str,
     ) -> list[ScoredCandidate]:
         tokens = tokenize_query(query)
+        token_weights = _compute_token_idf(items, chunks_by_item, tokens)
         ranked: list[ScoredCandidate] = []
         for item in items:
             chunks: list[LiteratureChunk | None] = list(chunks_by_item.get(item.id, []))
             if not chunks:
                 chunks = [None]
             for chunk in chunks:
-                base = score_item(item, chunk, tokens)
+                base = score_item(item, chunk, tokens, token_weights)
                 base += alias_tag_bonus(item.evidence_tags, tokens, 2)
                 if chunk:
                     base += alias_tag_bonus(chunk.evidence_tags, tokens, 7)
