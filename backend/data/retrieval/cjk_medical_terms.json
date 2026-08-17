@@ -54,6 +54,20 @@
     {"zh": "治疗", "en": ["therapy", "treatment"], "canonical": "therapy"},
     {"zh": "方剂", "en": ["formula", "prescription"], "canonical": "formula"},
     {"zh": "生活质量", "en": ["quality of life", "dlqi"], "canonical": "quality_of_life"},
-    {"zh": "睡眠", "en": ["sleep"], "canonical": "sleep"}
+    {"zh": "睡眠", "en": ["sleep"], "canonical": "sleep"},
+    {"zh": "黄芩", "en": ["scutellaria", "scutellaria baicalensis", "baicalin", "baicalein", "wogonin"], "canonical": "scutellaria"},
+    {"zh": "黄芩苷", "en": ["baicalin"], "canonical": "baicalin"},
+    {"zh": "汉黄芩素", "en": ["wogonin"], "canonical": "wogonin"},
+    {"zh": "白鲜皮", "en": ["cortex dictamni", "dictamnus", "dictamnus dasycarpus", "dictamnine"], "canonical": "cortex_dictamni"},
+    {"zh": "雷公藤", "en": ["tripterygium", "tripterygium wilfordii", "triptolide"], "canonical": "tripterygium"},
+    {"zh": "雷公藤多苷", "en": ["tripterygium glycosides", "tripterygium wilfordii glycosides"], "canonical": "tripterygium_glycosides"},
+    {"zh": "甘草", "en": ["glycyrrhiza", "glycyrrhiza uralensis", "glycyrrhizin", "liquiritin"], "canonical": "glycyrrhiza"},
+    {"zh": "甘草酸", "en": ["glycyrrhizin"], "canonical": "glycyrrhizin"},
+    {"zh": "甘草素", "en": ["liquiritin"], "canonical": "liquiritin"},
+    {"zh": "环孢素", "en": ["cyclosporine", "cyclosporin a", "ciclosporin"], "canonical": "cyclosporine"},
+    {"zh": "甲氨蝶呤", "en": ["methotrexate"], "canonical": "methotrexate"},
+    {"zh": "硫唑嘌呤", "en": ["azathioprine"], "canonical": "azathioprine"},
+    {"zh": "湿包", "en": ["wet wrap", "wet wrap therapy"], "canonical": "wet_wrap"},
+    {"zh": "益生菌", "en": ["probiotic", "probiotics"], "canonical": "probiotic"}
   ]
 }

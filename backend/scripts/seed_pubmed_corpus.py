@@ -109,6 +109,11 @@ def main() -> int:
         default=100,
         help="With --runtime-root, fail if fewer live records exist after sync (default 100).",
     )
+    parser.add_argument(
+        "--queries-file",
+        type=Path,
+        help="JSON file containing a non-empty list of query strings; overrides DEFAULT_QUERIES.",
+    )
     args = parser.parse_args()
 
     if args.runtime_root is not None:
@@ -127,11 +132,23 @@ def main() -> int:
     from app.repositories.runtime_storage import get_literature_repository
     from app.services.literature import sync_pubmed
 
+    if args.queries_file is not None:
+        raw_queries = json.loads(args.queries_file.read_text(encoding="utf-8"))
+        if not isinstance(raw_queries, list) or not raw_queries or not all(
+            isinstance(q, str) and q.strip() for q in raw_queries
+        ):
+            print("Refused to load queries-file: expected a non-empty JSON list of strings.")
+            return 2
+        queries = raw_queries
+        print(f"Loaded {len(queries)} queries from {args.queries_file}.")
+    else:
+        queries = DEFAULT_QUERIES
+
     per_query = max(1, min(args.per_query, 50))
     total_created = 0
     total_updated = 0
     failed_queries: list[str] = []
-    for query in DEFAULT_QUERIES:
+    for query in queries:
         try:
             result = sync_pubmed(query, per_query)
         except Exception as exc:  # noqa: BLE001 - operator script, report and continue
