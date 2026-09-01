@@ -72,6 +72,9 @@ opencode.jsonc
 # Trae temporary documents (session-specific planning)
 .trae/
 
+# Trae HTML share exports (transient tool artifacts)
+.trae-html-share-packages/
+
 # Local-only work tracks (paper output, project entity archive)
 论文产出/
 项目实体/
