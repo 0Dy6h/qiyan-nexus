@@ -38,9 +38,7 @@ test("literature data-source switcher sends scoped search params and updates com
   page,
 }) => {
   await page.goto("/literature");
-  await page.waitForLoadState("networkidle");
-
-  await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("全部来源");
+  await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("全部来源", { timeout: 30_000 });
 
   await submitSearchForSource(page, "pubmed_live", { source: "pubmed" });
   await expect(page.getByRole("note", { name: "数据来源说明" })).toContainText("PubMed 记录（含演示 seed）");

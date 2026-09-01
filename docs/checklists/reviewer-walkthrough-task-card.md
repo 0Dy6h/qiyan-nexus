@@ -31,6 +31,8 @@
 | 反馈记录 | `docs/evaluations/2026-06-05-reviewer-feedback.md`，临床写 Reviewer A，科研写 Reviewer B，问题分级用 P0-P3 |
 | Request ID | 优先用 smoke 输出的 `request_ids` 表；浏览器手工复现时取 DevTools Network 响应头 `X-Request-ID` |
 
+> `isolated runtime` 表示本轮与其他运行轮次隔离，不表示同一实例内逐 reviewer PDF 隔离。多人走查只能上传所有参与者均有权查看的材料。
+
 技术团队应先跑并留存 smoke 结果：
 
 ```powershell

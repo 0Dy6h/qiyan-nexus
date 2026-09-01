@@ -22,6 +22,19 @@ test("network analysis client renders live data provenance sections", () => {
   assert.match(source, /evidence_refs/);
 });
 
+test("compound child snapshots override generic live-network copy with a frozen-lineage boundary", () => {
+  const source = getSource("components/NetworkAnalysisClient.tsx");
+
+  assert.match(source, /const isImportedSnapshotResult =/);
+  assert.match(source, /result\?\.source_task_id/);
+  assert.match(source, /compound_import_provenance/);
+  assert.match(source, /冻结靶点快照与派生交集/);
+  assert.match(source, /仅展示冻结 lineage 与服务端派生交集/);
+  assert.match(source, /未构建 provider chains、PPI、pathway 或 enrichment/);
+  assert.match(source, /isImportedSnapshotResult \? \(/);
+  assert.match(source, /: isLiveResult \? \(/);
+});
+
 test("network analysis client handles failed backend task states", () => {
   const source = getSource("components/NetworkAnalysisClient.tsx");
 

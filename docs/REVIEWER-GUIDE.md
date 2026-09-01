@@ -41,6 +41,7 @@ Windows PowerShell：
 - **RAG 是本地确定性检索**，答案是检索到的原文证据片段，**不是模型综合生成的结论**；真实 LLM 为显式 opt-in，默认关闭。
 - **文献库为小型构造演示样本集（约数十篇）**，不可当作外部可检索的真实文献；真实 PubMed 同步（`POST /api/literature/sync`）为 opt-in，写入 runtime，不污染样本。需要更大的真实语料时，运维可运行 `backend/scripts/seed_pubmed_corpus.py` 一键填充 runtime 语料。
 - **网络药理学默认 mock**；live 模式需提前准备 TCMSP 缓存 / 靶点预测文件，**内部预览期间建议直接用 mock 模式**，不要为走查去开 live。
+- **多人试用的 PDF 仍共享**：network task 已按 reviewer 隔离，但 PDF、解析结果、uploaded chunk 与 RAG citation 尚未对象级隔离；只能上传所有参与者均有权查看的材料。
 - 分子对接 / 分子动力学（MVP-C）**仅 schema 预留，无功能**。
 
 ## 关键设计决策摘要（如被问起）
@@ -48,7 +49,7 @@ Windows PowerShell：
 | 决策 | 一句话理由（面向 reviewer） | 详细 |
 |---|---|---|
 | 默认不接真实 LLM，走确定性检索 | 隐私/PIPL 合规 + 不给医生虚假信心，证据可追溯优先 | [ADR-0012](adr/0012-real-llm-enablement.md)、[ADR-0011](adr/0011-external-llm-data-flow-and-pipl.md) |
-| 中英文文献分源索引 | AD 证据中英文并重，分源便于来源核对 | [ADR-0001](adr/0001-中英文文献分源索引策略.md) |
+| 中英文证据来源透明 | AD 证据中英文并重，当前以 seed/runtime、PubMed 入口和来源标签便于核对 | [current-state](current-state.md) |
 | 默认本地 JSON/SQLite，不上生产数据库 | 内部预览阶段够用，PostgreSQL/pgvector 为 opt-in spike | [ADR-0014](adr/0014-retrieval-provider-and-hybrid-search.md) |
 | 网络药理学先 mock 后 live | 先验证产品路径，真实外部数据库链路按需 opt-in | [ADR-0010](adr/0010-research-workbench-module-roadmap.md) |
 | 仅桌面端，不做移动适配 | 医生/科研工作台以桌面为主场景 | [ADR-0002](adr/0002-MVP仅桌面端不做移动端适配.md) |

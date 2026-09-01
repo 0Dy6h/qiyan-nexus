@@ -1,6 +1,7 @@
-from typing import Literal
+from datetime import UTC, date, datetime
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 AnalysisType = Literal["formula", "herb"]
 TaskStatus = Literal["queued", "running", "completed", "failed"]
@@ -13,11 +14,416 @@ EvidenceLevel = Literal[
     "literature_supported",
     "experimental",
 ]
+DiseaseScope = Literal["atopic_dermatitis"]
+ResearchSpecies = Literal["Homo sapiens"]
+EvidencePolicy = Literal["direct_human_first", "mixed_exploratory"]
+TargetEvidenceOrigin = Literal[
+    "mock",
+    "known_activity",
+    "predicted",
+    "mixed",
+    "disease_association",
+]
+AutomaticExtractionStatus = Literal["extracted"]
+IntersectionDerivationStatus = Literal["derived"]
+AdjudicationStatus = Literal["pending", "accepted", "excluded", "needs_review"]
+TargetDecision = Literal["unreviewed", "include", "exclude"]
+ManualAdjudicationDecision = Literal["included", "excluded", "needs_review"]
+AssemblyGateState = Literal["blocked", "assembly_input_ready"]
+
+
+class NetworkResearchProtocol(BaseModel):
+    disease: DiseaseScope = "atopic_dermatitis"
+    phenotype: str = Field(min_length=4, max_length=200)
+    species: ResearchSpecies = "Homo sapiens"
+    evidence_policy: EvidencePolicy
+    query_date: date
+
+
+class NetworkDiseaseTargetRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    raw_identifier: str = Field(min_length=1, max_length=100)
+    canonical_symbol: str = Field(
+        min_length=1,
+        max_length=40,
+        pattern=r"^[A-Z][A-Z0-9.-]*$",
+    )
+    source_record_id: str = Field(min_length=1, max_length=300)
+    source_score: float = Field(ge=0, le=1)
+
+    @field_validator("source_score", mode="before")
+    @classmethod
+    def reject_boolean_score(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("source_score must be numeric and not boolean")
+        return value
+
+
+class NetworkDiseaseTargetImport(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    source_profile: Literal["open_targets_association_v1"]
+    disease: DiseaseScope = "atopic_dermatitis"
+    phenotype: str = Field(min_length=4, max_length=200)
+    species: ResearchSpecies = "Homo sapiens"
+    source_database: Literal["Open Targets Platform"]
+    database_version: str = Field(min_length=1, max_length=100)
+    source_query_id: str = Field(min_length=1, max_length=100)
+    source_query_label: str = Field(min_length=1, max_length=200)
+    source_query_parameters: dict[str, str | int | float | bool | list[str]] = Field(min_length=1)
+    query_date: date
+    retrieved_at: datetime
+    score_name: Literal["association_score"]
+    applied_threshold: float = Field(ge=0, le=1)
+    threshold_operator: Literal["gte"] = "gte"
+    identifier_mapping: Literal["Ensembl target approvedSymbol"]
+    identifier_mapping_version: str = Field(min_length=1, max_length=100)
+    records: list[NetworkDiseaseTargetRecord] = Field(default_factory=list, max_length=500)
+
+    @field_validator("applied_threshold", mode="before")
+    @classmethod
+    def reject_boolean_threshold(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("applied_threshold must be numeric and not boolean")
+        return value
+
+    @model_validator(mode="after")
+    def validate_records(self) -> Self:
+        if self.query_date > date.today():
+            raise ValueError("disease target query_date cannot be in the future")
+        if self.retrieved_at.tzinfo is None:
+            raise ValueError("disease target retrieved_at must include a timezone")
+        if self.retrieved_at.astimezone(UTC) > datetime.now(UTC):
+            raise ValueError("disease target retrieved_at cannot be in the future")
+        observation_keys = [
+            (record.source_record_id, record.raw_identifier, record.canonical_symbol)
+            for record in self.records
+        ]
+        if len(observation_keys) != len(set(observation_keys)):
+            raise ValueError("disease target source observations must be unique")
+        symbols_by_record_id: dict[str, set[str]] = {}
+        for record in self.records:
+            symbols_by_record_id.setdefault(record.source_record_id, set()).add(
+                record.canonical_symbol
+            )
+        if any(len(symbols) > 1 for symbols in symbols_by_record_id.values()):
+            raise ValueError("disease target source_record_id mapping is ambiguous")
+        if any(record.source_score < self.applied_threshold for record in self.records):
+            raise ValueError("disease target source_score must satisfy the applied threshold")
+        return self
+
+
+class NetworkDiseaseTargetVerifyMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    source_profile: Literal["open_targets_association_v1"]
+    disease: DiseaseScope = "atopic_dermatitis"
+    phenotype: str = Field(min_length=4, max_length=200)
+    species: ResearchSpecies = "Homo sapiens"
+    source_database: Literal["Open Targets Platform"]
+    database_version: str = Field(min_length=1, max_length=100)
+    source_query_id: str = Field(min_length=1, max_length=100)
+    source_query_label: str = Field(min_length=1, max_length=200)
+    source_query_parameters: dict[str, str | int | float | bool | list[str]] = Field(min_length=1)
+    query_date: date
+    retrieved_at: datetime
+    score_name: Literal["association_score"]
+    applied_threshold: float = Field(ge=0, le=1)
+    threshold_operator: Literal["gte"] = "gte"
+    identifier_mapping: Literal["Ensembl target approvedSymbol"]
+    identifier_mapping_version: str = Field(min_length=1, max_length=100)
+    usage_license_note: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("applied_threshold", mode="before")
+    @classmethod
+    def reject_boolean_threshold(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("applied_threshold must be numeric and not boolean")
+        return value
+
+    @model_validator(mode="after")
+    def validate_timestamps(self) -> Self:
+        if self.query_date > date.today():
+            raise ValueError("disease target query_date cannot be in the future")
+        if self.retrieved_at.tzinfo is None:
+            raise ValueError("disease target retrieved_at must include a timezone")
+        if self.retrieved_at.astimezone(UTC) > datetime.now(UTC):
+            raise ValueError("disease target retrieved_at cannot be in the future")
+        return self
+
+
+class NetworkCompoundTargetRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    raw_identifier: str = Field(min_length=1, max_length=100, pattern=r"^CHEMBL[0-9]+$")
+    canonical_symbol: str = Field(
+        min_length=1,
+        max_length=40,
+        pattern=r"^[A-Z][A-Z0-9.-]*$",
+    )
+    source_record_id: str = Field(min_length=1, max_length=300)
+    source_score: float = Field(ge=0, le=20)
+
+    @field_validator("source_score", mode="before")
+    @classmethod
+    def reject_boolean_score(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("source_score must be numeric and not boolean")
+        return value
+
+
+class NetworkCompoundTargetQueryParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    assay_organism: ResearchSpecies
+    pchembl_value_min: float = Field(ge=0, le=20)
+    standard_type: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @field_validator("pchembl_value_min", mode="before")
+    @classmethod
+    def reject_boolean_threshold(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("pchembl_value_min must be numeric and not boolean")
+        return value
+
+
+class NetworkCompoundTargetVerifyMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    source_profile: Literal["chembl_known_activity_v1"]
+    compound_id: str = Field(min_length=1, max_length=100, pattern=r"^CHEMBL[0-9]+$")
+    compound_label: str = Field(min_length=1, max_length=200)
+    species: ResearchSpecies = "Homo sapiens"
+    source_database: Literal["ChEMBL"]
+    database_version: str = Field(min_length=1, max_length=100)
+    source_query_id: str = Field(min_length=1, max_length=100)
+    source_query_label: str = Field(min_length=1, max_length=200)
+    source_query_parameters: NetworkCompoundTargetQueryParameters
+    query_date: date
+    retrieved_at: datetime
+    score_name: Literal["pchembl_value"]
+    applied_threshold: float = Field(ge=0, le=20)
+    threshold_operator: Literal["gte"] = "gte"
+    identifier_mapping: Literal["ChEMBL target component gene symbol"]
+    identifier_mapping_version: str = Field(min_length=1, max_length=100)
+    usage_license_note: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("applied_threshold", mode="before")
+    @classmethod
+    def reject_boolean_threshold(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("applied_threshold must be numeric and not boolean")
+        return value
+
+    @model_validator(mode="after")
+    def validate_metadata(self) -> Self:
+        if self.source_query_id != self.compound_id:
+            raise ValueError("compound target source_query_id must match compound_id")
+        if self.source_query_parameters.assay_organism != self.species:
+            raise ValueError("compound target assay_organism must match species")
+        if self.source_query_parameters.pchembl_value_min != self.applied_threshold:
+            raise ValueError("compound target pchembl_value_min must match applied_threshold")
+        if self.query_date > date.today():
+            raise ValueError("compound target query_date cannot be in the future")
+        if self.retrieved_at.tzinfo is None:
+            raise ValueError("compound target retrieved_at must include a timezone")
+        if self.retrieved_at.astimezone(UTC) > datetime.now(UTC):
+            raise ValueError("compound target retrieved_at cannot be in the future")
+        return self
+
+
+class NetworkCompoundTargetImport(NetworkCompoundTargetVerifyMetadata):
+    records: list[NetworkCompoundTargetRecord] = Field(default_factory=list, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_records(self) -> Self:
+        observation_keys = [
+            (record.source_record_id, record.raw_identifier, record.canonical_symbol)
+            for record in self.records
+        ]
+        if len(observation_keys) != len(set(observation_keys)):
+            raise ValueError("compound target source observations must be unique")
+        source_record_ids = [record.source_record_id for record in self.records]
+        if len(source_record_ids) != len(set(source_record_ids)):
+            raise ValueError("compound target source_record_id values must be unique")
+        if any(record.source_score < self.applied_threshold for record in self.records):
+            raise ValueError("compound target source_score must satisfy the applied threshold")
+        return self
+
+
+class NetworkCompoundTargetVerifiedSnapshot(NetworkCompoundTargetImport):
+    provenance_verification_status: Literal["server_verified_raw_artifact"]
+    import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_filename: str = Field(min_length=1, max_length=255)
+    source_artifact_media_type: str = Field(min_length=1, max_length=100)
+
+
+NetworkCompoundTargetSnapshot = NetworkCompoundTargetVerifiedSnapshot
+
+
+class NetworkCompoundTargetImportProvenance(NetworkCompoundTargetVerifyMetadata):
+    record_count: int = Field(ge=0)
+    provenance_verification_status: Literal["server_verified_raw_artifact"]
+    import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_filename: str = Field(min_length=1, max_length=255)
+    source_artifact_media_type: str = Field(min_length=1, max_length=100)
+
+
+class NetworkDiseaseTargetImportSnapshot(NetworkDiseaseTargetImport):
+    provenance_verification_status: Literal["unverified_client_import"]
+    import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class NetworkDiseaseTargetVerifiedSnapshot(NetworkDiseaseTargetImport):
+    provenance_verification_status: Literal["server_verified_raw_artifact"]
+    import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_filename: str = Field(min_length=1, max_length=255)
+    source_artifact_media_type: str = Field(min_length=1, max_length=100)
+    usage_license_note: str = Field(min_length=1, max_length=1000)
+
+
+NetworkDiseaseTargetSnapshot = (
+    NetworkDiseaseTargetImportSnapshot | NetworkDiseaseTargetVerifiedSnapshot
+)
+
+
+class NetworkDiseaseTargetImportProvenance(BaseModel):
+    source_profile: Literal["open_targets_association_v1"]
+    source_database: Literal["Open Targets Platform"]
+    database_version: str
+    source_query_id: str
+    source_query_label: str
+    source_query_parameters: dict[str, str | int | float | bool | list[str]]
+    query_date: date
+    retrieved_at: datetime
+    score_name: Literal["association_score"]
+    applied_threshold: float
+    threshold_operator: Literal["gte"]
+    identifier_mapping: Literal["Ensembl target approvedSymbol"]
+    identifier_mapping_version: str
+    record_count: int = Field(ge=0)
+    provenance_verification_status: Literal[
+        "unverified_client_import", "server_verified_raw_artifact"
+    ]
+    import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_artifact_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    source_artifact_filename: str | None = None
+    source_artifact_media_type: str | None = None
+    usage_license_note: str | None = None
+
+    @model_validator(mode="after")
+    def validate_verified_artifact_fields(self) -> Self:
+        if self.provenance_verification_status == "server_verified_raw_artifact" and any(
+            not value
+            for value in (
+                self.source_artifact_sha256,
+                self.source_artifact_filename,
+                self.source_artifact_media_type,
+                self.usage_license_note,
+            )
+        ):
+            raise ValueError("server-verified provenance requires raw artifact metadata")
+        return self
+
+
+class NetworkResearchReadiness(BaseModel):
+    protocol_complete: bool = False
+    formal_network_ready: bool = False
+    blocking_reasons: list[str] = Field(default_factory=lambda: ["缺少可审计的研究协议。"])
+
+
+class NetworkTargetLineageRow(BaseModel):
+    lineage_row_id: str | None = None
+    raw_identifier: str
+    canonical_symbol: str
+    source_database: str
+    database_version: str | None = None
+    source_query: str | None = None
+    query_date: date
+    retrieved_at: str | None = None
+    species: ResearchSpecies = "Homo sapiens"
+    source_score: float | None = Field(default=None, ge=0)
+    applied_threshold: float | None = Field(default=None, ge=0)
+    threshold_operator: Literal["gte"] | None = None
+    score_name: str | None = None
+    identifier_mapping: str
+    identifier_mapping_version: str | None = None
+    evidence_origin: TargetEvidenceOrigin
+    source_record_ids: list[str] = Field(default_factory=list)
+    automatic_status: AutomaticExtractionStatus = "extracted"
+    adjudication_status: AdjudicationStatus = "pending"
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
+    decision: TargetDecision = "unreviewed"
+    decision_rationale: str | None = None
+
+
+class NetworkTargetIntersectionRow(BaseModel):
+    lineage_row_id: str
+    canonical_symbol: str
+    query_date: date
+    species: ResearchSpecies = "Homo sapiens"
+    derivation: Literal["canonical_symbol_exact_match_v1"] = "canonical_symbol_exact_match_v1"
+    disease_lineage_row_ids: list[str] = Field(min_length=1)
+    compound_lineage_row_ids: list[str] = Field(min_length=1)
+    automatic_status: IntersectionDerivationStatus = "derived"
+    adjudication_status: AdjudicationStatus = "pending"
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
+    decision: TargetDecision = "unreviewed"
+    decision_rationale: str | None = None
+
+
+class NetworkTargetLineage(BaseModel):
+    observation_unit: Literal["target_record", "mixed"] = "mixed"
+    disease_observation_unit: Literal["source_record"] = "source_record"
+    compound_observation_unit: Literal["source_record"] = "source_record"
+    intersection_observation_unit: Literal["canonical_symbol_derivation"] = (
+        "canonical_symbol_derivation"
+    )
+    disease_import_provenance: NetworkDiseaseTargetImportProvenance | None = None
+    compound_import_provenance: NetworkCompoundTargetImportProvenance | None = None
+    disease_targets: list[NetworkTargetLineageRow] = Field(default_factory=list)
+    compound_targets: list[NetworkTargetLineageRow] = Field(default_factory=list)
+    intersection_targets: list[NetworkTargetIntersectionRow] = Field(default_factory=list)
+    disease_target_count: int = Field(default=0, ge=0)
+    compound_target_count: int = Field(default=0, ge=0)
+    intersection_target_count: int = Field(default=0, ge=0)
+    disease_lineage_row_count: int = Field(default=0, ge=0)
+    compound_lineage_row_count: int = Field(default=0, ge=0)
+    intersection_lineage_row_count: int = Field(default=0, ge=0)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class NetworkAnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     query: str = Field(min_length=1)
     analysis_type: AnalysisType = "formula"
+    research_protocol: NetworkResearchProtocol
+    disease_target_import: NetworkDiseaseTargetImport | None = None
+
+    @model_validator(mode="after")
+    def validate_disease_import_matches_protocol(self) -> Self:
+        imported = self.disease_target_import
+        if imported is None:
+            return self
+        protocol = self.research_protocol
+        matching_fields = ("disease", "phenotype", "species", "query_date")
+        mismatches = [
+            field
+            for field in matching_fields
+            if getattr(imported, field) != getattr(protocol, field)
+        ]
+        if mismatches:
+            raise ValueError(
+                "disease_target_import must match research_protocol for: " + ", ".join(mismatches)
+            )
+        return self
 
 
 class NetworkAnalyzeAccepted(BaseModel):
@@ -89,8 +495,12 @@ class EnrichmentResult(BaseModel):
 
 class NetworkAnalysisResult(BaseModel):
     task_id: str
+    source_task_id: str | None = Field(default=None, pattern=r"^network-[0-9a-f]{12,32}$")
     query: str
     analysis_type: AnalysisType
+    research_protocol: NetworkResearchProtocol | None = None
+    readiness: NetworkResearchReadiness = Field(default_factory=NetworkResearchReadiness)
+    target_lineage: NetworkTargetLineage = Field(default_factory=NetworkTargetLineage)
     data_mode: DataMode = "mock"
     chains: list[NetworkChain]
     enrichment: EnrichmentResult | None = None
@@ -101,6 +511,123 @@ class NetworkAnalysisResult(BaseModel):
     disclaimer: str
 
 
+class NetworkTargetAdjudication(BaseModel):
+    """One append-only manual adjudication event stored on the task record.
+
+    ``reviewer_id`` is persisted for audit but is never projected back to any
+    API response.  Adjudications are additive audit data only: they must never
+    mutate the frozen target lineage rows, provenance hashes, or readiness.
+    """
+
+    adjudication_id: str = Field(min_length=1, max_length=120)
+    lineage_row_id: str = Field(min_length=1, max_length=120)
+    decision: ManualAdjudicationDecision
+    reason: str | None = Field(default=None, max_length=500)
+    decided_at: str = Field(min_length=1)
+    reviewer_id: str = Field(min_length=1, max_length=64)
+
+
+class NetworkAdjudicationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    lineage_row_id: str = Field(min_length=1, max_length=120)
+    decision: ManualAdjudicationDecision
+    reason: str | None = Field(default=None, max_length=500)
+
+    @field_validator("reason", mode="after")
+    @classmethod
+    def empty_reason_becomes_null(cls, value: str | None) -> str | None:
+        if value is not None and value == "":
+            return None
+        return value
+
+
+class NetworkTargetAdjudicationRecord(BaseModel):
+    """API projection of one adjudication event; reviewer identity is dropped."""
+
+    adjudication_id: str
+    lineage_row_id: str
+    decision: ManualAdjudicationDecision
+    reason: str | None = None
+    decided_at: str
+
+
+class NetworkAdjudicationCounts(BaseModel):
+    included: int = Field(default=0, ge=0)
+    excluded: int = Field(default=0, ge=0)
+    needs_review: int = Field(default=0, ge=0)
+    pending: int = Field(default=0, ge=0)
+
+
+class NetworkAdjudicationCurrentEntry(BaseModel):
+    """Latest adjudication for one lineage row; reviewer identity is dropped."""
+
+    lineage_row_id: str
+    decision: ManualAdjudicationDecision
+    reason: str | None = None
+    decided_at: str
+
+
+class NetworkAdjudicationSummary(BaseModel):
+    """Read-only adjudication projection over the frozen target lineage."""
+
+    counts: NetworkAdjudicationCounts = Field(default_factory=NetworkAdjudicationCounts)
+    current: list[NetworkAdjudicationCurrentEntry] = Field(default_factory=list)
+
+
+class NetworkAssemblyGateBlocker(BaseModel):
+    code: str
+    row_ids: list[str] = Field(default_factory=list)
+
+
+class NetworkAssemblySelectedIntersection(BaseModel):
+    lineage_row_id: str
+    canonical_symbol: str
+    frozen_disease_lineage_row_ids: list[str]
+    frozen_compound_lineage_row_ids: list[str]
+    selected_disease_lineage_row_ids: list[str] = Field(min_length=1)
+    selected_compound_lineage_row_ids: list[str] = Field(min_length=1)
+
+
+class NetworkAssemblyPlan(BaseModel):
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    canonicalization_id: Literal["qiyan_canonical_json_v1"] = "qiyan_canonical_json_v1"
+    task_id: str
+    source_task_id: str
+    parent_protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    child_protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    disease_source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    compound_source_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    disease_import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    compound_import_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    target_lineage_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    adjudication_selection_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    selected_intersections: list[NetworkAssemblySelectedIntersection] = Field(min_length=1)
+    plan_sequence: int = Field(ge=1)
+    created_at: str
+    assembly_input_ready: Literal[True] = True
+    formal_network_ready: Literal[False] = False
+
+
+class NetworkAssemblyPlanSummary(BaseModel):
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    selected_intersection_count: int = Field(ge=1)
+    created_at: str
+    assembly_input_ready: Literal[True] = True
+    formal_network_ready: Literal[False] = False
+
+
+class NetworkAssemblyGateProjection(BaseModel):
+    policy_id: Literal["source_bound_network_assembly_v1"] = "source_bound_network_assembly_v1"
+    state: AssemblyGateState = "blocked"
+    blockers: list[NetworkAssemblyGateBlocker] = Field(default_factory=list)
+    latest_plan: NetworkAssemblyPlanSummary | None = None
+
+
 class NetworkResultResponse(BaseModel):
     task_id: str
     status: TaskStatus
@@ -109,12 +636,38 @@ class NetworkResultResponse(BaseModel):
     result: NetworkAnalysisResult | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    adjudication: NetworkAdjudicationSummary = Field(default_factory=NetworkAdjudicationSummary)
+    assembly_gate: NetworkAssemblyGateProjection = Field(
+        default_factory=NetworkAssemblyGateProjection
+    )
+
+
+class NetworkTaskSummary(BaseModel):
+    """Owner-scoped task summary for list responses; never exposes owner_id."""
+
+    task_id: str
+    source_task_id: str | None = Field(default=None, pattern=r"^network-[0-9a-f]{12,32}$")
+    query: str
+    analysis_type: AnalysisType
+    status: TaskStatus
+    data_mode: DataMode = "mock"
+    formal_network_ready: bool = False
+    created_at: str
+
+
+class NetworkTaskListResponse(BaseModel):
+    tasks: list[NetworkTaskSummary] = Field(default_factory=list)
 
 
 class NetworkTaskRecord(BaseModel):
     task_id: str
+    source_task_id: str | None = Field(default=None, pattern=r"^network-[0-9a-f]{12,32}$")
+    owner_id: str | None = None
     query: str
     analysis_type: AnalysisType
+    research_protocol: NetworkResearchProtocol | None = None
+    disease_target_import: NetworkDiseaseTargetSnapshot | None = None
+    compound_target_import: NetworkCompoundTargetSnapshot | None = None
     status: TaskStatus
     progress: int = Field(ge=0, le=100)
     poll_count: int = Field(ge=0)
@@ -122,4 +675,15 @@ class NetworkTaskRecord(BaseModel):
     result: NetworkAnalysisResult | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    adjudications: list[NetworkTargetAdjudication] = Field(default_factory=list)
     created_at: str
+
+    @model_validator(mode="after")
+    def validate_source_task_link(self) -> Self:
+        if self.source_task_id is None:
+            return self
+        if self.compound_target_import is None:
+            raise ValueError("source_task_id is only valid for imported compound child tasks")
+        if self.source_task_id == self.task_id:
+            raise ValueError("source_task_id must refer to a distinct parent task")
+        return self

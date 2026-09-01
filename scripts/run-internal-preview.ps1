@@ -1,7 +1,9 @@
 param(
     [string]$RuntimeRoot = ".tmp/internal-preview",
-    [string]$BackendPort = "8000",
-    [string]$FrontendPort = "3000",
+    [ValidateRange(1, 65535)]
+    [int]$BackendPort = 8000,
+    [ValidateRange(1, 65535)]
+    [int]$FrontendPort = 3000,
     [string]$AccessToken = "",
     [switch]$Stop
 )
@@ -14,6 +16,7 @@ $runtimePath = Join-Path $repoRoot $RuntimeRoot
 $backendDir = Join-Path $repoRoot "backend"
 $frontendDir = Join-Path $repoRoot "frontend"
 $backendPython = Join-Path $backendDir ".uv-test-venv\Scripts\python.exe"
+$processHelper = Join-Path $PSScriptRoot "start-configured-process.ps1"
 $processFile = Join-Path $runtimePath "processes.json"
 $backendLog = Join-Path $runtimePath "backend.log"
 $frontendLog = Join-Path $runtimePath "frontend.log"
@@ -56,6 +59,10 @@ $pnpm = Get-Command "pnpm" -ErrorAction SilentlyContinue
 if ($null -eq $pnpm) {
     throw "pnpm was not found on PATH. Install pnpm before running the frontend preview."
 }
+$powerShellHost = Get-Command "pwsh" -ErrorAction SilentlyContinue
+if ($null -eq $powerShellHost) {
+    $powerShellHost = Get-Command "powershell" -ErrorAction Stop
+}
 
 New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimePath "uploads") | Out-Null
@@ -81,42 +88,54 @@ $backendEnv = @{
 
 $frontendEnv = @{
     "NEXT_PUBLIC_API_BASE_URL" = "http://127.0.0.1:$BackendPort"
-    "NEXT_PUBLIC_QIYAN_ACCESS_TOKEN" = $AccessToken
 }
 
-function ConvertTo-EnvCommand {
-    param([hashtable]$Environment)
+function Start-ConfiguredProcess {
+    param(
+        [string]$WorkingDirectory,
+        [string]$Executable,
+        [string[]]$Arguments,
+        [string]$LogPath,
+        [hashtable]$Environment
+    )
 
-    return ($Environment.GetEnumerator() | ForEach-Object {
-            "`$env:$($_.Key) = '$($_.Value -replace "'", "''")'"
-        }) -join "; "
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $powerShellHost.Source
+    $startInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$processHelper`""
+    $startInfo.WorkingDirectory = $WorkingDirectory
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    [void]$startInfo.EnvironmentVariables.Remove("QIYAN_ACCESS_TOKENS")
+    [void]$startInfo.EnvironmentVariables.Remove("NEXT_PUBLIC_QIYAN_ACCESS_TOKEN")
+    foreach ($entry in $Environment.GetEnumerator()) {
+        $startInfo.EnvironmentVariables[[string]$entry.Key] = [string]$entry.Value
+    }
+    $startInfo.EnvironmentVariables["QIYAN_PROCESS_EXECUTABLE"] = $Executable
+    $startInfo.EnvironmentVariables["QIYAN_PROCESS_ARGUMENTS_JSON"] = ($Arguments | ConvertTo-Json -Compress)
+    $startInfo.EnvironmentVariables["QIYAN_PROCESS_LOG_PATH"] = $LogPath
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw "Failed to start configured process in $WorkingDirectory."
+    }
+    return $process
 }
 
-$backendEnvCommand = ConvertTo-EnvCommand -Environment $backendEnv
-$frontendEnvCommand = ConvertTo-EnvCommand -Environment $frontendEnv
+$backendProcess = Start-ConfiguredProcess `
+    -WorkingDirectory $backendDir `
+    -Executable $backendPython `
+    -Arguments @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", [string]$BackendPort) `
+    -LogPath $backendLog `
+    -Environment $backendEnv
 
-$backendCommand = "& '$backendPython' -m uvicorn app.main:app --host 127.0.0.1 --port $BackendPort"
-$frontendCommand = "& '$($pnpm.Source)' dev --hostname 127.0.0.1 --port $FrontendPort"
-
-$backendProcess = Start-Process `
-    -FilePath "powershell" `
-    -ArgumentList @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-Command", "$backendEnvCommand; Set-Location '$backendDir'; $backendCommand *> '$backendLog'"
-    ) `
-    -WindowStyle Hidden `
-    -PassThru
-
-$frontendProcess = Start-Process `
-    -FilePath "powershell" `
-    -ArgumentList @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-Command", "$frontendEnvCommand; Set-Location '$frontendDir'; $frontendCommand *> '$frontendLog'"
-    ) `
-    -WindowStyle Hidden `
-    -PassThru
+$frontendProcess = Start-ConfiguredProcess `
+    -WorkingDirectory $frontendDir `
+    -Executable $pnpm.Source `
+    -Arguments @("dev", "--hostname", "127.0.0.1", "--port", [string]$FrontendPort) `
+    -LogPath $frontendLog `
+    -Environment $frontendEnv
 
 @(
     [pscustomobject]@{ name = "backend"; pid = $backendProcess.Id; port = $BackendPort; log = $backendLog },
@@ -129,7 +148,8 @@ Write-Host "Backend:  http://127.0.0.1:$BackendPort"
 Write-Host "Runtime:  $runtimePath"
 Write-Host "Logs:     $backendLog ; $frontendLog"
 if ($AccessToken.Trim()) {
-    Write-Host "Access:   token profile enabled via X-Access-Token." -ForegroundColor Yellow
+    Write-Host "Access:   backend API token profile enabled for direct scripted calls." -ForegroundColor Yellow
+    Write-Host "Browser:  direct :$FrontendPort UI cannot authenticate to a protected :$BackendPort; use open dev mode or an authenticated reverse proxy." -ForegroundColor Yellow
 }
 else {
     Write-Host "Access:   open dev mode."

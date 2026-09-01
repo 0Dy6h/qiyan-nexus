@@ -11,7 +11,7 @@ Accepted
 早期规划文档冻结的前端方案是 Next.js 15 + React + Ant Design 5。
 
 当前 `frontend/package.json` 的实际安装基线是：
-- Next.js 16.2.4
+- Next.js 16.2.6
 - React 19.2.3
 - Ant Design 6.1.0
 

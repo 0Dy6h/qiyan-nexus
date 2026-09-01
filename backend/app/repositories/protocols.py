@@ -4,6 +4,7 @@ These protocols enable dependency inversion: services depend on the
 abstract interface, not the concrete InMemory/SQLite implementation.
 """
 
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.schemas.chunk import LiteratureChunk
@@ -12,6 +13,11 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyPlan,
+    NetworkCompoundTargetSnapshot,
+    NetworkDiseaseTargetSnapshot,
+    NetworkResearchProtocol,
+    NetworkTargetAdjudication,
     NetworkTaskRecord,
     TaskStatus,
 )
@@ -66,7 +72,60 @@ class ChunkRepository(Protocol):
 class NetworkTaskRepositoryProtocol(Protocol):
     def read_all(self) -> list[NetworkTaskRecord]: ...
 
+    def create(self, record: NetworkTaskRecord) -> bool: ...
+
     def get(self, task_id: str) -> NetworkTaskRecord | None: ...
+
+    def get_owned(self, task_id: str, owner_id: str) -> NetworkTaskRecord | None: ...
+
+    def list_records_for_owner(self, owner_id: str) -> list[NetworkTaskRecord]:
+        """Return records owned by ``owner_id``, newest first.
+
+        Legacy ownerless records (``owner_id is None``) never match — listing
+        fails closed just like ``get_owned``. Ordering is deterministic:
+        ``created_at`` descending, ties broken by ``task_id`` descending.
+        """
+        ...
+
+    def advance(
+        self,
+        task_id: str,
+        owner_id: str,
+        transition: Callable[[NetworkTaskRecord], NetworkTaskRecord],
+    ) -> NetworkTaskRecord | None: ...
+
+    def append_adjudication(
+        self,
+        task_id: str,
+        owner_id: str,
+        adjudication: NetworkTargetAdjudication,
+    ) -> NetworkTaskRecord | None:
+        """Append one adjudication to the owned task and return the record.
+
+        Append-only: existing adjudications are never reordered, updated, or
+        removed.  Fails closed (returns ``None``) for unknown, foreign, or
+        legacy ownerless records, mirroring ``get_owned``/``advance``.
+        """
+        ...
+
+    def list_assembly_plans(self, task_id: str, owner_id: str) -> list[NetworkAssemblyPlan]: ...
+
+    def get_assembly_plan(
+        self, task_id: str, owner_id: str, plan_id: str
+    ) -> NetworkAssemblyPlan | None: ...
+
+    def seal_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        plan: NetworkAssemblyPlan,
+    ) -> tuple[str, NetworkAssemblyPlan | None]:
+        """Atomically seal a plan if the adjudication stream is unchanged.
+
+        Returns ``created``, ``existing``, ``conflict``, or ``not_found``.
+        """
+        ...
 
     def upsert(
         self,
@@ -78,6 +137,11 @@ class NetworkTaskRepositoryProtocol(Protocol):
         poll_count: int,
         result: NetworkAnalysisResult | None,
         created_at: str,
+        research_protocol: NetworkResearchProtocol | None = None,
+        disease_target_import: NetworkDiseaseTargetSnapshot | None = None,
+        compound_target_import: NetworkCompoundTargetSnapshot | None = None,
+        source_task_id: str | None = None,
+        owner_id: str = "local-preview",
         data_mode: DataMode = "mock",
         error: str | None = None,
         warnings: list[str] | None = None,

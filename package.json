@@ -1,0 +1,15 @@
+{
+  "name": "qiyan-nexus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qiyan Nexus monorepo root convenience scripts. Frontend app lives in frontend/, backend in backend/.",
+  "scripts": {
+    "dev": "pnpm --dir frontend dev",
+    "dev:backend": "cd backend && .\\.uv-test-venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+    "build": "pnpm --dir frontend build",
+    "test": "pnpm --dir frontend test",
+    "typecheck": "pnpm --dir frontend typecheck",
+    "preview": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\run-internal-preview.ps1",
+    "preview:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\run-internal-preview.ps1 -Stop"
+  }
+}

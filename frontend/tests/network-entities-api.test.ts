@@ -44,7 +44,7 @@ test("fetchNetworkEntities flattens the grouped backend payload into an id-keyed
 
     assert.equal(captured.length, 1);
     const headers = captured[0].init?.headers as Record<string, string>;
-    assert.equal(headers["X-Access-Token"], "dev-token");
+    assert.equal("X-Access-Token" in headers, false);
     assert.equal(lookup["herb-jingjie"].name, "荆芥");
     assert.equal(lookup["herb-jingjie"].kind, "herb");
     assert.equal(lookup["formula-xiaofengsan"].kind, "formula");

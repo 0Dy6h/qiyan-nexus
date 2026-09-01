@@ -26,7 +26,11 @@ logger = logging.getLogger(__name__)
 # Maximum request body size: 50MB (prevents DoS via large payloads)
 MAX_REQUEST_SIZE = 50 * 1024 * 1024
 
-app = FastAPI(title="Qiyan Nexus API")
+# Resolve settings during application import so production validation fails
+# before the server accepts health checks or business traffic.
+_startup_settings = get_settings()
+
+app = FastAPI(title=_startup_settings.app_name)
 
 
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
@@ -37,7 +41,22 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         if request.method in ("POST", "PUT", "PATCH"):
             content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > MAX_REQUEST_SIZE:
+            if content_length:
+                try:
+                    declared_length = int(content_length)
+                except ValueError:
+                    return JSONResponse(
+                        status_code=422,
+                        content={"detail": "invalid Content-Length"},
+                    )
+                if declared_length < 0:
+                    return JSONResponse(
+                        status_code=422,
+                        content={"detail": "invalid Content-Length"},
+                    )
+            else:
+                declared_length = 0
+            if declared_length > MAX_REQUEST_SIZE:
                 return JSONResponse(
                     status_code=413,
                     content={

@@ -1,0 +1,248 @@
+{
+  "dataset_id": "ad-real-retrieval-held-out-v2",
+  "status": "candidate_frozen_pending_domain_reviewer_acceptance",
+  "created_at": "2026-08-16",
+  "note": "Track A+ 验证题集：30 个全新问题，与 v1 无重叠。用于调参后检索效果验证。问题由工程侧按真实工作流起草，尚不能冒充医生/科研专家原创。真人 reviewer 若改题，必须另存 v3 后再生成 packet。",
+  "queries": [
+    {
+      "query_id": "ad-val-031",
+      "question": "Crisaborole 外用 PDE4 抑制剂治疗轻中度特应性皮炎的疗效与局部不良反应有哪些证据？",
+      "language": "zh",
+      "topic": "pde4_inhibitor_clinical",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-032",
+      "question": "What evidence supports upadacitinib efficacy and safety compared to dupilumab in moderate-to-severe atopic dermatitis?",
+      "language": "en",
+      "topic": "jak1_selective_comparative",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-033",
+      "question": "Nemolizumab 靶向 IL-31 受体治疗特应性皮炎瘙痒的疗效和安全性证据如何？",
+      "language": "zh",
+      "topic": "nemolizumab_pruritus",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-034",
+      "question": "环孢素 A 系统性治疗重度特应性皮炎的有效率、起效时间和主要安全性监测指标是什么？",
+      "language": "zh",
+      "topic": "cyclosporine_systemic",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-035",
+      "question": "Narrow-band UVB phototherapy for atopic dermatitis: what are the evidence, optimal protocols and long-term safety profile?",
+      "language": "en",
+      "topic": "phototherapy_nbuvb",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-036",
+      "question": "湿包疗法治疗特应性皮炎急性发作的疗效证据和使用注意事项有哪些？",
+      "language": "zh",
+      "topic": "wet_wrap_therapy",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-037",
+      "question": "Proactive topical therapy with emollients and anti-inflammatory agents for preventing flares in atopic dermatitis: what does evidence show?",
+      "language": "en",
+      "topic": "proactive_flare_prevention",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-038",
+      "question": "Dupilumab 相关结膜炎和面部红斑的发生率、风险因素和管理策略有哪些证据？",
+      "language": "zh",
+      "topic": "dupilumab_ocular_safety",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-039",
+      "question": "What is the role of TSLP (thymic stromal lymphopoietin) in initiating atopic dermatitis skin inflammation and barrier disruption?",
+      "language": "en",
+      "topic": "tslp_pathogenesis",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-040",
+      "question": "TARC/CCL17 和其他血清生物标志物在特应性皮炎疾病活动度监测中的价值如何？",
+      "language": "zh",
+      "topic": "serum_biomarkers_severity",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-041",
+      "question": "维生素 D 缺乏与特应性皮炎发病风险和严重度的关联及补充干预的证据是什么？",
+      "language": "zh",
+      "topic": "vitamin_d_ad",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-042",
+      "question": "How does psychological stress exacerbate atopic dermatitis through neuroimmune and HPA-axis pathways?",
+      "language": "en",
+      "topic": "stress_neuroimmune",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-043",
+      "question": "空气污染和颗粒物暴露对特应性皮炎发病和加重的流行病学及机制证据有哪些？",
+      "language": "zh",
+      "topic": "air_pollution_ad",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-044",
+      "question": "What mechanisms underlie nocturnal pruritus and sleep disturbance in atopic dermatitis patients?",
+      "language": "en",
+      "topic": "nocturnal_pruritus_sleep",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-045",
+      "question": "慢性瘙痒的外周和中枢敏化机制在特应性皮炎中有哪些研究证据？",
+      "language": "zh",
+      "topic": "chronic_itch_sensitization",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-046",
+      "question": "黄芩活性成分（如黄芩苷、汉黄芩素）对特应性皮炎的抗炎和免疫调节机制有哪些研究？",
+      "language": "zh",
+      "topic": "scutellaria_baicalensis_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-047",
+      "question": "What evidence supports the anti-pruritic and anti-inflammatory effects of Cortex Dictamni (白鲜皮) in atopic dermatitis models?",
+      "language": "en",
+      "topic": "cortex_dictamni_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-048",
+      "question": "雷公藤多苷片治疗特应性皮炎的免疫抑制机制、疗效和肝肾毒性风险有哪些证据？",
+      "language": "zh",
+      "topic": "tripterygium_wilfordii_ad",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-049",
+      "question": "What is the evidence for molecular docking approaches applied to atopic dermatitis herbal compound-target interactions?",
+      "language": "en",
+      "topic": "molecular_docking_herbal",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-050",
+      "question": "中药药浴或中药湿敷治疗特应性皮炎的临床疗效和安全性证据如何？",
+      "language": "zh",
+      "topic": "tcm_topical_bath_wash",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-051",
+      "question": "How are compound-target network construction methods applied in TCM network pharmacology studies for atopic dermatitis?",
+      "language": "en",
+      "topic": "compound_target_network_methodology",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-052",
+      "question": "甘草（Glycyrrhiza uralensis）活性成分如甘草酸和甘草素对特应性皮炎的抗炎机制研究有哪些？",
+      "language": "zh",
+      "topic": "glycyrrhiza_mechanism",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-053",
+      "question": "马拉色菌（Malassezia）定植与特应性皮炎头皮和面部皮损的关联有哪些研究证据？",
+      "language": "zh",
+      "topic": "malassezia_ad",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-054",
+      "question": "What role do short-chain fatty acids (SCFAs) from gut microbiota play in modulating atopic dermatitis inflammation?",
+      "language": "en",
+      "topic": "scfa_gut_skin_axis",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-055",
+      "question": "益生菌不同菌株对特应性皮炎免疫调节的差异性效果有哪些证据？",
+      "language": "zh",
+      "topic": "probiotic_strain_specific",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-056",
+      "question": "What is the evidence for the atopic march progression from atopic dermatitis to asthma and allergic rhinitis?",
+      "language": "en",
+      "topic": "atopic_march_progression",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-057",
+      "question": "特应性皮炎患者的心血管和精神心理共患病风险有哪些流行病学证据？",
+      "language": "zh",
+      "topic": "ad_comorbidities_systemic",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-058",
+      "question": "How valid and responsive are patient-reported outcome measures (POEM, DLQI) in atopic dermatitis clinical trials?",
+      "language": "en",
+      "topic": "prom_validation",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-059",
+      "question": "特应性皮炎患者治疗依从性差的主要因素和改善策略有哪些研究？",
+      "language": "zh",
+      "topic": "treatment_adherence",
+      "user_role": "researcher",
+      "provenance": "engineering_draft_pending_domain_review"
+    },
+    {
+      "query_id": "ad-val-060",
+      "question": "What is the clinical evidence for methotrexate or azathioprine as systemic treatment for moderate-to-severe atopic dermatitis?",
+      "language": "en",
+      "topic": "mtx_azathioprine_systemic",
+      "user_role": "clinician",
+      "provenance": "engineering_draft_pending_domain_review"
+    }
+  ]
+}

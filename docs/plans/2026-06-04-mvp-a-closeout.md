@@ -61,7 +61,7 @@
 - `docs/handoffs/2026-06-03-session-wrap.md` — 阶段 A 最后一次 cross-lingual / e2e 工作 wrap
 - `docs/handoffs/2026-06-04-a5-chinese-pdf-verification.md` — A5 closure
 - `docs/handoffs/2026-06-04-internal-preview-baseline.md` — B6 数据来源 e2e + 内部预览基线收口
-- `docs/adr/0010-module-roadmap.md` — MVP-A/B/C 模块边界
+- `docs/adr/0010-research-workbench-module-roadmap.md` — MVP-A/B/C 模块边界
 - `docs/adr/0012-real-llm-enablement.md` — L2 治理决策
 
 ---

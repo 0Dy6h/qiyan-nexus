@@ -5,6 +5,8 @@
  *
  * Catches errors in the root layout. This replaces the entire page,
  * including the <html> and <body> tags, so it must render them itself.
+ * Note: this page renders without the app stylesheet, so colors are
+ * hardcoded to the light porcelain palette.
  */
 export default function GlobalError({
   error,
@@ -23,21 +25,21 @@ export default function GlobalError({
             margin: "0 auto",
             fontFamily: "system-ui, sans-serif",
             minHeight: "100vh",
-            backgroundColor: "#020508",
-            color: "#f6fbff",
+            backgroundColor: "#f3f6f4",
+            color: "#172420",
           }}
         >
           <div
             style={{
-              backgroundColor: "#2a0d14",
-              border: "1px solid #fb7185",
+              backgroundColor: "#fdf0f1",
+              border: "1px solid #f0c2c8",
               borderRadius: 20,
               padding: 24,
             }}
           >
             <h2
               style={{
-                color: "#fecdd3",
+                color: "#b3233a",
                 fontSize: 20,
                 fontWeight: 700,
                 margin: "0 0 12px",
@@ -47,7 +49,7 @@ export default function GlobalError({
             </h2>
             <p
               style={{
-                color: "#ffe4e6",
+                color: "#6b2731",
                 lineHeight: 1.6,
                 margin: "0 0 16px",
               }}
@@ -57,7 +59,7 @@ export default function GlobalError({
             {error.digest && (
               <p
                 style={{
-                  color: "#ffe4e6",
+                  color: "#6b2731",
                   fontSize: 13,
                   fontFamily: "monospace",
                   margin: "0 0 16px",
@@ -70,7 +72,7 @@ export default function GlobalError({
               onClick={reset}
               style={{
                 padding: "8px 16px",
-                backgroundColor: "#e11d48",
+                backgroundColor: "#dc2626",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: 12,

@@ -47,8 +47,9 @@ Expected:
 cd backend
 $env:QIYAN_LLM_PROVIDER="opencode_go"
 $env:QIYAN_OPENCODE_GO_API_KEY="<local-secret>"
-$env:QIYAN_OPENCODE_GO_MODEL="deepseek-v4-flash"
-$env:QIYAN_OPENCODE_GO_MAX_TOKENS="1200"
+$env:QIYAN_OPENCODE_GO_BASE_URL="https://ai.router.team/v1"
+$env:QIYAN_OPENCODE_GO_MODEL="gpt-5.5"
+$env:QIYAN_OPENCODE_GO_MAX_TOKENS="4096"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
 
@@ -72,7 +73,7 @@ Expected success:
 - Compatibility grounding: if the gateway/model rejects tools but returns valid structured claims JSON on retry, `grounding.policy == "structured_claim_refs_v3"` and `grounding.provider_native_grounding == false`.
 - `grounding.status == "passed"` only when accepted tool claims or structured JSON claims use supplied evidence IDs, for example `{"claims":[{"text":"...","evidence_refs":["chunk-..."]}]}`.
 - If the provider returns prose, empty claims, malformed tool arguments, missing evidence refs, or evidence IDs outside the current citations, `grounding.status == "blocked"` and `answer` is the hard-block copy.
-- For reasoning models, keep `QIYAN_OPENCODE_GO_MAX_TOKENS` high enough for final `content`; with very low values the gateway may return only `reasoning_content`, which the provider treats as an invalid empty answer and falls back to deterministic.
+- `deepseek-v4-flash` + 1200 tokens is a historical smoke profile, not the current preferred path; it may exhaust the output budget and fall back to deterministic. For any model, keep `QIYAN_OPENCODE_GO_MAX_TOKENS` high enough for final `content`.
 
 Fallback check:
 

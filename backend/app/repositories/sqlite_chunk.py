@@ -9,6 +9,7 @@ repository creates its own table with ``CREATE TABLE IF NOT EXISTS``.
 import json
 import sqlite3
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from app.schemas.chunk import LiteratureChunk
@@ -74,17 +75,19 @@ class SqliteChunkRepository:
 
     def __init__(self, db_path: Path, seed_path: Path | None = None) -> None:
         self._db_path = db_path
+        self._lock = RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._closed = False
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(_CREATE_TABLE_SQL)
-        self._conn.commit()
+        with self._lock:
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute(_CREATE_TABLE_SQL)
+            self._conn.commit()
 
-        # Bootstrap from seed JSON if the table is empty.
-        count = self._conn.execute("SELECT COUNT(*) FROM chunk").fetchone()[0]
-        if count == 0:
-            self._bootstrap_from_seed(seed_path)
+            # Bootstrap from seed JSON if the table is empty.
+            count = self._conn.execute("SELECT COUNT(*) FROM chunk").fetchone()[0]
+            if count == 0:
+                self._bootstrap_from_seed(seed_path)
 
     # ------------------------------------------------------------------
     # Bootstrap
@@ -98,9 +101,10 @@ class SqliteChunkRepository:
             seed_path = resolve_chunk_storage_path()
 
         raw_items: list[dict[str, Any]] = json.loads(seed_path.read_text(encoding="utf-8"))
-        for item in raw_items:
-            self._insert_item(item)
-        self._conn.commit()
+        with self._lock:
+            for item in raw_items:
+                self._insert_item(item)
+            self._conn.commit()
 
     def _insert_item(self, item: dict[str, Any]) -> None:
         """Insert a single item dict into the database."""
@@ -127,10 +131,11 @@ class SqliteChunkRepository:
         values = [item.get(c) for c in columns]
         placeholders = ", ".join("?" for _ in columns)
         col_names = ", ".join(columns)
-        self._conn.execute(
-            f"INSERT INTO chunk ({col_names}) VALUES ({placeholders})",
-            values,
-        )
+        with self._lock:
+            self._conn.execute(
+                f"INSERT INTO chunk ({col_names}) VALUES ({placeholders})",
+                values,
+            )
 
     # ------------------------------------------------------------------
     # Public API
@@ -138,30 +143,34 @@ class SqliteChunkRepository:
 
     def close(self) -> None:
         """Close the underlying SQLite connection. Safe to call repeatedly."""
-        if not self._closed:
-            self._conn.close()
-            self._closed = True
+        with self._lock:
+            if not self._closed:
+                self._conn.close()
+                self._closed = True
 
     def __del__(self) -> None:
         self.close()
 
     def list_chunks(self) -> list[LiteratureChunk]:
-        rows = self._conn.execute("SELECT * FROM chunk").fetchall()
-        return [_row_to_chunk(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute("SELECT * FROM chunk").fetchall()
+            return [_row_to_chunk(row) for row in rows]
 
     def list_chunks_by_literature_id(self, literature_id: str) -> list[LiteratureChunk]:
-        rows = self._conn.execute(
-            "SELECT * FROM chunk WHERE literature_id = ?",
-            (literature_id,),
-        ).fetchall()
-        return [_row_to_chunk(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM chunk WHERE literature_id = ?",
+                (literature_id,),
+            ).fetchall()
+            return [_row_to_chunk(row) for row in rows]
 
     def get_chunk_by_id(self, chunk_id: str) -> LiteratureChunk | None:
-        row = self._conn.execute(
-            "SELECT * FROM chunk WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
-        return _row_to_chunk(row) if row else None
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM chunk WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
+            return _row_to_chunk(row) if row else None
 
     def upsert_uploaded_pdf_chunk(
         self,
@@ -178,53 +187,54 @@ class SqliteChunkRepository:
             related_entity_ids or ["disease:atopic-dermatitis"], ensure_ascii=False
         )
 
-        existing = self._conn.execute(
-            "SELECT chunk_id FROM chunk WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
+        with self._lock:
+            existing = self._conn.execute(
+                "SELECT chunk_id FROM chunk WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
 
-        if existing is not None:
-            self._conn.execute(
-                """UPDATE chunk
-                   SET literature_id = ?,
-                       section = 'uploaded_pdf',
-                       text = ?,
-                       source_quote = ?,
-                       evidence_tags = ?,
-                       related_entity_ids = ?,
-                       source_type = 'uploaded_pdf',
-                       pdf_upload_id = ?
-                   WHERE chunk_id = ?""",
-                (
-                    literature_id,
-                    text,
-                    source_quote,
-                    evidence_json,
-                    related_json,
-                    pdf_upload_id,
-                    chunk_id,
-                ),
-            )
-        else:
-            self._conn.execute(
-                """INSERT INTO chunk
-                   (chunk_id, literature_id, section, text, source_quote,
-                    evidence_tags, related_entity_ids, source_type, pdf_upload_id)
-                   VALUES (?, ?, 'uploaded_pdf', ?, ?, ?, ?, 'uploaded_pdf', ?)""",
-                (
-                    chunk_id,
-                    literature_id,
-                    text,
-                    source_quote,
-                    evidence_json,
-                    related_json,
-                    pdf_upload_id,
-                ),
-            )
-        self._conn.commit()
+            if existing is not None:
+                self._conn.execute(
+                    """UPDATE chunk
+                       SET literature_id = ?,
+                           section = 'uploaded_pdf',
+                           text = ?,
+                           source_quote = ?,
+                           evidence_tags = ?,
+                           related_entity_ids = ?,
+                           source_type = 'uploaded_pdf',
+                           pdf_upload_id = ?
+                       WHERE chunk_id = ?""",
+                    (
+                        literature_id,
+                        text,
+                        source_quote,
+                        evidence_json,
+                        related_json,
+                        pdf_upload_id,
+                        chunk_id,
+                    ),
+                )
+            else:
+                self._conn.execute(
+                    """INSERT INTO chunk
+                       (chunk_id, literature_id, section, text, source_quote,
+                        evidence_tags, related_entity_ids, source_type, pdf_upload_id)
+                       VALUES (?, ?, 'uploaded_pdf', ?, ?, ?, ?, 'uploaded_pdf', ?)""",
+                    (
+                        chunk_id,
+                        literature_id,
+                        text,
+                        source_quote,
+                        evidence_json,
+                        related_json,
+                        pdf_upload_id,
+                    ),
+                )
+            self._conn.commit()
 
-        row = self._conn.execute(
-            "SELECT * FROM chunk WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
-        return _row_to_chunk(row)
+            row = self._conn.execute(
+                "SELECT * FROM chunk WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
+            return _row_to_chunk(row)

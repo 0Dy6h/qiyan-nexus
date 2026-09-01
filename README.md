@@ -1,30 +1,35 @@
 # Qiyan Nexus
 
-面向特应性皮炎（AD）医生与科研人员的中医药证据与科研工作台。
+面向特应性皮炎（AD）医生与科研人员的窄领域网络药理学自动化科研辅助平台；文献检索、PDF 归档、证据问答与引用导出是证据服务层。
 
 ## 这是什么
 
-Qiyan Nexus 把「查文献 → 上传/归档证据 → 提问 → 核对引用 → 导出可审阅材料 → 探索机制线索」整合成一条可追溯的工作流。**仅供医生/科研人员使用，不面向 C 端患者，不替代诊断**；所有 AI 输出均附带免责声明 `非诊断结论、需结合临床。`
+Qiyan Nexus 把「定研究协议 → 构建方药-成分-靶点-通路网络 → 核验逐边证据 → 运行富集与一致性检查 → 导出研究报告」整合成一条可追溯工作流。文献检索、PDF 与 RAG 用于支撑靶点、通路、网络边和科研 claim 的证据核验。**仅供医生/科研人员使用，不面向 C 端患者，不替代诊断**；所有 AI 输出均附带免责声明 `非诊断结论、需结合临床。`
 
 ### 核心工作流
 
-1. **查证据**（`/literature`）：检索 AD 中医药文献，区分演示样本 / PubMed 同步 / 上传 PDF 来源。
-2. **问证据**（`/rag`）：基于检索到的文献证据提问，返回附引用来源的证据简报；问题超出语料范围时如实返回「未检索到匹配证据」，不强行作答。
-3. **看机制线索**（`/network`）：探索「方药-成分-靶点-通路-疾病」关联（演示数据，非正式网络药理学结论）。
+1. **定研究协议**（`/network`）：明确方药对象、AD 表型、人类物种、证据策略与查询日期。
+2. **构建与审计网络**（`/network`）：组织「方药-成分-靶点-通路-疾病」链，显示来源、证据等级、富集结果与科研就绪阻塞项。
+3. **核证据**（`/literature`、`/rag`）：检索/归档原始文献并生成可核对引用，作为网络边和研究结论的证据服务层。
+4. **出研究报告**（`/network`）：导出研究协议、链路、来源边界、阻塞项、免责声明和独立的 artifact/scientific readiness 状态。
 
 ### 当前能力边界（请如实告知试用者）
 
 - RAG 默认走**本地确定性检索**（deterministic + keyword），不接真实 LLM；答案是检索到的原文证据片段，**不是模型综合生成的结论**。
 - 文献库为**小型构造演示样本集（约数十篇）**，不可当作外部可检索的真实文献引用；真实 PubMed 同步为显式 opt-in 入口。需要更大的真实语料时，运行 `backend/scripts/seed_pubmed_corpus.py` 一键拉取真实 PubMed 记录写入 runtime（gitignored，不污染 seed）。
+- 默认 keyword 检索在真实语料上的质量尚未获得真人 baseline。2026-07-11 已生成 344 条 real-only PubMed、30 题 × top-5 的 rank/score-blind reviewer packet；150 个标签仍为空，因此 `precision@5` / `MRR@5` 仍是 `null`。复现与标注规则见 `docs/guides/retrieval-validation-track-a.md`。
 - 网络药理学默认为 **mock 演示链路**，富集分析为本地字典模拟，**不代表科研级 TCMSP/STRING/KEGG 或真实 FDR 校正**。
+- `/api/network/analyze` 现要求显式研究协议，并保留可选、未验证的客户端疾病靶点 snapshot；`POST /api/network/disease-import/verify` 与 `POST /api/network/compound-import/verify` 分别由离线 Open Targets / ChEMBL raw artifact 创建不可变的 `server_verified_raw_artifact` task。compound 核验从 owner-scoped 的疾病核验 task 派生新 task，不修改父 task。结果把 `disease_targets`、`compound_targets`、`intersection_targets` 与逐行 lineage 分开输出；即使两侧 artifact 已核验，人工 adjudication 与科学验证未完成时 `formal_network_ready=false`。
+- compound child 持久化 `source_task_id`，当前是 snapshot-only 输出：只返回冻结 lineage 与派生交集，刻意不调用 provider，不生成机制链、PPI、通路或富集（`chains=[]`、`enrichment=null`）。这不是完整网络分析，也不能因 parent 的 `data_mode="live"` 被描述为真实网络链路。
+- network task 已按 reviewer 隔离，但 PDF upload record、解析结果、uploaded chunk 与 RAG retrieval 仍是实例共享；云端多人试用只能上传所有参与者均有权查看的材料。
 - 分子对接 / 分子动力学（MVP-C）**仅有 schema 预留，无实际功能**。
 - 默认路径不外发数据、不接真实 embedding / 生产数据库；外部 provider 仅作本地显式 smoke。
 
 > 详细 API 示例、env 配置、本地门禁与状态事实源见下文与 `docs/current-state.md`。
 
-当前状态：MVP-A 证据工作台已完成收尾，可用于内部预览走查；MVP-B 网络药理学 mock 起步链路已落地；C 阶段 provider / retrieval / grounding 底座部分提前完成。文献检索使用本地 JSON seed + repository/service 层；运行时 PDF metadata、parse 状态、PubMed sync 结果与 network task 写入 `backend/data/runtime/`，不再污染 seed fixture。RAG endpoint 默认采用 deterministic provider + keyword retrieval，返回 answer、citation cards、retrieval metadata、provider name、token usage、grounding metadata 字段与“非诊断结论、需结合临床”免责声明；后端可通过本地 env 显式切换到 `mock_claude`、`opencode_go` 或后置可选的 `anthropic` provider 做 wiring/live smoke，其中 `opencode_go` 是当前优先 live-provider 路径：优先尝试 OpenAI-compatible tool/function calling，若网关拒绝 tools 则回退到 structured claim grounding v3；`anthropic` 路径保留为后续有订阅时的可选 smoke。PDF upload 支持本地文件存储、稳定 upload id 下载/预览；文本型 PDF 可通过 `pypdf` 生成优先正文/摘要窗口的预览文本，扫描件或无法抽取文本时诚实回退到文件级占位说明。当前默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务；外部服务只作为本地显式 smoke，不进入默认用户路径。
+当前状态：2026-07-15 已按 ADR-0017 完成方向纠偏 Gate 1，并完成 Gate 2 的双侧 raw-artifact 工程 provenance：首页与导航以网络药理学为主轴；网络任务强制持久化研究协议；结果、前端与报告分开展示疾病靶点、成分靶点、派生候选交集及逐行 lineage；离线 Open Targets 和 `chembl_known_activity_v1` ChEMBL artifact 都由服务端计算字节 SHA-256、静态解析并封存为不可变 `server_verified_raw_artifact` task，独立脚本可复算 artifact hash、集合计数、阈值与双侧 refs。后者是离线 artifact profile，不是 live ChEMBL API 集成。该状态不证明 release 选对、artifact 来自官方渠道或靶点具有生物学意义；两侧逐边人工 adjudication 和科学验证尚未完成，`formal_network_ready=false`。MVP-A 既有文献/PDF/RAG 能力保留为证据服务层；网络真实富集和 scientific readiness 仍未完成。默认仍不接真实 LLM、真实 embedding 模型、pgvector、Neo4j、Celery、Redis、MinIO、NextAuth 或外部生产服务。2026-08-15 已起草 ADR-0018（Proposed）：在 ADR-0017 当前契约之上，将底层逻辑升级为组学策略，网络药理学为系统层核心，真实组学数据只作显式 opt-in 验证层；该方向不改变当前实现、默认路径与 `formal_network_ready=false`。
 
-当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\Projects\Tcm_tech`。
+当前事实源索引见 `docs/current-state.md`。正式命名建议见 `docs/evaluations/2026-05-06-project-evaluation-and-optimization.md`。当前本地工作区为 `D:\螃蟹's Projects\Tcm_tech`。
 
 ## 目录
 
@@ -48,12 +53,6 @@ Qiyan Nexus 把「查文献 → 上传/归档证据 → 提问 → 核对引用 
 
 ```powershell
 .\scripts\verify-local.ps1 -IncludeE2E
-```
-
-如需确认内部预览 shared-token profile 的浏览器 E2E：
-
-```powershell
-.\scripts\verify-local.ps1 -IncludeE2E -E2ETokenProfile
 ```
 
 单独跑一侧：
@@ -97,8 +96,9 @@ curl http://127.0.0.1:8000/health
 - 默认 `QIYAN_ACCESS_TOKENS` 未设置时全部接口开放（dev 模式）。
 - 设置后所有非 `/health` 与非 OPTIONS preflight 请求必须带 `X-Access-Token` 请求头匹配白名单，否则返回 401。
 - 示例：`$env:QIYAN_ACCESS_TOKENS="dev-token-1,internal-reviewer-2"; & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py`，调用方需 `curl -H "X-Access-Token: dev-token-1" http://127.0.0.1:8000/api/literature/search?q=AD`。
-- 前端可通过 `NEXT_PUBLIC_QIYAN_ACCESS_TOKEN` 为所有 backend fetch 自动附加同名 header；该变量只用于内部预览最小共享 token 门禁，不是正式认证/权限系统。例如：`$env:NEXT_PUBLIC_QIYAN_ACCESS_TOKEN="dev-token-1"; pnpm dev`。
-- CORS 配置不变；multipart PDF 上传只附加 `X-Access-Token`，不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
+- `X-Access-Token` 只证明请求来自可信内部通道，不代表 reviewer 身份。network task 等 owner-bound endpoint 在 protected mode 还要求 `X-Qiyan-Reviewer`；云端由 nginx 用 Basic Auth 的 `$remote_user` 覆盖注入，本地 token smoke 使用固定 `preview-smoke`。不要让浏览器 body、query 参数或公开环境变量决定 owner。
+- 前端不会读取或注入后端 token。任何 `NEXT_PUBLIC_*` 都会进入浏览器 bundle，不能承载访问凭证；本地浏览器开发使用 open mode，云端试用按 `docs/guides/cloud-trial-deployment-runbook.md` 由 nginx Basic Auth 鉴别 reviewer，并由 nginx 在反代层注入后端内部 token。
+- `frontend/lib/api/client.ts` 只合并调用方业务 header；multipart PDF 上传仍不手写 `Content-Type`，避免破坏浏览器生成的 boundary。
 
 内部预览一键启动 / smoke（默认离线 deterministic + keyword + isolated runtime）：
 
@@ -108,16 +108,16 @@ curl http://127.0.0.1:8000/health
 .\scripts\smoke-internal-preview.ps1
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
 
-# shared-token profile（仅内部预览最小门禁，不是正式认证）
+# backend API token profile（供脚本直连验证；直接前端页面不会携带 token）
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
-.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
+.\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token" -ReviewerId "preview-smoke"
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -Stop
 
 # 生成本地内部预览证据包（open + shared-token smoke，输出到 .tmp\internal-preview-evidence\<timestamp>\）
 .\scripts\collect-internal-preview-evidence.ps1
 ```
 
-`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 shared-token 两种 profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
+`run-internal-preview.ps1` 使用 `backend\.uv-test-venv\Scripts\python.exe -m uvicorn app.main:app` 启动后端，避免 Windows FastAPI CLI Rich banner 编码问题；runtime JSON、chunk、network task、vector cache 与 uploads 都写到指定 `.tmp\...` 目录。传入 `-AccessToken` 只保护后端并供脚本直连验证，直接打开 `:3000` 的浏览器页面不会获得该 token；token 按设计保留在后端进程环境中，但不会进入生成的 PowerShell command line、curl argv、前端进程或浏览器，multipart smoke 通过 stdin curl config 传递 header。这里仍只应使用一次性本地测试 token，不要复用云端/生产内部 token，也不要把真实 token 留在 shell history。浏览器走查请用 open dev mode，或使用云端 runbook 中的认证反向代理。`smoke-internal-preview.ps1` 会检查 health、文献四来源、PDF upload + auto-parse、RAG answer/export、network analyze/result/report，并输出 `X-Request-ID`；protected profile 默认使用 canonical reviewer `preview-smoke`。传入 `-OutputJson` / `-OutputMarkdown` 时会同时生成机器可读和 Markdown smoke 证据。`collect-internal-preview-evidence.ps1` 会自动跑 open 与 backend-token 两种 API profile，生成 `evidence-summary.md`、`metadata.json`、`open-smoke.*`、`token-smoke.*` 和日志副本；该证据包只是技术预览 artifact，不能替代正式医生/科研 reviewer sign-off。
 
 文献检索 API 数据来源：
 
@@ -211,7 +211,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer" \
   -d '{"question":"特应性皮炎和肠-脑-皮肤轴有什么关系？","source":"all","top_k":2}'
 ```
 
-当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata 与 `sli`，其中 deterministic / fallback 路径 token 为 `null`、grounding 为 `skipped`。
+当前 RAG endpoint 默认采用 `deterministic` provider + `keyword` retrieval：基于 literature + chunk 样本，对 title/snippet/abstract/keywords/evidence_tags/chunk text 做关键词命中计分，并返回 answer + citation cards + “非诊断结论、需结合临床”免责声明。后端契约测试保证每个 `citations[*].literature_id` 都能通过 `/api/literature/{item_id}` 解析到文献详情。RAG 请求支持 `source`（`all` / `cn_literature` / `pubmed`）和 `top_k`（>= 1）控制 citation card，并返回 `retrieval` 元数据（`applied_source`、`applied_top_k`、`available_citation_count`、`strategy`）供前端展示当前检索条件；response 顶层同时返回 `provider_name`、`input_tokens`、`output_tokens`、`grounding` metadata、`sli` 与服务端 HMAC `integrity_token`，其中 deterministic / fallback 路径 token usage 为 `null`、grounding 为 `skipped`。
 
 RAG 导出 API：
 
@@ -226,7 +226,7 @@ curl -X POST "http://127.0.0.1:8000/api/rag/answer/export/docx" \
   --output qiyan-rag-answer.docx
 ```
 
-Markdown 导出用于纯文本证据简报；`.docx` 导出使用后端标准库生成最小 OOXML 包，保留多行回答换行并剥离 XML 非法控制字符，适合在 Word / WPS 中继续编辑。
+`rag-answer.json` 必须是 `/api/rag/answer` 刚返回的完整、未修改 payload，并保留 `integrity_token`；任何字段缺失或被客户端篡改，Markdown/DOCX 导出都会返回 `409`。Markdown 导出用于纯文本证据简报；`.docx` 导出使用后端标准库生成最小 OOXML 包，保留多行回答换行并剥离 XML 非法控制字符，适合在 Word / WPS 中继续编辑。当前签名密钥为单进程内存态，服务重启后旧 payload 需要重新请求答案。
 
 SLI（成本/延迟可观测）：
 
@@ -299,7 +299,7 @@ Network pharmacology API（默认 mock，live 需显式 opt-in）：
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
   -H "Content-Type: application/json" \
-  -d '{"query":"消风散","analysis_type":"formula"}'
+  -d '{"query":"消风散","analysis_type":"formula","research_protocol":{"disease":"atopic_dermatitis","phenotype":"特应性皮炎伴2型炎症与皮肤屏障异常","species":"Homo sapiens","evidence_policy":"direct_human_first","query_date":"2026-07-11"}}'
 ```
 
 随后轮询：
@@ -309,7 +309,71 @@ curl "http://127.0.0.1:8000/api/network/result/<task_id>"
 curl "http://127.0.0.1:8000/api/network/entities"
 ```
 
+离线 Open Targets raw-artifact 核验需要 operator 预先配置 trusted manifest。PowerShell multipart 示例（`metadata.json` 内容必须与 manifest 中该 raw hash 的条目完全一致）：
+
+```powershell
+$metadata = Get-Content -Raw C:\path\to\metadata.json
+curl.exe -X POST "http://127.0.0.1:8000/api/network/disease-import/verify" `
+  -F "query=消风散" `
+  -F "analysis_type=formula" `
+  -F "evidence_policy=direct_human_first" `
+  --form-string "metadata=$metadata" `
+  -F "file=@C:\path\to\open-targets-response.json;type=application/json"
+```
+
+同一 owner 完成疾病 raw-artifact 核验后，才可用 `POST /api/network/compound-import/verify` 上传离线 ChEMBL known-activity artifact。operator 必须先配置 `NETWORK_CHEMBL_MANIFEST_PATH`；multipart 只能包含 `source_task_id`、`metadata`、`file`，其中 metadata 必须与该 raw-byte hash 的 manifest 条目完全一致：
+
+```powershell
+$compoundMetadata = Get-Content -Raw C:\path\to\chembl-metadata.json
+$sourceTaskId = "network-REPLACE_WITH_VERIFIED_DISEASE_TASK_ID"
+curl.exe -X POST "http://127.0.0.1:8000/api/network/compound-import/verify" `
+  -F "source_task_id=$sourceTaskId" `
+  --form-string "metadata=$compoundMetadata" `
+  -F "file=@C:\path\to\chembl-known-activities.json;type=application/json"
+```
+
+服务端按 `task_id + owner_id` 查找 source task；它必须已有 `server_verified_raw_artifact` disease snapshot，且 compound metadata 的 `species`、`query_date` 必须等于父 task 的研究协议。成功时创建持有冻结协议、疾病 snapshot 与 compound snapshot 的新 task，父 task 永不修改；客户端不得提交 owner/reviewer、records、hash、provenance、readiness 或 adjudication 字段。完整 artifact/manifest 格式见 `docs/guides/network-compound-target-import.md`。
+
+protected mode 直连脚本必须在创建、轮询和报告请求中保持同一个 reviewer id：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/network/analyze" \
+  -H "X-Access-Token: dev-token-1" \
+  -H "X-Qiyan-Reviewer: reviewer-a" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"消风散","analysis_type":"formula","research_protocol":{"disease":"atopic_dermatitis","phenotype":"特应性皮炎伴2型炎症与皮肤屏障异常","species":"Homo sapiens","evidence_policy":"direct_human_first","query_date":"2026-07-11"}}'
+curl "http://127.0.0.1:8000/api/network/result/<task_id>" \
+  -H "X-Access-Token: dev-token-1" \
+  -H "X-Qiyan-Reviewer: reviewer-a"
+```
+
+任务创建时会持久化内部 `owner_id`，但 API response 不暴露该字段。其他 reviewer 查询同一 task id 时统一得到 `404`，且不会推进任务状态；旧 runtime 中没有 owner 的 task 同样 fail closed，需要清理或显式迁移。
+
 默认模式下，网络药理学包含 seed graph + runtime task 壳 + GO/KEGG 富集分析（mock），用于验证「复方/草药 - 成分 - 靶点 - 通路 - 疾病」产品路径、citation/entity 双向跳转、富集分析表格展示与前端 Markdown 报告导出。富集分析使用本地 JSON 字典（`backend/data/network/sample_go_terms.json`、`sample_kegg_pathways.json`）模拟 GO/KEGG 数据库，通过 scipy 超几何分布计算 p-value，返回 top 20 显著富集的通路/功能（p < 0.05，至少 2 个重叠基因）。mock 模式不代表科研级 TCMSP / STRING / KEGG REST API 或真实 FDR 校正。
+
+`POST /api/network/analyze` 可选接收旧的任务级 `disease_target_import`，该路径固定为 `unverified_client_import`。推荐先使用 `POST /api/network/disease-import/verify` multipart 入口上传离线保存的 Open Targets GraphQL `.json` response 与声明元数据：服务端先用 `NETWORK_OPEN_TARGETS_MANIFEST_PATH` 指向的 operator-controlled manifest 按 raw-byte hash 核对 release、结构化 query parameters、UTC retrieved time、`association_score` 阈值、Ensembl mapping version 和 usage/license note，再自行解析 records，计算 raw-byte `source_artifact_sha256` 与 canonical `import_payload_sha256`，并把原始字节保存到 `NETWORK_RAW_ARTIFACT_DIR`（默认 gitignored runtime）。客户端不能提交 records、hash、provenance、readiness 或 adjudication 字段。前端 `/network` 已使用 `FormData` 走该入口；完整格式与验证边界见 `docs/guides/network-disease-target-import.md`。
+
+`POST /api/network/compound-import/verify` 是第二阶段的离线 ChEMBL artifact 核验入口，而非 live ChEMBL API。它只接受 `source_task_id`、`metadata`、`file` 三个 multipart 字段，按访问控制得到的 owner 对 source task fail-closed 查询；该 task 必须有服务端核验的 disease snapshot。服务端用独立的 `NETWORK_CHEMBL_MANIFEST_PATH`（operator-controlled、按 raw-byte SHA-256 索引）核对 `chembl_known_activity_v1` metadata，静态解析 known activities，生成 raw-byte `source_artifact_sha256` 与按 canonical 排序的 `import_payload_sha256`，再以新 immutable child task 保存。它不会改写 parent task，也不接收任何客户端 records、hash、provenance、readiness、lineage 或人工判定字段。详见 `docs/guides/network-compound-target-import.md`。
+
+compound child 的结果仅用于审计冻结的双侧 lineage 和派生交集；服务不会从同一任务构造 provider 链、PPI、通路或 enrichment，`chains=[]`、`enrichment=null` 是有意的失败关闭边界而不是零网络结论。child 会导出 `source_task_id` 指向其疾病 parent；缺少该 link 的 legacy child 在结果和报告读取时失败关闭。独立 validator 还会检查 snapshot-only 的 chains、PPI、data sources、pipeline steps、enrichment 及 warning/readiness blocker；对 parent link 本身，它只核对格式与非自指，不证明 parent task 存在或 owner 归属。
+
+结果中的 `target_lineage` 分开声明观察单元：`disease_targets` 与 `compound_targets` 以 source record 为行，`intersection_targets` 以 canonical-symbol derivation 为行。同一标准靶点来自两个来源记录时保留两行，但 unique target count 只计一次；每个派生候选交集只生成一行，并完整引用同 symbol 的所有 disease/compound `lineage_row_id`。没有导入时 disease/intersection 失败关闭为空；旧客户端导入路径的 `records=[]` 只表示客户端声明零命中，来源与查询执行仍未验证。所有自动行和派生交集默认 `pending/unreviewed`。可用独立于业务 service 的标准库脚本复核导出的 result JSON：
+
+```powershell
+cd backend
+& .\.uv-test-venv\Scripts\python.exe scripts\validate_network_target_lineage.py C:\path\to\network-result.json
+```
+
+对于双侧 raw-artifact task，同时提供两份原始文件：
+
+```powershell
+& .\.uv-test-venv\Scripts\python.exe scripts\validate_network_target_lineage.py `
+  C:\path\to\network-result.json `
+  --disease-source-artifact C:\path\to\open-targets-response.json `
+  --compound-source-artifact C:\path\to\chembl-known-activities.json
+```
+
+脚本复算三个集合的 unique symbol count、source/derivation row count、稳定 row ID、疾病/成分 canonical-symbol 交集、intersection 双侧 refs、导入 payload hash、阈值规则、默认人工状态与 protocol 一致性；为各 `server_verified_raw_artifact` 另行提供 source artifact 时还会复算 raw-byte hash。一致时退出码为 `0`，不一致或输入无效时为 `2`。脚本不 import 生产 service/parser，也不独立重演 Open Targets GraphQL 或 ChEMBL raw-to-records 派生；它只证明已检查的 artifact consistency 与持久化 payload 完整性，不证明 release 选择正确、来源真实、靶点生物学意义或 scientific readiness。
 
 真实网络药理学链路是显式 opt-in，不进入默认路径：
 
@@ -327,7 +391,7 @@ PowerShell live smoke 示例（不会自动开启 TCMSP 抓取；需提前准备
 ```powershell
 cd backend
 $env:QIYAN_NETWORK_DATA_PROVIDER="live"
-$env:QIYAN_NETWORK_CACHE_DIR="backend/data/runtime/network_cache"
+$env:QIYAN_NETWORK_CACHE_DIR="data/runtime/network_cache"
 $env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions.csv"
 & .\.uv-test-venv\Scripts\fastapi.exe dev app/main.py
 ```
@@ -337,10 +401,21 @@ $env:QIYAN_NETWORK_TARGET_PREDICTION_FILE="C:\path\to\network-target-predictions
 ```powershell
 $task = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/network/analyze" `
   -ContentType "application/json" `
-  -Body '{"query":"黄芪","analysis_type":"herb"}'
-Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
-Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+  -Body '{"query":"黄芪","analysis_type":"herb","research_protocol":{"disease":"atopic_dermatitis","phenotype":"特应性皮炎伴2型炎症与皮肤屏障异常","species":"Homo sapiens","evidence_policy":"direct_human_first","query_date":"2026-07-11"}}'
+
+do {
+  $result = Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)"
+  if ($result.status -in @("queued", "running")) { Start-Sleep -Milliseconds 250 }
+} while ($result.status -in @("queued", "running"))
+
+if ($result.status -eq "completed") {
+  Invoke-RestMethod "http://127.0.0.1:8000/api/network/result/$($task.task_id)/report"
+} else {
+  throw "Network task failed: $($result.error)"
+}
 ```
+
+Report 是只读观察接口：任务仍 queued/running 时返回 202，completed 时返回 200 Markdown，failed 时返回 409；读取 report 不会推进状态。
 
 Network analysis response 示例（包含 enrichment 字段）：
 
@@ -401,24 +476,29 @@ pnpm build
 
 启动开发服务：
 
-```bash
+```powershell
 cd frontend
 pnpm dev
 ```
 
+也可以在仓库根目录直接跑（root `package.json` 只是转发到 `frontend/`，效果相同）：
+
+```powershell
+pnpm dev            # 等价于 cd frontend && pnpm dev，起 http://localhost:3000
+pnpm dev:backend    # 等价于在 backend/ 起 uvicorn，http://127.0.0.1:8000
+```
+
+注意：在仓库根目录直接执行 `pnpm dev` 以外的 frontend 子命令（如 `pnpm build`）同样需要 `cd frontend`，或使用上面根目录的同名转发脚本；根目录本身不是 Next.js 应用。浏览器完整体验需要前后端同时在线：前端 `:3000` 渲染页面壳，文献/RAG/网络数据来自后端 `:8000`。一键同时起两侧的脚本是 `.\scripts\run-internal-preview.ps1`（停止用 `-Stop`）。
+
 前端 API 地址默认是 `http://127.0.0.1:8000`。如需覆盖：
 
-```bash
+```powershell
+$env:NEXT_PUBLIC_API_BASE_URL="http://127.0.0.1:8000"
 cd frontend
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 pnpm dev
+pnpm dev
 ```
 
-如后端启用了内部预览 token gate，同时给前端设置同一个 token：
-
-```bash
-cd frontend
-NEXT_PUBLIC_QIYAN_ACCESS_TOKEN=dev-token-1 pnpm dev
-```
+前端不接收后端访问 token。后端启用 `QIYAN_ACCESS_TOKENS` 时，本地脚本或 curl 可直接带 `X-Access-Token`；浏览器页面必须放在能完成用户认证并在服务端注入 token 的反向代理后面。不要把 secret 写入任何 `NEXT_PUBLIC_*` 变量。
 
 前端测试：
 

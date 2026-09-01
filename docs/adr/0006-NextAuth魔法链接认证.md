@@ -1,5 +1,7 @@
 # NextAuth.js 魔法链接 + 邀请白名单认证
 
+> **状态：Deferred historical proposal。** 当前未采用 NextAuth；内部预览访问边界以 `docs/current-state.md` 和 cloud trial runbook 为准。
+
 采用 NextAuth.js（Auth.js v5）实现无密码认证：用户通过邮箱接收一次性魔法链接登录，注册受邀请白名单控制。
 
 ## 方案

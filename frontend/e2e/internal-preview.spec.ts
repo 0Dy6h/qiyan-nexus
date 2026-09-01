@@ -31,8 +31,7 @@ function createMinimalPdf() {
 
 test("internal preview: pdf upload, rag eval, and network mock paths", async ({ page }) => {
   await page.goto("/literature/cn-ad-gbs-001");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { name: "文献详情" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文献详情" })).toBeVisible({ timeout: 30_000 });
 
   const pdfPath = createMinimalPdf();
   await page.getByLabel("选择 PDF 文件").setInputFiles(pdfPath);
@@ -46,7 +45,6 @@ test("internal preview: pdf upload, rag eval, and network mock paths", async ({ 
   await expect(page.getByRole("link", { name: "预览 PDF" })).toBeVisible();
 
   await page.goto("/evals/rag-ad");
-  await page.waitForLoadState("networkidle");
   const evalResponse = page.waitForResponse(
     (response) => response.url().includes("/api/evals/rag-ad/report") && response.status() === 200,
   );
@@ -58,7 +56,6 @@ test("internal preview: pdf upload, rag eval, and network mock paths", async ({ 
   await expect(page.getByText("禁用语违规", { exact: true })).toBeVisible();
 
   await page.goto("/network");
-  await page.waitForLoadState("networkidle");
   const analyzeResponse = page.waitForResponse(
     (response) => response.url().includes("/api/network/analyze") && response.status() === 202,
   );

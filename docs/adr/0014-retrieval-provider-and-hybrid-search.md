@@ -33,7 +33,7 @@ B 阶段已经把 `LLMProvider` 抽出（B1），有了 `select_provider()` 的 
    - `app/services/retrieval/vector_index.py` 中的 `import faiss  # type: ignore[import-untyped, import-not-found, unused-ignore]`
    - `app/services/retrieval/embedding.py::_load_sentence_transformer` 中的局部 import
    - public surface 返回 `numpy.typing.NDArray[np.float32]` 或 typed dataclass，`Any` 不外泄。
-9. **Eval ablation**：`/api/evals/rag-ad/report?strategy=keyword|vector|hybrid` 加 query param；`RagEvalSummary.retrieval_strategy` 字段 additive、default `keyword`；`scripts/compare_retrieval_strategies.py` 给一条 stdlib + TestClient 的对照表。
+9. **Eval ablation**：`/api/evals/rag-ad/report?strategy=keyword|vector|hybrid` 加 query param；`RagEvalSummary.retrieval_strategy` 字段 additive、default `keyword`；`backend/scripts/compare_retrieval_strategies.py` 给一条 stdlib + TestClient 的对照表。
 10. **Slice 命名空间**：所有 C3 模块落在 `app/services/retrieval/`，不再共享 `app/services/rag.py` 命名空间——为后续 C2（citation grounding tool use）也能挂在 `retrieval` 域而不污染 `rag.py` 留路。
 
 ## 后续

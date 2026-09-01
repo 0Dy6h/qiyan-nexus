@@ -150,17 +150,13 @@ def main():
     print("VALIDATION")
     print("=" * 80)
 
-    formula_002_result = next(
-        (r for r in success_results if "formula-002" in r["file"]), None
-    )
+    formula_002_result = next((r for r in success_results if "formula-002" in r["file"]), None)
     if formula_002_result:
         nul_ratio = formula_002_result["nul_ratio"]
         if nul_ratio < 0.05:
             print(f"✅ PASS: cn-ad-formula-002 NUL ratio is {nul_ratio * 100:.2f}% (<5%)")
         else:
-            print(
-                f"⚠️ FAIL: cn-ad-formula-002 NUL ratio is {nul_ratio * 100:.2f}% (≥5%)"
-            )
+            print(f"⚠️ FAIL: cn-ad-formula-002 NUL ratio is {nul_ratio * 100:.2f}% (≥5%)")
     else:
         print("⊘ SKIP: cn-ad-formula-002 not found")
 
@@ -170,9 +166,7 @@ def main():
     if regression_count == 0:
         print(f"✅ PASS: No regressions in other {len(other_samples)} samples")
     else:
-        print(
-            f"⚠️ FAIL: {regression_count} regressions detected in other samples"
-        )
+        print(f"⚠️ FAIL: {regression_count} regressions detected in other samples")
 
     print()
     print("=" * 80)

@@ -5,8 +5,9 @@ scope: how to safely turn the real `opencode_go` provider on/off for Qiyan Nexus
 decision: governed by ADR-0012; data flow by ADR-0011
 
 This runbook is operational. For the *why* and the hard invariants, read
-`docs/adr/0012-real-llm-enablement.md`. For smoke-test mechanics, read
-`docs/guides/opencode-go-bge-smoke-test.md`.
+`docs/adr/0012-real-llm-enablement.md`. The older
+`docs/guides/opencode-go-bge-smoke-test.md` is historical evidence only and
+must not be executed as a current setup guide.
 
 ## 2026-06-08 Provider switch — router.team gateway + gpt-5.5
 
@@ -197,7 +198,7 @@ offline deterministic with no external egress.
    `run_grounding_semantic_separation`; pick a threshold (candidate 0.55–0.72)
    that keeps faithful paraphrases from being over-blocked.~~ **Done 2026-06-01 —
    result: blocked.** The harder fixture (`grounding_semantic_pairs_bge.json`,
-   `scripts/sweep_threshold_recalibration.py`) shows faithful paraphrases
+   `backend/scripts/sweep_threshold_recalibration.py`) shows faithful paraphrases
    (0.863–0.963) and on-topic hard negatives (0.736–0.870) overlap on bge cosine
    (gap −0.007). No threshold separates them; the candidate band would admit every
    hard negative. Root cause: BGE measures similarity, not entailment. The

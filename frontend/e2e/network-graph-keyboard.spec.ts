@@ -12,7 +12,6 @@ import { expect, test } from "@playwright/test";
 test("network graph keyboard a11y: focus → enter/space toggle → escape clear → arrow nav", async ({ page }) => {
   // Run the default mock analysis to render the NetworkGraph with real nodes.
   await page.goto("/network");
-  await page.waitForLoadState("networkidle");
   const analyzeResponse = page.waitForResponse(
     (response) => response.url().includes("/api/network/analyze") && response.status() === 202,
   );
