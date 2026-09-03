@@ -21,6 +21,7 @@ from app.schemas.network import (
     NetworkTaskListResponse,
 )
 from app.schemas.network_entities import NetworkEntitiesResponse
+from app.schemas.omics import OmicsImportAccepted, OmicsTranscriptomicsManifestV1
 from app.services.network import (
     build_network_report_markdown,
     create_network_analysis_task,
@@ -34,10 +35,17 @@ from app.services.network import (
     seal_network_assembly_plan,
     submit_network_target_adjudication,
 )
+from app.services.network_omics import (
+    OmicsSnapshotConflictError,
+    import_verified_omics_artifact,
+)
 
 router = APIRouter(prefix="/api/network", tags=["network"])
 _MAX_RAW_ARTIFACT_BYTES = 5 * 1024 * 1024
 _MAX_VERIFY_REQUEST_BYTES = _MAX_RAW_ARTIFACT_BYTES + 256 * 1024
+_MAX_OMICS_RAW_ARTIFACT_BYTES = 32 * 1024 * 1024
+_MAX_OMICS_VERIFY_REQUEST_BYTES = _MAX_OMICS_RAW_ARTIFACT_BYTES + 256 * 1024
+_OMICS_MANIFEST_FIELD_MAX_BYTES = 256 * 1024
 _ANALYSIS_TYPE_ADAPTER: TypeAdapter[AnalysisType] = TypeAdapter(AnalysisType)
 _EVIDENCE_POLICY_ADAPTER: TypeAdapter[EvidencePolicy] = TypeAdapter(EvidencePolicy)
 
@@ -201,6 +209,83 @@ async def verify_compound_import_endpoint(
         raise HTTPException(status_code=404, detail="Network analysis task not found") from exc
     except (json.JSONDecodeError, ValidationError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/omics-import/verify",
+    response_model=OmicsImportAccepted,
+    status_code=status.HTTP_201_CREATED,
+)
+async def verify_omics_import_endpoint(
+    request: Request,
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+    response: Response,
+) -> OmicsImportAccepted:
+    """Freeze an omics raw artifact as an immutable snapshot (ADR-0018 Gate 3).
+
+    Opt-in only: nothing in the default offline profile calls this. Sealed
+    fields (sha256/frozen_at/frozen_by/provenance) are server-computed; a
+    client that submits them fails the schema validation.
+    """
+    if request.headers.get("transfer-encoding") is not None:
+        raise HTTPException(status_code=411, detail="Content-Length is required")
+    content_length = request.headers.get("content-length")
+    if content_length is None:
+        raise HTTPException(status_code=411, detail="Content-Length is required")
+    try:
+        declared_length = int(content_length)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid Content-Length") from exc
+    if declared_length < 0:
+        raise HTTPException(status_code=422, detail="invalid Content-Length")
+    if declared_length > _MAX_OMICS_VERIFY_REQUEST_BYTES:
+        raise HTTPException(status_code=413, detail="omics raw artifact is too large")
+    form = await request.form(
+        max_files=1, max_fields=2, max_part_size=_OMICS_MANIFEST_FIELD_MAX_BYTES
+    )
+    submitted_fields = set(form.keys())
+    allowed_fields = {"manifest", "file"}
+    extra_fields = submitted_fields - allowed_fields
+    if extra_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unexpected multipart fields: {sorted(extra_fields)}",
+        )
+    invalid_cardinality = sorted(field for field in allowed_fields if len(form.getlist(field)) != 1)
+    if invalid_cardinality:
+        raise HTTPException(
+            status_code=422,
+            detail=f"multipart fields must each appear exactly once: {invalid_cardinality}",
+        )
+    manifest_value = form.get("manifest")
+    file_value = form.get("file")
+    if not isinstance(manifest_value, str):
+        raise HTTPException(status_code=422, detail="manifest is required")
+    if not isinstance(file_value, UploadFile):
+        raise HTTPException(status_code=422, detail="omics raw artifact file is required")
+    try:
+        manifest_payload = json.loads(manifest_value)
+        manifest = OmicsTranscriptomicsManifestV1.model_validate(manifest_payload)
+        raw_bytes = await file_value.read(_MAX_OMICS_RAW_ARTIFACT_BYTES + 1)
+        if len(raw_bytes) > _MAX_OMICS_RAW_ARTIFACT_BYTES:
+            raise HTTPException(status_code=413, detail="omics raw artifact is too large")
+        outcome = import_verified_omics_artifact(
+            raw_bytes,
+            manifest=manifest,
+            frozen_by=reviewer_id,
+        )
+    except OmicsSnapshotConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if outcome.idempotent:
+        response.status_code = status.HTTP_200_OK
+    return OmicsImportAccepted(
+        snapshot_id=outcome.snapshot.snapshot_id,
+        accession=outcome.snapshot.dataset.accession,
+        idempotent=outcome.idempotent,
+        snapshot=outcome.snapshot,
+    )
 
 
 @router.get("/tasks", response_model=NetworkTaskListResponse)
