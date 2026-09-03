@@ -42,8 +42,8 @@
 # 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
 .\scripts\verify-local.ps1
 
-# reviewer 走查或分支收口前追加 Playwright E2E
-.\scripts\verify-local.ps1 -IncludeE2E
+# reviewer 走查或分支收口前追加 Playwright E2E；8000/3000 被占时用隔离端口
+.\scripts\verify-local.ps1 -IncludeE2E -E2eBackendPort 8010 -E2eFrontendPort 3000
 
 # 单侧门禁
 .\scripts\verify-local.ps1 -BackendOnly
@@ -83,8 +83,10 @@ pnpm preview       # = scripts\run-internal-preview.ps1（isolated runtime 起�
 pnpm preview:stop
 
 # 内部预览 isolated runtime + API smoke（用法详见 docs/current-state.md）
-.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open
-.\scripts\smoke-internal-preview.ps1
+# 8000/3000 被其他应用占用时加 -BackendPort/-FrontendPort 换端口；
+# -OpenTargetsManifestPath 注入 trusted manifest 以走查 verified disease-import 与 omics HITL 流程
+.\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -BackendPort 8010 -FrontendPort 3000
+.\scripts\smoke-internal-preview.ps1 -BackendUrl "http://127.0.0.1:8010"
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
 .\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
