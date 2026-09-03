@@ -35,9 +35,15 @@ _SEALED_PROVENANCE = {
 _CLIENT_SECTIONS = ("dataset", "analysis_context", "edge_mapping")
 
 
-def _canonical_snapshot_id(client_manifest: dict[str, Any], artifact_sha256: str) -> str:
+def _canonical_snapshot_id(
+    client_manifest: dict[str, Any], artifact_sha256: str, annotation_sha256: str | None
+) -> str:
     canonical = json.dumps(
-        {"client_manifest": client_manifest, "raw_artifact_sha256": artifact_sha256},
+        {
+            "client_manifest": client_manifest,
+            "raw_artifact_sha256": artifact_sha256,
+            "platform_annotation_sha256": annotation_sha256,
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -104,6 +110,40 @@ def validate(store: dict[str, Any]) -> tuple[bool, list[str]]:
     if not isinstance(raw_artifact.get("frozen_by"), str) or not raw_artifact.get("frozen_by"):
         issues.append("snapshot.raw_artifact.frozen_by must be a sealed operator string")
 
+    platform_annotation = snapshot.get("platform_annotation")
+    annotation_sha256: str | None = None
+    if platform_annotation is not None:
+        if not isinstance(platform_annotation, dict):
+            issues.append("snapshot.platform_annotation must be an object when present")
+            platform_annotation = {}
+        annotation_sha256 = platform_annotation.get("sha256")
+        if not isinstance(annotation_sha256, str) or not _SHA256_PATTERN.fullmatch(
+            annotation_sha256
+        ):
+            issues.append("snapshot.platform_annotation.sha256 must be a sha256 hex digest")
+            annotation_sha256 = None
+        else:
+            annotation_path = omics_dir / "artifacts" / f"{annotation_sha256}.bin"
+            if not annotation_path.is_file():
+                issues.append(
+                    f"platform annotation bytes missing for sha256 {annotation_sha256}"
+                )
+            else:
+                actual = hashlib.sha256(annotation_path.read_bytes()).hexdigest()
+                if actual != annotation_sha256:
+                    issues.append(
+                        "platform annotation bytes fail SHA-256 re-computation: sealed "
+                        f"{annotation_sha256} != actual {actual}"
+                    )
+        if not isinstance(platform_annotation.get("frozen_at"), str) or not platform_annotation.get(
+            "frozen_at"
+        ):
+            issues.append("snapshot.platform_annotation.frozen_at must be a sealed timestamp")
+        if not isinstance(platform_annotation.get("frozen_by"), str) or not platform_annotation.get(
+            "frozen_by"
+        ):
+            issues.append("snapshot.platform_annotation.frozen_by must be a sealed operator")
+
     provenance = snapshot.get("provenance")
     if provenance != _SEALED_PROVENANCE:
         issues.append(
@@ -122,12 +162,17 @@ def validate(store: dict[str, Any]) -> tuple[bool, list[str]]:
         "raw_artifact": {
             key: raw_artifact.get(key) for key in ("filename", "size_bytes", "format")
         },
+        "platform_annotation": None
+        if platform_annotation is None
+        else {
+            key: platform_annotation.get(key) for key in ("filename", "size_bytes", "format")
+        },
         "analysis_context": snapshot.get("analysis_context"),
         "edge_mapping": snapshot.get("edge_mapping"),
     }
     if any(client_manifest.get(section) is None for section in _CLIENT_SECTIONS):
         issues.append("snapshot is missing one or more client manifest sections")
-    recomputed_id = _canonical_snapshot_id(client_manifest, artifact_sha256)
+    recomputed_id = _canonical_snapshot_id(client_manifest, artifact_sha256, annotation_sha256)
     if snapshot.get("snapshot_id") != recomputed_id:
         issues.append(
             "snapshot.snapshot_id does not match re-computed content binding "
