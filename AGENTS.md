@@ -4,12 +4,13 @@
 
 ## 仓库性质
 
-项目已从纯规划阶段切换到可运行开发阶段。2026-07-11 起，唯一产品主轴是窄领域网络药理学自动化科研辅助；MVP-A 文献/PDF/RAG 能力作为证据服务层保留。网络药理学已具备 mock/live 任务壳、最小研究协议门禁、双侧离线 raw-artifact engineering provenance 与 owner-scoped 逐行人工 adjudication（2026-07-26 上线，但尚无任何真人判定记录——「能记录判定」不等于「已有人判定」），真实科研数据闭环仍未完成；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。2026-08-15 ADR-0018（Accepted，Gate 1 已确认）：在 ADR-0017 当前契约之上，把底层逻辑升级为组学策略，网络药理学为系统层核心，真实组学数据只作显式 opt-in 验证层。
+项目已从纯规划阶段切换到可运行开发阶段。2026-07-11 起，唯一产品主轴是窄领域网络药理学自动化科研辅助；MVP-A 文献/PDF/RAG 能力作为证据服务层保留。网络药理学已具备 mock/live 任务壳、最小研究协议门禁、双侧离线 raw-artifact engineering provenance、owner-scoped 逐行人工 adjudication（2026-07-26 上线）与 source-bound 候选装配计划门禁（2026-08-02 上线），真实科研数据闭环仍未完成；真实 LLM / embedding / 生产数据库仍保持显式 opt-in 或后续 spike，不进入默认路径。2026-08 ADR-0018（Accepted，Gate 1-3 已确认）：在 ADR-0017 当前契约之上，把底层逻辑升级为组学策略，网络药理学为系统层核心，真实组学数据只作显式 opt-in 验证层；Gate 3 已选定转录组 GSE32924 并定义 `omics_validated` 证据等级，三个 Gate 均未写代码；Gate 3 实现计划已起草（`docs/plans/2026-09-03-gate3-omics-implementation-plan.md`，Draft 待研究者拍板 D-G3-A/D-G3-B 两个决策点，生效前不写 Gate 3 代码）。检索质量基线：Track A 首版 150 标签（precision@5=0.113、MRR@5=0.163）；2026-08-17 种子扩展 batch1-5 完成（总表 83 条查询，runtime 语料 344→693 pubmed_live），工程侧 v2 盲评迭代至 p@5=0.400、MRR@5=0.744（补记见 `docs/reports/2026-08-17-pubmed-seed-expansion-batch2-5-changelog.md`）；标签仍是工程侧，真人 domain reviewer 数字出现前不声称检索有效。至今没有任何真人 domain reviewer 判定记录，「能记录判定/装配」不等于「已有人判定」，`formal_network_ready` 恒 false。
 
 当前代码目录：
 - `frontend/` — Next.js 前端应用
 - `backend/` — FastAPI 后端应用
 - `infra/` — 本地基础设施说明与后续 Docker Compose 入口
+- `spikes/` — 一次性技术 spike 归档（如 PDF 抽取器对比），不是产品代码
 
 历史规划产物：
 - `docs/archive/pre-dev-planning/` — 早期 Cursor / Trae / Word / HTML 原型归档，仅作历史参考，不作为当前实现事实源。
@@ -27,6 +28,7 @@
 | 开发计划 | `docs/plans/` | 已落地或待执行的纵向切片计划 |
 | 质量 | `docs/quality-score.md` | 各领域质量评分 |
 | 历史归档 | `docs/archive/pre-dev-planning/` | 早期需求、任务、设计、Word 文档与 HTML 原型，仅作追溯参考 |
+| Agent 约定 | `docs/agents/` | 领域文档消费规则、本地 Markdown issue tracker（`.scratch/<feature-slug>/`）、triage 中文标签映射 |
 
 ## 代码结构查询
 
@@ -104,15 +106,17 @@ pnpm preview:stop
 - 靶点集合必须失败关闭：`disease_targets`、`compound_targets`、`intersection_targets` 分开建模；没有独立疾病靶点来源时 disease/intersection 必须为空，禁止从 compound set 自造交集。同一 canonical symbol 的不同 source record 保留多行，unique target count 与 lineage row count 分开；自动抽取不得冒充人工 adjudication。`disease_target_import` 在 task 创建时封存且不可后改：旧 `/api/network/analyze` 客户端导入固定为 `unverified_client_import`；`server_verified_raw_artifact` 只能由受支持的离线 raw artifact（当前为 Open Targets GraphQL 疾病数据或 `chembl_known_activity_v1` ChEMBL 成分数据）经服务端 SHA-256、operator-controlled trusted manifest 与服务端 parser 派生。客户端不得提交 records/hash/provenance/readiness/判定字段，multipart 外层也必须 strict allowlist；该中间态不得命名为 `verified`，且不得翻转 `formal_network_ready`。intersection 必须是一条/unique symbol 的服务端派生 row，并完整引用两侧匹配 lineage row IDs。
 - 双侧 raw artifact 只建立冻结 snapshot，不自动授权下游网络结论。compound child 必须跳过 provider、机制链、PPI、通路与 enrichment，保持 `chains=[]`、`enrichment=null` 和明确的 network-assembly blocker；独立 validator、report 与 UI 必须共同执行该 snapshot-only 边界。
 - 人工判定是与冻结快照平行的 append-only 审计流，不属于快照：projection 挂在结果响应信封而非 `NetworkAnalysisResult`，同一 lineage row 多次判定按 latest-wins 投影，`reviewer_id` 持久化但从不回投，且结构上不得翻转 `formal_network_ready`。冻结 lineage row 的 `adjudication_status` / `decision` 不由该审计流回写。「能记录判定」不等于「已有人判定」，更不等于科学有效。
+- source-bound 装配门禁只证明「装配输入已封存」，不生成网络结论、不授权任何 writer、不翻转 `formal_network_ready`：`POST /api/network/result/{task_id}/assembly-plans` 产出不可变候选装配计划（确定性 plan_id + 协议/父子任务/双侧 artifact/冻结 lineage/判定快照全量绑定 hash），计划封存与判定流在 repository 锁内原子绑定（评估期间追加判定返回 `conflict`）；旧计划 append-only 默认不可执行，writer 消费契约尚未定义。独立 validator `backend/scripts/validate_network_assembly_plan.py` 与 producer 零共享代码，改 plan 结构时必须让它对每一种篡改继续拒绝。
 - SQLite network-task repository 的锁按 canonical DB path 在单进程内共享；literature/chunk 仍是实例级锁。两者都不提供多 worker exactly-once；若引入多进程，必须先设计数据库 claim/lease 或等价原子协议。共享行上任何新增 read-modify-write 必须复用邻近方法已有的 CAS + 重试（`advance()`、`append_adjudication()` 即例），同文件已有的守卫就是需求；并发测试必须能观测到它声称覆盖的竞态——同进程两个 repository 实例共享 path lock，去掉守卫后仍会通过，必须显式制造交错并做变异验证。
 - 写操作与其后用于刷新界面的读取必须分开捕获错误。共用一个 `catch` 会把已落库的写报成失败，在 append-only 审计域里会诱导重试并污染历史。
 - 跨端字段的位置必须两侧各有断言。后端放在响应信封、前端从嵌套快照读取时不会有任何报错，只会静默显示 0。
 - 门禁全红时先排除工具链再改代码：pnpm 写绝对 symlink，仓库目录一旦移动，前端依赖全部悬空、前端门禁全红且与 diff 无关，需 `rm -rf frontend/node_modules && pnpm install --frozen-lockfile`；`.next` 缓存同样含迁移前绝对路径，目录移动后 dev/E2E 会出现与 diff 无关的间歇性失败（如 Playwright `networkidle` 超时），需一并 `rm -rf frontend/.next`。判断某条失败是否既有，用 `git stash` 清空改动后复跑确认，且复跑必须处于干净工具链（已重装依赖、已清缓存），不要凭印象归因。
 - 启动外部进程时传结构化 argv，禁止拼接 `PowerShell -Command` 或 curl config/header 字符串；端口和凭证参数必须先校验。
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
-- 前端 4 个测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
+- 前端测试套件（`frontend/tests/`，40+ 个测试文件）里有 4 个源码断言测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
 - 后端 mypy `strict=true` 仅作用于 `app/`（tests 排除）；`B008` 全局忽略，因为 FastAPI 用 `Body()`/`Form()`/`File()`/`Query()` 当默认值。
 - eval 数据集是 50 题（`backend/data/evals/rag_ad_eval_questions.json`），不要按历史文档里的 20 题口径规划。
+- 检索排序预期是调参产物，不是随手可修的失败：改 `services/retrieval/provider.py` 评分（字段加权 title=3/keywords=2/abstract=1、IDF 加权、多字术语词典）、`backend/data/retrieval/cjk_medical_terms.json` 或 `cross_lingual_terms.json` 会改变 citation 排序；`test_rag_service.py`、`test_rag_api.py`、`test_cross_lingual_eval.py` 的预期顺序对应 Track A/A+ 实测基线（MRR@5 0.268）——该基线对应 seed fixture 上的确定性检索，扩展语料只存在于 gitignored runtime state，不进测试语料，测试预期不受 v6 数字影响——调整时必须说明对基线的影响，不得为过测试而抹平排序。
 
 ## 已冻结的技术决策
 
