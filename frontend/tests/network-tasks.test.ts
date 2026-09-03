@@ -25,6 +25,16 @@ function getSource(relativePath: string) {
   return readFileSync(resolve(testFilePath, "..", "..", relativePath), "utf8");
 }
 
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+// 与展示层同一时区语义：浏览器本地墙钟到分钟。任何时区下都应与实现一致。
+function expectedLocalMinutes(iso: string) {
+  const parsed = new Date(iso);
+  return `${parsed.getFullYear()}-${pad2(parsed.getMonth() + 1)}-${pad2(parsed.getDate())} ${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`;
+}
+
 function buildTask(overrides: Partial<NetworkTaskSummary> = {}): NetworkTaskSummary {
   return {
     task_id: "network-abc123abc123",
@@ -51,9 +61,12 @@ test("parseNetworkTaskIdParam keeps a real id and rejects blank or missing value
   assert.equal(parseNetworkTaskIdParam(null), null);
 });
 
-test("formatNetworkTaskCreatedAt trims the ISO timestamp to minutes and degrades safely", () => {
-  assert.equal(formatNetworkTaskCreatedAt("2026-07-18T09:41:07.123456+00:00"), "2026-07-18 09:41");
+test("formatNetworkTaskCreatedAt renders the local wall clock to minutes and degrades safely", () => {
+  const iso = "2026-07-18T09:41:07.123456+00:00";
+  assert.equal(formatNetworkTaskCreatedAt(iso), expectedLocalMinutes(iso));
   assert.equal(formatNetworkTaskCreatedAt("   "), "未知时间");
+  // non-timestamp strings degrade to the legacy slice instead of leaking "Invalid Date"
+  assert.equal(formatNetworkTaskCreatedAt("not-a-timestamp"), "not-a-timestamp");
 });
 
 test("buildNetworkTaskViewHref deep links into the network page with an encoded task id", () => {
@@ -88,7 +101,7 @@ test("mapNetworkTaskToRow projects labels, derived flag and view href without ex
   assert.equal(row.dataModeLabel, "真实数据 opt-in");
   assert.equal(row.readinessLabel, "未达正式科研标准");
   assert.equal(row.formalNetworkReady, false);
-  assert.equal(row.createdAtLabel, "2026-07-18 09:41");
+  assert.equal(row.createdAtLabel, expectedLocalMinutes("2026-07-18T09:41:07.123456+00:00"));
   assert.equal(row.viewHref, "/network?task_id=network-abc123abc123");
   assert.equal("ownerId" in row, false);
   assert.equal("owner_id" in row, false);

@@ -7,7 +7,11 @@ type CardMetaProps = {
 };
 
 export function CardMetaRow({ items }: CardMetaProps) {
-  return <p style={getMetaRowStyle() as CSSProperties}>{joinMetaItems(items)}</p>;
+  const joined = joinMetaItems(items);
+  if (!joined) {
+    return null;
+  }
+  return <p style={getMetaRowStyle() as CSSProperties}>{joined}</p>;
 }
 
 type CardBodyTextProps = {

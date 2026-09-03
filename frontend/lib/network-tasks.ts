@@ -1,3 +1,4 @@
+import { formatLocalDateTimeMinutes } from "./format-date";
 import {
   getNetworkAnalysisTypeLabel,
   getNetworkDataModeLabel,
@@ -16,7 +17,11 @@ export function formatNetworkTaskCreatedAt(createdAt: string): string {
   if (!trimmed) {
     return "未知时间";
   }
-  return trimmed.replace("T", " ").slice(0, 16);
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return trimmed.replace("T", " ").slice(0, 16);
+  }
+  return formatLocalDateTimeMinutes(parsed);
 }
 
 export function buildNetworkTaskViewHref(taskId: string): string {

@@ -34,6 +34,7 @@ import {
   getNetworkAdjudicationInFlightMessage,
   getNetworkAdjudicationUnavailableReason,
 } from "../lib/network-adjudication";
+import { toLocalDateInputValue } from "../lib/format-date";
 import { parseNetworkTaskIdParam } from "../lib/network-tasks";
 import {
   buildNetworkFocusHref,
@@ -304,7 +305,7 @@ export default function NetworkAnalysisClient() {
   const [phenotype, setPhenotype] = useState("特应性皮炎伴 2 型炎症与皮肤屏障异常");
   const [evidencePolicy, setEvidencePolicy] =
     useState<NetworkEvidencePolicy>("direct_human_first");
-  const [queryDate, setQueryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [queryDate, setQueryDate] = useState(() => toLocalDateInputValue(new Date()));
   const [diseaseRawArtifact, setDiseaseRawArtifact] = useState<File | null>(null);
   const [diseaseImportFileName, setDiseaseImportFileName] = useState<string | null>(null);
   const [openTargetsRelease, setOpenTargetsRelease] = useState("25.06");

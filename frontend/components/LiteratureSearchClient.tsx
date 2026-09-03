@@ -327,7 +327,40 @@ export default function LiteratureSearchClient() {
       ) : null}
 
       {state.items.length > 0 || state.isLoading || state.error ? null : (
-        <StatusPanel message={state.hasSearched ? "未检索到匹配文献，请调整关键词、来源或排序后重试。" : emptyStateCopy.idle} />
+        <div style={{ display: "grid", gap: 12 }}>
+          <StatusPanel
+            message={state.hasSearched ? "未检索到匹配文献，请调整关键词、来源或排序后重试。" : emptyStateCopy.idle}
+          />
+          {state.hasSearched ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
+                当前为小型演示语料，可命中的文献主题有限；靶点缩写（如 IL6、TNF）暂无对应记录。下面的示例词在演示语料中有命中，点击即可直接检索。
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {["消风散", "特应性皮炎", "atopic dermatitis"].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    disabled={state.isLoading}
+                    onClick={() => runSearch(suggestion, state.view, 1, state.pageSize, state.sort)}
+                    style={{
+                      border: "1px solid var(--qiyan-line)",
+                      borderRadius: 8,
+                      background: "var(--qiyan-surface)",
+                      color: "var(--qiyan-ink-2)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      padding: "10px 14px",
+                      minHeight: 44,
+                    }}
+                  >
+                    {`试试「${suggestion}」`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );
