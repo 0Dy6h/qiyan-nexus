@@ -5,6 +5,9 @@ param(
     [ValidateRange(1, 65535)]
     [int]$FrontendPort = 3000,
     [string]$AccessToken = "",
+    # Optional operator-controlled manifest so the verified disease-import flow
+    # (POST /api/network/disease-import/verify) is exercisable in the preview.
+    [string]$OpenTargetsManifestPath = "",
     [switch]$Stop
 )
 
@@ -103,6 +106,12 @@ $backendEnv = @{
     "NETWORK_TASKS_RUNTIME_STATE_PATH" = (Join-Path $runtimePath "network_tasks_state.json")
     "VECTOR_INDEX_RUNTIME_CACHE_PATH" = (Join-Path $runtimePath "vector-index.npy")
     "UPLOAD_STORAGE_DIR" = (Join-Path $runtimePath "uploads")
+}
+if ($OpenTargetsManifestPath.Trim()) {
+    if (-not (Test-Path $OpenTargetsManifestPath)) {
+        throw "Open Targets manifest not found at $OpenTargetsManifestPath."
+    }
+    $backendEnv["NETWORK_OPEN_TARGETS_MANIFEST_PATH"] = (Resolve-Path $OpenTargetsManifestPath).Path
 }
 
 $frontendEnv = @{
