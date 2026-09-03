@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const FRONTEND_PORT = 3000;
-const BACKEND_PORT = 8000;
+// Ports must stay in sync with e2e/start-backend.mjs and e2e/start-frontend.mjs,
+// which honor the same env overrides. Overridable so E2E can run while a dev
+// server (or any other app) occupies the default 3000/8000.
+const FRONTEND_PORT = Number(process.env.QIYAN_E2E_FRONTEND_PORT ?? 3000);
+const BACKEND_PORT = Number(process.env.QIYAN_E2E_BACKEND_PORT ?? 8000);
 const FRONTEND_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 

@@ -55,6 +55,25 @@ if (-not (Test-Path $backendPython)) {
     throw "Backend venv not found at $backendPython. Run backend setup from README.md first."
 }
 
+function Assert-PortAvailable {
+    param([int]$Port, [string]$Name)
+
+    $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $listener) {
+        $owner = Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue
+        $ownerName = if ($null -ne $owner) { $owner.ProcessName } else { "unknown" }
+        throw (
+            "$Name port $Port is already in use by PID $($listener.OwningProcess) ($ownerName). " +
+            "Stop that process, or rerun with -BackendPort/-FrontendPort to pick free ports " +
+            "(for example: -BackendPort 8010 -FrontendPort 3100)."
+        )
+    }
+}
+
+Assert-PortAvailable -Port $BackendPort -Name "backend"
+Assert-PortAvailable -Port $FrontendPort -Name "frontend"
+
 $pnpm = Get-Command "pnpm" -ErrorAction SilentlyContinue
 if ($null -eq $pnpm) {
     throw "pnpm was not found on PATH. Install pnpm before running the frontend preview."
@@ -141,6 +160,38 @@ $frontendProcess = Start-ConfiguredProcess `
     [pscustomobject]@{ name = "backend"; pid = $backendProcess.Id; port = $BackendPort; log = $backendLog },
     [pscustomobject]@{ name = "frontend"; pid = $frontendProcess.Id; port = $FrontendPort; log = $frontendLog }
 ) | ConvertTo-Json | Set-Content -Path $processFile -Encoding utf8
+
+function Wait-PreviewUrl {
+    param([string]$Url, [int]$TimeoutSeconds)
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                return $true
+            }
+        }
+        catch {
+            Start-Sleep -Seconds 2
+        }
+    }
+    return $false
+}
+
+if (Wait-PreviewUrl -Url "http://127.0.0.1:$BackendPort/health" -TimeoutSeconds 60) {
+    Write-Host "Backend health check passed." -ForegroundColor Green
+}
+else {
+    Write-Host "WARNING: backend /health did not answer within 60s. See $backendLog" -ForegroundColor Yellow
+}
+if (Wait-PreviewUrl -Url "http://127.0.0.1:$FrontendPort" -TimeoutSeconds 90) {
+    Write-Host "Frontend health check passed." -ForegroundColor Green
+}
+else {
+    Write-Host "WARNING: frontend did not answer within 90s. See $frontendLog" -ForegroundColor Yellow
+    Write-Host "If the log mentions 'Another next dev server is already running', stop that dev server (its PID is in the log) and rerun with -Stop." -ForegroundColor Yellow
+}
 
 Write-Host "Internal preview started." -ForegroundColor Green
 Write-Host "Frontend: http://127.0.0.1:$FrontendPort"

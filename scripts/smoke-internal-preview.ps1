@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$BackendUrl = "http://127.0.0.1:8000",
     [ValidatePattern('^[A-Za-z0-9._~-]*$')]
     [string]$AccessToken = "",
@@ -412,11 +412,15 @@ $networkTasks = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/netwo
 Assert-True ($networkTasks.Status -eq 200) "Network task list failed."
 $listedTask = @($networkTasks.Payload.tasks | Where-Object { $_.task_id -eq $taskId })
 Assert-True ($listedTask.Count -eq 1) "Network task list did not contain the analyzed task."
-Assert-True ($null -eq $listedTask[0].owner_id) "Network task list leaked owner identity."
+Assert-True (-not ($listedTask[0].PSObject.Properties.Name -contains "owner_id")) "Network task list leaked owner identity."
 Assert-True (-not $listedTask[0].formal_network_ready) "Network task list claimed formal research readiness."
 Add-Result -Flow "network_task_list" -Status $networkTasks.Status -RequestId (Get-RequestId $networkTasks.Headers) -Notes "tasks=$($networkTasks.Payload.tasks.Count)"
 
-$adjudicationRowId = $networkResult.Payload.result.target_lineage.disease_targets[0].lineage_row_id
+$diseaseLineageRows = @($networkResult.Payload.result.target_lineage.disease_targets)
+$adjudicationRowId = $null
+if ($diseaseLineageRows.Count -gt 0 -and $diseaseLineageRows[0].lineage_row_id) {
+    $adjudicationRowId = $diseaseLineageRows[0].lineage_row_id
+}
 if ($adjudicationRowId) {
     $adjudication = Invoke-Json -Method "POST" -Url (Join-Url $BackendUrl "/api/network/result/$taskId/adjudications") -Body @{
         lineage_row_id = $adjudicationRowId
@@ -438,8 +442,10 @@ else {
 
 $networkReport = Invoke-Json -Method "GET" -Url (Join-Url $BackendUrl "/api/network/result/$taskId/report")
 Assert-True ($networkReport.Status -eq 200) "Network report failed."
-Assert-True (($networkReport.Payload | Out-String).Contains($disclaimer)) "Network report missing disclaimer."
-Assert-True (($networkReport.Payload | Out-String).Contains("## 人工判定")) "Network report missing adjudication section."
+$reportText = [string]$networkReport.Payload
+Assert-True ($reportText.Contains($disclaimer)) "Network report missing disclaimer."
+Assert-True ($reportText.Contains("## 人工判定")) "Network report missing adjudication section."
+Assert-True ($reportText.Contains("## 证据分级")) "Network report missing evidence grading section."
 Add-Result -Flow "network_report" -Status $networkReport.Status -RequestId (Get-RequestId $networkReport.Headers) -Notes "markdown=ok"
 
 $results | Format-Table -AutoSize

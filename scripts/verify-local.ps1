@@ -1,7 +1,11 @@
 param(
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
-    [switch]$IncludeE2E
+    [switch]$IncludeE2E,
+    # E2E-only: lets the Playwright webServers run on non-default ports when a
+    # dev server or another app already occupies 3000/8000.
+    [int]$E2eBackendPort = $(if ($env:QIYAN_E2E_BACKEND_PORT) { [int]$env:QIYAN_E2E_BACKEND_PORT } else { 8000 }),
+    [int]$E2eFrontendPort = $(if ($env:QIYAN_E2E_FRONTEND_PORT) { [int]$env:QIYAN_E2E_FRONTEND_PORT } else { 3000 })
 )
 
 Set-StrictMode -Version Latest
@@ -27,11 +31,19 @@ function Invoke-NativeStep {
         [Parameter(Mandatory = $true)]
         [string]$Command,
         [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
+        [string[]]$Arguments,
+        [hashtable]$ExtraEnvironment
     )
 
     Write-Host ""
     Write-Host "==> $Name" -ForegroundColor Cyan
+    $savedEnvironment = @{}
+    if ($ExtraEnvironment) {
+        foreach ($key in $ExtraEnvironment.Keys) {
+            $savedEnvironment[$key] = [string][Environment]::GetEnvironmentVariable($key)
+            [Environment]::SetEnvironmentVariable($key, $ExtraEnvironment[$key], "Process")
+        }
+    }
     Push-Location $WorkingDirectory
     try {
         & $Command @Arguments
@@ -41,6 +53,9 @@ function Invoke-NativeStep {
     }
     finally {
         Pop-Location
+        foreach ($key in $savedEnvironment.Keys) {
+            [Environment]::SetEnvironmentVariable($key, $savedEnvironment[$key], "Process")
+        }
     }
 }
 
@@ -109,7 +124,11 @@ if ($runFrontend) {
             -Name "frontend: pnpm e2e" `
             -WorkingDirectory $frontendDir `
             -Command $pnpm.Source `
-            -Arguments @("e2e")
+            -Arguments @("e2e") `
+            -ExtraEnvironment @{
+                "QIYAN_E2E_BACKEND_PORT"  = [string]$E2eBackendPort
+                "QIYAN_E2E_FRONTEND_PORT" = [string]$E2eFrontendPort
+            }
     }
     else {
         Write-Host ""
