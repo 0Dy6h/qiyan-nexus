@@ -106,6 +106,8 @@ pnpm e2e
 
 **竞品笔记**：`docs/competitive-analysis-qingtuanyun.md`（仅公开官网信息，非决策记录，不改 ADR-0017/0018 边界）。
 
+**omics 遗留决策（2026-09-04，对抗性审查后拍板，见 `docs/reports/2026-09-04-omics-followup-decisions.md`）**：不为 IL6/STAT3/TNF 冻结 AL vs ANL 第二对比 snapshot（outcome-shopping 风险 + 配对样本与非配对 Welch 统计设计不匹配 + 契约变更成本；探针显示当前管线下该对比 adj_p<0.05=0）；`/network` 暂不做 omics UI 入口（保持 API-only，保护 opt-in 纪律；触发条件见决策记录）。
+
 以下 2026-05/06 材料是 live-LLM 治理与评估的历史证据，不代表当前工程优先级：`docs/evaluations/2026-06-02-claim-quality-v2-live-validation.md`、`docs/evaluations/2026-06-02-l2-passed-claims-reviewer-packet.md`、`docs/evaluations/2026-06-02-opencode-go-price-sli-baseline.md`、`docs/evaluations/2026-06-01-nli-real-distribution.md`、`docs/evaluations/2026-05-31-opencode-go-bge-smoke.md`、ADR-0012 与 real-LLM runbook。
 
 **AI Technical Pre-review 完成（2026-06-06）**：AI 技术视角的产品安全审查（临床与科研双视角）未发现 P0/P1 问题，结论为可进入小范围试用准备；详见 `docs/handoffs/2026-06-06-comprehensive-product-review.md`。该结论不替代真实临床医生/科研专家的领域判断；`docs/evaluations/2026-06-05-reviewer-feedback.md` 已恢复为正式真人 reviewer packet，clinician / research reviewer sign-off 仍待填写。AI 预审发现的 P2「网络药理学 mock 边界标注可增强」已在 2026-06-06 补强：`/network` 页面新增演示数据边界 note，network Markdown 报告头部新增数据说明。小范围试用反馈模板见 `docs/evaluations/2026-06-06-small-scale-trial-feedback.md`。

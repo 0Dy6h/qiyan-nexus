@@ -40,6 +40,7 @@
 ## 未做 / 边界（诚实清单）
 
 - IL6/STAT3/TNF 在当前冻结的 AL vs Normal 分析下**没有** `omics_validated` 候选；真人 reviewer 未确认任何行
-- compound target verification、RNA-seq、CEL 原档解析、AL vs ANL 新 snapshot：明确不做（后者需研究者拍板）
+- compound target verification、RNA-seq、CEL 原档解析：明确不做
+- AL vs ANL 第二对比与 `/network` omics UI：**2026-09-04 对抗性审查后拍板不做**（理由与未来立项前置条件见 `docs/reports/2026-09-04-omics-followup-decisions.md`；探针硬证据：配对样本下非配对 Welch 的 adj_p<0.05=0）
 - PostgreSQL repository 未做活库 parity 验证（沿袭既有边界）
 - writer 消费契约仍未定义
