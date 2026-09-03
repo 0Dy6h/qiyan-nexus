@@ -78,6 +78,10 @@ ADJUDICATION_RESPONSE_FIELDS = {
     "decision",
     "reason",
     "decided_at",
+    "omics_accession",
+    "omics_canonical_symbol",
+    "omics_log2fc",
+    "omics_adj_p_value",
 }
 
 ADJUDICATION_ID_PATTERN = re.compile(r"^adjudication-[0-9a-f]{64}$")
@@ -328,6 +332,7 @@ def test_submit_adjudication_persists_append_only_history_and_latest_wins() -> N
         "included": 0,
         "excluded": 1,
         "needs_review": 0,
+        "omics_confirmed": 0,
         "pending": _total_lineage_rows(payload) - 1,
     }
 
@@ -614,6 +619,7 @@ def test_result_projection_includes_zeroed_adjudication_block_before_any_decisio
         "included": 0,
         "excluded": 0,
         "needs_review": 0,
+        "omics_confirmed": 0,
         "pending": expected_pending,
     }
     assert projection["current"] == []
@@ -642,6 +648,7 @@ def test_result_projection_counts_each_decision_bucket() -> None:
         "included": 1,
         "excluded": 1,
         "needs_review": 1,
+        "omics_confirmed": 0,
         "pending": _total_lineage_rows(payload) - 3,
     }
     current_by_row = {entry["lineage_row_id"]: entry for entry in projection["current"]}

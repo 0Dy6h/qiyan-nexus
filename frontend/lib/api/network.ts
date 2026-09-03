@@ -165,6 +165,7 @@ export type NetworkEvidenceLevel =
   | "mock_inferred"
   | "predicted"
   | "literature_supported"
+  | "omics_validated"
   | "experimental";
 export type NetworkPipelineStepStatus = "completed" | "failed" | "skipped" | "degraded";
 
@@ -434,6 +435,8 @@ export function getNetworkEvidenceLevelLabel(level: NetworkEvidenceLevel | undef
   switch (level) {
     case "experimental":
       return "实验证据";
+    case "omics_validated":
+      return "组学验证";
     case "literature_supported":
       return "文献支撑";
     case "predicted":

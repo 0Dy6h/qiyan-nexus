@@ -334,6 +334,18 @@ curl.exe -X POST "http://127.0.0.1:8000/api/network/compound-import/verify" `
 
 服务端按 `task_id + owner_id` 查找 source task；它必须已有 `server_verified_raw_artifact` disease snapshot，且 compound metadata 的 `species`、`query_date` 必须等于父 task 的研究协议。成功时创建持有冻结协议、疾病 snapshot 与 compound snapshot 的新 task，父 task 永不修改；客户端不得提交 owner/reviewer、records、hash、provenance、readiness 或 adjudication 字段。完整 artifact/manifest 格式见 `docs/guides/network-compound-target-import.md`。
 
+ADR-0018 Gate 3 组学验证层（显式 opt-in，默认离线路径不含组学）：`POST /api/network/omics-import/verify` 把 GEO series matrix（可选 GPL 平台注释文件）冻结为不可变 omics snapshot——服务端计算 SHA-256、按 accession 封存、同输入重导幂等（`201`/`200`）、不同内容同 accession 冲突 `409`；manifest 的 `raw_artifact.sha256/frozen_at/frozen_by` 与整段 `provenance` 由服务端封存，客户端提交即 `422`。独立 validator：`python backend/scripts/validate_omics_import.py --omics-dir <dir> --accession GSE32924`。
+
+```powershell
+$omicsManifest = Get-Content -Raw C:\path\to\omics-manifest.json
+curl.exe -X POST "http://127.0.0.1:8000/api/network/omics-import/verify" `
+  --form-string "manifest=$omicsManifest" `
+  -F "file=@C:\path\to\GSE32924_series_matrix.txt.gz;type=application/gzip" `
+  -F "annotation_file=@C:\path\to\GPL570.annot.gz;type=application/gzip"
+```
+
+对已完成、有冻结疾病 lineage 的 task，`GET /api/network/result/{task_id}?omics_verification=true&omics_accession=GSE32924` 显式 opt-in 后在结果信封返回确定性 DEG 候选投影（Welch t-test + 基因层面 BH，只出 `pending_human_confirmation` 候选，不定级）。唯一把某条边的证据等级升到 `omics_validated` 的路径是人工判定：在既有 append-only adjudication 流上提交 `decision="omics_confirmed"` 并携带 `omics` 上下文，服务端在判定时刻重验全部机器条件（候选存在、阈值满足、数据集 Homo sapiens + 特应性皮炎、task lineage 绑定），任一不满足即 fail closed。mock 数据恒为 `mock_inferred`；`omics_validated` 不翻转 `formal_network_ready`。真实 GSE32924 验收记录见 `docs/reports/2026-09-03-gate3-g32-real-data-verification.md`。
+
 protected mode 直连脚本必须在创建、轮询和报告请求中保持同一个 reviewer id：
 
 ```bash

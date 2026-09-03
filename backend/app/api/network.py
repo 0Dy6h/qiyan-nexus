@@ -366,6 +366,24 @@ def submit_network_adjudication_endpoint(
             status_code=422,
             detail="lineage_row_id does not exist in the task target lineage",
         )
+    if state == "omics_row_symbol_mismatch":
+        raise HTTPException(
+            status_code=422,
+            detail="lineage_row_id does not belong to the requested canonical symbol",
+        )
+    if state == "omics_snapshot_missing":
+        raise HTTPException(
+            status_code=404,
+            detail="no frozen omics snapshot is sealed for the requested accession",
+        )
+    if state == "omics_unverified" or state == "omics_not_confirmed":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "omics confirmation refused: the candidate does not exist in the freshly "
+                "recomputed frozen DEG projection, or a frozen machine condition failed"
+            ),
+        )
     if state == "not_found" or payload is None:
         raise HTTPException(status_code=404, detail="Network analysis task not found")
     return payload

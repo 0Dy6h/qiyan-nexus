@@ -12,6 +12,7 @@ EvidenceLevel = Literal[
     "mock_inferred",
     "predicted",
     "literature_supported",
+    "omics_validated",
     "experimental",
 ]
 DiseaseScope = Literal["atopic_dermatitis"]
@@ -28,8 +29,21 @@ AutomaticExtractionStatus = Literal["extracted"]
 IntersectionDerivationStatus = Literal["derived"]
 AdjudicationStatus = Literal["pending", "accepted", "excluded", "needs_review"]
 TargetDecision = Literal["unreviewed", "include", "exclude"]
-ManualAdjudicationDecision = Literal["included", "excluded", "needs_review"]
+ManualAdjudicationDecision = Literal["included", "excluded", "needs_review", "omics_confirmed"]
 AssemblyGateState = Literal["blocked", "assembly_input_ready"]
+
+
+class OmicsAdjudicationContext(BaseModel):
+    """Client-supplied context for an omics confirmation adjudication (G3-3).
+
+    The server re-verifies every machine condition against the frozen omics
+    snapshot at adjudication time; the human confirmation is the request itself.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    accession: str = Field(min_length=3, max_length=20, pattern=r"^GSE[0-9]+$")
+    canonical_symbol: str = Field(min_length=1, max_length=40)
 
 
 class NetworkResearchProtocol(BaseModel):
@@ -517,6 +531,9 @@ class NetworkTargetAdjudication(BaseModel):
     ``reviewer_id`` is persisted for audit but is never projected back to any
     API response.  Adjudications are additive audit data only: they must never
     mutate the frozen target lineage rows, provenance hashes, or readiness.
+    An ``omics_confirmed`` event additionally seals the omics snapshot
+    accession, the confirmed canonical symbol and the DEG statistics that the
+    server re-verified at adjudication time.
     """
 
     adjudication_id: str = Field(min_length=1, max_length=120)
@@ -525,6 +542,20 @@ class NetworkTargetAdjudication(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
     decided_at: str = Field(min_length=1)
     reviewer_id: str = Field(min_length=1, max_length=64)
+    omics_accession: str | None = Field(default=None, min_length=3, max_length=20)
+    omics_canonical_symbol: str | None = Field(default=None, min_length=1, max_length=40)
+    omics_log2fc: float | None = None
+    omics_adj_p_value: float | None = Field(default=None, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_omics_confirmation_fields(self) -> Self:
+        is_omics = self.decision == "omics_confirmed"
+        has_omics = self.omics_accession is not None and self.omics_canonical_symbol is not None
+        if is_omics and not has_omics:
+            raise ValueError("omics_confirmed adjudication requires omics_accession and symbol")
+        if not is_omics and has_omics:
+            raise ValueError("omics fields are only valid on an omics_confirmed adjudication")
+        return self
 
 
 class NetworkAdjudicationRequest(BaseModel):
@@ -533,6 +564,10 @@ class NetworkAdjudicationRequest(BaseModel):
     lineage_row_id: str = Field(min_length=1, max_length=120)
     decision: ManualAdjudicationDecision
     reason: str | None = Field(default=None, max_length=500)
+    # Required iff decision == "omics_confirmed" (ADR-0018 Gate 3): the server
+    # re-verifies every machine condition against the frozen snapshot before
+    # the human confirmation is appended.
+    omics: OmicsAdjudicationContext | None = None
 
     @field_validator("reason", mode="after")
     @classmethod
@@ -540,6 +575,12 @@ class NetworkAdjudicationRequest(BaseModel):
         if value is not None and value == "":
             return None
         return value
+
+    @model_validator(mode="after")
+    def validate_omics_context(self) -> Self:
+        if (self.decision == "omics_confirmed") != (self.omics is not None):
+            raise ValueError("omics context is required iff decision is omics_confirmed")
+        return self
 
 
 class NetworkTargetAdjudicationRecord(BaseModel):
@@ -550,12 +591,17 @@ class NetworkTargetAdjudicationRecord(BaseModel):
     decision: ManualAdjudicationDecision
     reason: str | None = None
     decided_at: str
+    omics_accession: str | None = None
+    omics_canonical_symbol: str | None = None
+    omics_log2fc: float | None = None
+    omics_adj_p_value: float | None = None
 
 
 class NetworkAdjudicationCounts(BaseModel):
     included: int = Field(default=0, ge=0)
     excluded: int = Field(default=0, ge=0)
     needs_review: int = Field(default=0, ge=0)
+    omics_confirmed: int = Field(default=0, ge=0)
     pending: int = Field(default=0, ge=0)
 
 
