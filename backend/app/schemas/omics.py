@@ -78,13 +78,20 @@ class OmicsEdgeMapping(BaseModel):
 
 
 class OmicsTranscriptomicsManifestV1(BaseModel):
-    """Operator-submitted manifest. Sealed fields are structurally inexpressible."""
+    """Operator-submitted manifest. Sealed fields are structurally inexpressible.
+
+    ``platform_annotation`` freezes the probe→gene-symbol annotation table
+    (e.g. GPL570 annot) alongside the expression matrix; without it the DEG
+    pipeline cannot map canonical symbols, so G3-2 refuses to run when it is
+    absent. It obeys the same sealing discipline as the primary artifact.
+    """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     manifest_version: OmicsManifestVersion = "omics_transcriptomics_v1"
     dataset: OmicsDatasetDescription
     raw_artifact: OmicsRawArtifactClientFields
+    platform_annotation: OmicsRawArtifactClientFields | None = None
     analysis_context: OmicsAnalysisContext
     edge_mapping: OmicsEdgeMapping
 
@@ -111,6 +118,7 @@ class OmicsTranscriptomicsVerifiedSnapshot(BaseModel):
     snapshot_id: str = Field(pattern=r"^omics-snapshot-[0-9a-f]{64}$")
     dataset: OmicsDatasetDescription
     raw_artifact: OmicsRawArtifactSealedFields
+    platform_annotation: OmicsRawArtifactSealedFields | None = None
     analysis_context: OmicsAnalysisContext
     edge_mapping: OmicsEdgeMapping
     provenance: OmicsProvenanceSealedFields

@@ -628,6 +628,47 @@ class NetworkAssemblyGateProjection(BaseModel):
     latest_plan: NetworkAssemblyPlanSummary | None = None
 
 
+class OmicsDegCandidate(BaseModel):
+    """One lineage-matched DEG candidate awaiting manual confirmation (ADR-0018
+    Gate 3). A candidate asserts nothing: it carries no evidence level and no
+    decision — the only upgrade path is the append-only adjudication flow."""
+
+    canonical_symbol: str = Field(min_length=1, max_length=40)
+    lineage_row_ids: list[str] = Field(min_length=1)
+    mean_case: float
+    mean_control: float
+    log2fc: float
+    p_value: float = Field(ge=0, le=1)
+    adj_p_value: float = Field(ge=0, le=1)
+    status: Literal["pending_human_confirmation"] = "pending_human_confirmation"
+
+
+class OmicsDegAnalysisProjection(BaseModel):
+    """Deterministic DEG candidate projection (ADR-0018 Gate 3, slice G3-2).
+
+    Pure function of the frozen omics snapshot + the task's frozen disease
+    lineage: the same inputs recompute to a byte-identical projection. It is
+    never written into ``NetworkAnalysisResult`` and never persisted onto
+    lineage rows.
+    """
+
+    policy_id: Literal["omics_transcriptomics_deg_v1"] = "omics_transcriptomics_deg_v1"
+    snapshot_id: str = Field(pattern=r"^omics-snapshot-[0-9a-f]{64}$")
+    accession: str = Field(min_length=3, max_length=20, pattern=r"^GSE[0-9]+$")
+    comparison: str = Field(min_length=3, max_length=200)
+    case_group: str = Field(min_length=1, max_length=64)
+    control_group: str = Field(min_length=1, max_length=64)
+    significance_threshold: float = Field(gt=0, le=1)
+    log2fc_abs_threshold: float = Field(gt=0)
+    analyzed_probe_count: int = Field(ge=0)
+    analyzed_gene_count: int = Field(ge=0)
+    passing_gene_count: int = Field(ge=0)
+    sample_groups_used: dict[str, int] = Field(min_length=1)
+    symbol_mapping_rule: str = Field(min_length=1, max_length=500)
+    candidates: list[OmicsDegCandidate] = Field(default_factory=list)
+    formal_network_ready: Literal[False] = False
+
+
 class NetworkResultResponse(BaseModel):
     task_id: str
     status: TaskStatus
@@ -640,6 +681,9 @@ class NetworkResultResponse(BaseModel):
     assembly_gate: NetworkAssemblyGateProjection = Field(
         default_factory=NetworkAssemblyGateProjection
     )
+    # ADR-0018 Gate 3: deterministic omics DEG candidate projection. Only
+    # computed on explicit opt-in query params; never part of the default path.
+    omics_verification: OmicsDegAnalysisProjection | None = Field(default=None)
 
 
 class NetworkTaskSummary(BaseModel):

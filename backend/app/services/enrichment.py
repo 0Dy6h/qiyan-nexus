@@ -8,7 +8,7 @@ simulate real enrichment databases.
 from datetime import UTC, datetime
 from typing import Any, TypedDict
 
-from scipy.stats import hypergeom  # type: ignore[import-untyped]
+from scipy.stats import hypergeom
 
 from app.schemas.network import EnrichmentResult, EnrichmentTerm
 

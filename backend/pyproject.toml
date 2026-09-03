@@ -60,5 +60,5 @@ module = "tests.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["psycopg", "psycopg.*", "psycopg_pool", "slowapi", "slowapi.*"]
+module = ["psycopg", "psycopg.*", "psycopg_pool", "scipy", "scipy.*", "slowapi", "slowapi.*"]
 ignore_missing_imports = true

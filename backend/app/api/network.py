@@ -37,6 +37,8 @@ from app.services.network import (
 )
 from app.services.network_omics import (
     OmicsSnapshotConflictError,
+    OmicsVerificationBlockedError,
+    compute_omics_deg_projection,
     import_verified_omics_artifact,
 )
 
@@ -241,38 +243,51 @@ async def verify_omics_import_endpoint(
     if declared_length > _MAX_OMICS_VERIFY_REQUEST_BYTES:
         raise HTTPException(status_code=413, detail="omics raw artifact is too large")
     form = await request.form(
-        max_files=1, max_fields=2, max_part_size=_OMICS_MANIFEST_FIELD_MAX_BYTES
+        max_files=2, max_fields=3, max_part_size=_OMICS_MANIFEST_FIELD_MAX_BYTES
     )
     submitted_fields = set(form.keys())
-    allowed_fields = {"manifest", "file"}
+    allowed_fields = {"manifest", "file", "annotation_file"}
     extra_fields = submitted_fields - allowed_fields
     if extra_fields:
         raise HTTPException(
             status_code=422,
             detail=f"unexpected multipart fields: {sorted(extra_fields)}",
         )
-    invalid_cardinality = sorted(field for field in allowed_fields if len(form.getlist(field)) != 1)
+    invalid_cardinality = sorted(
+        field for field in {"manifest", "file"} if len(form.getlist(field)) != 1
+    ) + sorted(field for field in {"annotation_file"} if len(form.getlist(field)) > 1)
     if invalid_cardinality:
         raise HTTPException(
             status_code=422,
-            detail=f"multipart fields must each appear exactly once: {invalid_cardinality}",
+            detail=f"multipart fields have invalid cardinality: {invalid_cardinality}",
         )
     manifest_value = form.get("manifest")
     file_value = form.get("file")
+    annotation_value = form.get("annotation_file")
     if not isinstance(manifest_value, str):
         raise HTTPException(status_code=422, detail="manifest is required")
     if not isinstance(file_value, UploadFile):
         raise HTTPException(status_code=422, detail="omics raw artifact file is required")
+    if annotation_value is not None and not isinstance(annotation_value, UploadFile):
+        raise HTTPException(status_code=422, detail="annotation_file must be a file")
     try:
         manifest_payload = json.loads(manifest_value)
         manifest = OmicsTranscriptomicsManifestV1.model_validate(manifest_payload)
         raw_bytes = await file_value.read(_MAX_OMICS_RAW_ARTIFACT_BYTES + 1)
         if len(raw_bytes) > _MAX_OMICS_RAW_ARTIFACT_BYTES:
             raise HTTPException(status_code=413, detail="omics raw artifact is too large")
+        annotation_bytes: bytes | None = None
+        if isinstance(annotation_value, UploadFile):
+            annotation_bytes = await annotation_value.read(_MAX_OMICS_RAW_ARTIFACT_BYTES + 1)
+            if len(annotation_bytes) > _MAX_OMICS_RAW_ARTIFACT_BYTES:
+                raise HTTPException(
+                    status_code=413, detail="omics platform annotation is too large"
+                )
         outcome = import_verified_omics_artifact(
             raw_bytes,
             manifest=manifest,
             frozen_by=reviewer_id,
+            annotation_bytes=annotation_bytes,
         )
     except OmicsSnapshotConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -299,10 +314,34 @@ def network_task_list_endpoint(
 def network_result_endpoint(
     task_id: str,
     reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+    omics_verification: bool = False,
+    omics_accession: str | None = None,
 ) -> NetworkResultResponse:
     state, payload = get_network_analysis_result(task_id, reviewer_id)
     if state == "not_found" or payload is None:
         raise HTTPException(status_code=404, detail="Network analysis task not found")
+    if omics_verification:
+        # ADR-0018 Gate 3 explicit opt-in: the default result path never
+        # computes omics projections.
+        if not omics_accession:
+            raise HTTPException(
+                status_code=422, detail="omics_accession is required for omics verification"
+            )
+        if payload.result is None:
+            raise HTTPException(
+                status_code=409,
+                detail="omics verification requires a completed network analysis task",
+            )
+        try:
+            payload.omics_verification = compute_omics_deg_projection(
+                payload.result, accession=omics_accession
+            )
+        except OmicsSnapshotConflictError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OmicsVerificationBlockedError as exc:
+            raise HTTPException(status_code=422, detail=exc.issues) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return payload
 
 

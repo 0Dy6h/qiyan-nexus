@@ -124,6 +124,7 @@ def test_snapshot_id_is_deterministic_and_excludes_wall_clock() -> None:
     expected_input = {
         "client_manifest": manifest.model_dump(mode="json"),
         "raw_artifact_sha256": OMICS_SHA256,
+        "platform_annotation_sha256": None,
     }
     canonical = json.dumps(
         expected_input, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -132,6 +133,66 @@ def test_snapshot_id_is_deterministic_and_excludes_wall_clock() -> None:
         first.snapshot_id
         == "omics-snapshot-" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     )
+
+
+ANNOTATION_BYTES = gzip.compress(
+    b"!platform_table_begin\nID\tGene symbol\n1007_s_at\tMIR4640///DDR1\n"
+)
+
+
+def _annotation_manifest() -> dict:
+    merged = deepcopy(MANIFEST)
+    merged["raw_artifact"] = {
+        "filename": "GSE32924_series_matrix.txt.gz",
+        "size_bytes": len(OMICS_BYTES),
+        "format": "GEO series matrix (gzip text)",
+    }
+    merged["platform_annotation"] = {
+        "filename": "GPL570.annot.gz",
+        "size_bytes": len(ANNOTATION_BYTES),
+        "format": "GEO GPL570 annot (gzip text)",
+    }
+    return merged
+
+
+def test_annotation_artifact_is_sealed_and_persisted() -> None:
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(_annotation_manifest())
+
+    outcome = import_verified_omics_artifact(
+        OMICS_BYTES, manifest=manifest, frozen_by="op", annotation_bytes=ANNOTATION_BYTES
+    )
+
+    assert outcome.snapshot.platform_annotation is not None
+    annotation_sha = hashlib.sha256(ANNOTATION_BYTES).hexdigest()
+    assert outcome.snapshot.platform_annotation.sha256 == annotation_sha
+    assert (
+        Path(os.environ["NETWORK_RAW_ARTIFACT_DIR"])
+        / "omics"
+        / "artifacts"
+        / f"{annotation_sha}.bin"
+    ).read_bytes() == ANNOTATION_BYTES
+    assert outcome.snapshot.formal_network_ready is False
+
+
+def test_annotation_size_mismatch_fails_closed() -> None:
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(_annotation_manifest())
+
+    with pytest.raises(ValueError, match="platform annotation"):
+        import_verified_omics_artifact(
+            OMICS_BYTES,
+            manifest=manifest,
+            frozen_by="op",
+            annotation_bytes=ANNOTATION_BYTES + b"tail",
+        )
+
+
+def test_annotation_bytes_without_manifest_field_fail_closed() -> None:
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(MANIFEST)
+
+    with pytest.raises(ValueError, match="without a matching manifest"):
+        import_verified_omics_artifact(
+            OMICS_BYTES, manifest=manifest, frozen_by="op", annotation_bytes=b"x"
+        )
 
 
 @pytest.mark.parametrize(
@@ -368,3 +429,314 @@ def test_validator_rejects_every_tamper_path(tamper: str, expected_fragment: str
 
     assert ok is False
     assert any(expected_fragment in issue for issue in issues), issues
+
+
+# ── slice G3-2: series matrix parsing + deterministic DEG candidates ──
+
+from app.schemas.network import NetworkAnalysisResult  # noqa: E402
+from app.services.network_omics import (  # noqa: E402
+    OmicsVerificationBlockedError,
+    compute_omics_deg_projection,
+    load_frozen_omics_bytes,
+)
+
+DEG_MATRIX_PLAIN = b"\n".join(
+    [
+        b'!Sample_geo_accession\t"GSM1"\t"GSM2"\t"GSM3"\t"GSM4"\t"GSM5"',
+        b'!Sample_characteristics_ch1\t"condition: AL"\t"condition: AL"\t"condition: ANL"\t"condition: Normal"\t"condition: Normal"',
+        b"!series_matrix_table_begin",
+        b'"ID_REF"\t"GSM1"\t"GSM2"\t"GSM3"\t"GSM4"\t"GSM5"',
+        b'"1007_s_at"\t10\t10.2\t9\t4\t3.8',
+        b'"1053_at"\t5\t5\t5\t4\t4.2',
+        b'"117_at"\t3\t3\t3\t3\t3',
+        b"!series_matrix_table_end",
+        b"",
+    ]
+)
+DEG_MATRIX_BYTES = gzip.compress(DEG_MATRIX_PLAIN)
+DEG_ANNOTATION_BYTES = gzip.compress(
+    b"\n".join(
+        [
+            b"!platform_table_begin",
+            b"ID\tGene symbol",
+            b"1007_s_at\tIL6",
+            b"1053_at\tSTAT3",
+            b"117_at\tTNF",
+            b"!platform_table_end",
+            b"",
+        ]
+    )
+)
+
+
+def _deg_manifest() -> dict:
+    merged = _annotation_manifest()
+    merged["raw_artifact"] = {
+        "filename": "GSE32924_series_matrix.txt.gz",
+        "size_bytes": len(DEG_MATRIX_BYTES),
+        "format": "GEO series matrix (gzip text)",
+    }
+    merged["platform_annotation"] = {
+        "filename": "GPL570.annot.gz",
+        "size_bytes": len(DEG_ANNOTATION_BYTES),
+        "format": "GEO GPL570 annot (gzip text)",
+    }
+    merged["dataset"]["sample_count"] = 5
+    merged["dataset"]["sample_groups"] = {
+        "atopic_lesional": 2,
+        "atopic_nonlesional": 1,
+        "normal": 2,
+    }
+    return merged
+
+
+def _seal_deg_snapshot() -> None:
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(_deg_manifest())
+    import_verified_omics_artifact(
+        DEG_MATRIX_BYTES,
+        manifest=manifest,
+        frozen_by="op",
+        annotation_bytes=DEG_ANNOTATION_BYTES,
+    )
+
+
+def _deg_result(source_task_id: str | None = None) -> NetworkAnalysisResult:
+    return NetworkAnalysisResult.model_validate(
+        {
+            "task_id": "network-" + "a" * 12,
+            "source_task_id": source_task_id,
+            "query": "消风散",
+            "analysis_type": "formula",
+            "chains": [],
+            "disclaimer": "非诊断结论、需结合临床。",
+            "target_lineage": {
+                "disease_targets": [
+                    {
+                        "lineage_row_id": "disease-" + "1" * 64,
+                        "raw_identifier": "ENSG00000136244",
+                        "canonical_symbol": "IL6",
+                        "source_database": "Open Targets Platform",
+                        "query_date": "2026-07-11",
+                        "identifier_mapping": "Ensembl target approvedSymbol",
+                        "evidence_origin": "disease_association",
+                    },
+                    {
+                        "lineage_row_id": "disease-" + "2" * 64,
+                        "raw_identifier": "ENSG00000136244",
+                        "canonical_symbol": "TNF",
+                        "source_database": "Open Targets Platform",
+                        "query_date": "2026-07-11",
+                        "identifier_mapping": "Ensembl target approvedSymbol",
+                        "evidence_origin": "disease_association",
+                    },
+                ]
+            },
+        }
+    )
+
+
+def test_deg_projection_computes_candidates_and_matches_lineage() -> None:
+    _seal_deg_snapshot()
+    result = _deg_result()
+
+    projection = compute_omics_deg_projection(result, accession="GSE32924")
+
+    assert projection.formal_network_ready is False
+    assert projection.case_group == "atopic_lesional"
+    assert projection.control_group == "normal"
+    assert projection.analyzed_gene_count == 3
+    # IL6: mean 10.1 vs 3.9 → log2fc 6.2, p tiny → passes; STAT3: |log2fc| ≈ 0.9
+    # not > 1 → out; TNF: constant values → non-finite Welch p → out (honest).
+    assert [candidate.canonical_symbol for candidate in projection.candidates] == ["IL6"]
+    il6 = projection.candidates[0]
+    assert il6.log2fc == pytest.approx(6.2)
+    assert il6.adj_p_value < 0.05
+    assert il6.lineage_row_ids == ["disease-" + "1" * 64]
+    assert il6.status == "pending_human_confirmation"
+    assert projection.passing_gene_count == 1
+
+
+def test_deg_projection_recompute_is_byte_identical() -> None:
+    _seal_deg_snapshot()
+    result = _deg_result()
+
+    first = compute_omics_deg_projection(result, accession="GSE32924")
+    second = compute_omics_deg_projection(result, accession="GSE32924")
+
+    assert first.model_dump_json() == second.model_dump_json()
+
+
+def test_deg_projection_is_deterministic_json_bytes() -> None:
+    _seal_deg_snapshot()
+    result = _deg_result()
+
+    first = compute_omics_deg_projection(result, accession="GSE32924")
+    second = compute_omics_deg_projection(result, accession="GSE32924")
+
+    assert json.dumps(first.model_dump(), sort_keys=True) == json.dumps(
+        second.model_dump(), sort_keys=True
+    )
+
+
+def test_deg_projection_group_count_mismatch_fails_closed() -> None:
+    payload = _deg_manifest()
+    payload["dataset"]["sample_groups"] = {
+        "atopic_lesional": 1,
+        "atopic_nonlesional": 1,
+        "normal": 1,
+    }
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(payload)
+    import_verified_omics_artifact(
+        DEG_MATRIX_BYTES,
+        manifest=manifest,
+        frozen_by="op",
+        annotation_bytes=DEG_ANNOTATION_BYTES,
+    )
+    result = _deg_result()
+
+    with pytest.raises(OmicsVerificationBlockedError, match="sample_groups"):
+        compute_omics_deg_projection(result, accession="GSE32924")
+
+
+def test_deg_projection_unknown_condition_label_fails_closed() -> None:
+    mutated_matrix = gzip.compress(DEG_MATRIX_PLAIN.replace(b"condition: ANL", b"condition: FLARE"))
+    manifest_payload = _deg_manifest()
+    manifest_payload["raw_artifact"]["size_bytes"] = len(mutated_matrix)
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(manifest_payload)
+    import_verified_omics_artifact(
+        mutated_matrix,
+        manifest=manifest,
+        frozen_by="op",
+        annotation_bytes=DEG_ANNOTATION_BYTES,
+    )
+    # re-address the mismatched snapshot under another accession so the unknown
+    # condition label (not a group-count mismatch) is what the parser trips on
+    from app.services.network_omics import omics_artifact_dir
+
+    snapshot_path = omics_artifact_dir() / "GSE32924.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    snapshot["dataset"]["accession"] = "GSE99999"
+    (omics_artifact_dir() / "GSE99999.json").write_text(
+        json.dumps(snapshot, ensure_ascii=False), encoding="utf-8"
+    )
+    result = _deg_result()
+
+    with pytest.raises(OmicsVerificationBlockedError, match="condition"):
+        compute_omics_deg_projection(result, accession="GSE99999")
+
+
+def test_deg_projection_without_annotation_fails_closed() -> None:
+    manifest = OmicsTranscriptomicsManifestV1.model_validate(MANIFEST)
+    import_verified_omics_artifact(OMICS_BYTES, manifest=manifest, frozen_by="op")
+    result = _deg_result()
+
+    with pytest.raises(OmicsVerificationBlockedError, match="platform annotation"):
+        compute_omics_deg_projection(result, accession="GSE32924")
+
+
+def test_deg_projection_refuses_compound_child_result() -> None:
+    _seal_deg_snapshot()
+    result = _deg_result(source_task_id="network-" + "b" * 16)
+
+    with pytest.raises(OmicsVerificationBlockedError, match="compound"):
+        compute_omics_deg_projection(result, accession="GSE32924")
+
+
+def test_load_frozen_omics_bytes_rejects_hash_mismatch() -> None:
+    _seal_deg_snapshot()
+    from app.services.network_omics import load_frozen_omics_snapshot  # noqa: E402
+
+    snapshot = load_frozen_omics_snapshot("GSE32924")
+    sha = snapshot.raw_artifact.sha256
+    artifact = _omics_store() / "artifacts" / f"{sha}.bin"
+    artifact.write_bytes(DEG_MATRIX_BYTES + b"tampered")
+
+    with pytest.raises(ValueError, match="SHA-256"):
+        load_frozen_omics_bytes(expected_sha256=sha)
+
+
+DISEASE_VERIFY_METADATA = {
+    "source_profile": "open_targets_association_v1",
+    "disease": "atopic_dermatitis",
+    "phenotype": "特应性皮炎伴 2 型炎症与皮肤屏障异常",
+    "species": "Homo sapiens",
+    "source_database": "Open Targets Platform",
+    "database_version": "25.06",
+    "source_query_id": "EFO_0000274",
+    "source_query_label": "atopic eczema",
+    "source_query_parameters": {"datatype": "overall"},
+    "query_date": "2026-07-11",
+    "retrieved_at": "2026-07-11T08:30:00Z",
+    "score_name": "association_score",
+    "applied_threshold": 0.6,
+    "threshold_operator": "gte",
+    "identifier_mapping": "Ensembl target approvedSymbol",
+    "identifier_mapping_version": "25.06",
+    "usage_license_note": "Open Targets Platform data; see platform terms.",
+}
+OPEN_TARGETS_FIXTURE = (
+    Path(__file__).parent / "data" / "open_targets_graphql_associations_25_06.json"
+)
+
+
+def test_result_envelope_carries_omics_projection_on_explicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _omics_store().parent / "trusted-open-targets-manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "artifacts": {
+                    hashlib.sha256(OPEN_TARGETS_FIXTURE.read_bytes()).hexdigest(): (
+                        DISEASE_VERIFY_METADATA
+                    )
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NETWORK_OPEN_TARGETS_MANIFEST_PATH", str(manifest_path))
+    _seal_deg_snapshot()
+    client = TestClient(app)
+    verify = client.post(
+        "/api/network/disease-import/verify",
+        data={
+            "query": "消风散",
+            "analysis_type": "formula",
+            "evidence_policy": "direct_human_first",
+            "metadata": json.dumps(DISEASE_VERIFY_METADATA, ensure_ascii=False),
+        },
+        files={
+            "file": (
+                "open_targets.json",
+                OPEN_TARGETS_FIXTURE.read_bytes(),
+                "application/x-ndjson",
+            )
+        },
+    )
+    assert verify.status_code == 202, verify.text
+    task_id = verify.json()["task_id"]
+    payload = {}
+    for _ in range(50):
+        payload = client.get(f"/api/network/result/{task_id}").json()
+        if payload["status"] == "completed":
+            break
+    assert payload["status"] == "completed"
+
+    opt_in = client.get(
+        f"/api/network/result/{task_id}",
+        params={"omics_verification": "true", "omics_accession": "GSE32924"},
+    )
+
+    assert opt_in.status_code == 200, opt_in.text
+    projection = opt_in.json()["omics_verification"]
+    assert projection is not None
+    assert projection["policy_id"] == "omics_transcriptomics_deg_v1"
+    assert projection["formal_network_ready"] is False
+    matched = [c["canonical_symbol"] for c in projection["candidates"]]
+    assert "IL6" in matched
+
+    default = client.get(f"/api/network/result/{task_id}").json()
+    assert default["omics_verification"] is None
