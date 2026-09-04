@@ -38,6 +38,8 @@
 
 后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。
 
+**端口事实（2026-09-04 起）**：本机 8000 被另一项目常驻占用，全程不可触碰。下方涉及 8000 的命令仅作写法参考，本项目实际一律走 isolated runtime 预览的隔离端口（后端 8010 / 前端 3000，CORS 固定 3000）。
+
 ```powershell
 # 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
 .\scripts\verify-local.ps1
@@ -90,9 +92,15 @@ pnpm preview:stop
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-open -Stop
 .\scripts\run-internal-preview.ps1 -RuntimeRoot .tmp\trial-token -AccessToken "trial-token"
 .\scripts\smoke-internal-preview.ps1 -AccessToken "trial-token"
+
+# 全局终端命令 tcmtech（= scripts\tcmtech.ps1，shim 在 %LOCALAPPDATA%\Microsoft\WindowsApps\tcmtech.cmd
+# 与 C:\Users\12035\bin\tcmtech[.cmd]）：起 8010/3000 + 开浏览器 + 前台阻塞，Ctrl+C 触发 finally 调 -Stop；
+# runtime 用默认 .tmp\internal-preview，所以 pnpm preview:stop 也能停它。重跑 tcmtech 会先自动停掉上一次服务。
+# cmd shim 是 GBK (cp936) 编码（编辑器里中文显示为乱码属正常），勿按 UTF-8 重写；详见 docs/handoffs/2026-09-04-tcmtech-command.md
 ```
 
 - `pnpm e2e`（Playwright）不在每次提交门禁内，需先 `pnpm exec playwright install chromium` 及系统库，按 `frontend/e2e/README.md`。
+- 浏览器自动化走查本项目 dev 页面时，role 定位点击可能假超时（工具行为非产品缺陷）：`elementFromPoint` 验证无遮挡后改用 evaluate 触发 DOM click 即可。
 - GitHub Actions CI 位于 `.github/workflows/ci.yml`，规则说明见 `.github/workflows/README.md`；没有 `.cursor` 规则。提交前仍必须本地手跑上述 PowerShell / pnpm 门禁，不能把远端 CI 当作首次验证。
 
 ## 改代码前必看的硬约束（测试会卡）
@@ -114,7 +122,7 @@ pnpm preview:stop
 - SQLite network-task repository 的锁按 canonical DB path 在单进程内共享；literature/chunk 仍是实例级锁。两者都不提供多 worker exactly-once；若引入多进程，必须先设计数据库 claim/lease 或等价原子协议。共享行上任何新增 read-modify-write 必须复用邻近方法已有的 CAS + 重试（`advance()`、`append_adjudication()` 即例），同文件已有的守卫就是需求；并发测试必须能观测到它声称覆盖的竞态——同进程两个 repository 实例共享 path lock，去掉守卫后仍会通过，必须显式制造交错并做变异验证。
 - 写操作与其后用于刷新界面的读取必须分开捕获错误。共用一个 `catch` 会把已落库的写报成失败，在 append-only 审计域里会诱导重试并污染历史。
 - 跨端字段的位置必须两侧各有断言。后端放在响应信封、前端从嵌套快照读取时不会有任何报错，只会静默显示 0。
-- 门禁全红时先排除工具链再改代码：pnpm 写绝对 symlink，仓库目录一旦移动，前端依赖全部悬空、前端门禁全红且与 diff 无关，需 `rm -rf frontend/node_modules && pnpm install --frozen-lockfile`；`.next` 缓存同样含迁移前绝对路径，目录移动后 dev/E2E 会出现与 diff 无关的间歇性失败（如 Playwright `networkidle` 超时），需一并 `rm -rf frontend/.next`。判断某条失败是否既有，用 `git stash` 清空改动后复跑确认，且复跑必须处于干净工具链（已重装依赖、已清缓存），不要凭印象归因。
+- 门禁全红时先排除工具链再改代码：pnpm 写绝对 symlink，仓库目录一旦移动，前端依赖全部悬空、前端门禁全红且与 diff 无关，需 `rm -rf frontend/node_modules && pnpm install --frozen-lockfile`；`.next` 缓存同样含迁移前绝对路径，目录移动后 dev/E2E 会出现与 diff 无关的间歇性失败（如 Playwright `networkidle` 超时），需一并 `rm -rf frontend/.next`；`pnpm build` 还会在 dev/build 间来回改写 `frontend/next-env.d.ts` 的 routes 类型路径，build 后树变脏时 `git checkout -- frontend/next-env.d.ts` 即可，不是代码问题。判断某条失败是否既有，用 `git stash` 清空改动后复跑确认，且复跑必须处于干净工具链（已重装依赖、已清缓存），不要凭印象归因。
 - 启动外部进程时传结构化 argv，禁止拼接 `PowerShell -Command` 或 curl config/header 字符串；端口和凭证参数必须先校验。
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
 - 前端测试套件（`frontend/tests/`，40+ 个测试文件）里有 4 个源码断言测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
