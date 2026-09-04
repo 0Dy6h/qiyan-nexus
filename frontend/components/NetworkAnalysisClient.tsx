@@ -34,11 +34,13 @@ import {
   getNetworkAdjudicationInFlightMessage,
   getNetworkAdjudicationUnavailableReason,
 } from "../lib/network-adjudication";
+import { ApiStatusError } from "../lib/api/client";
 import { toLocalDateInputValue } from "../lib/format-date";
 import { parseNetworkTaskIdParam } from "../lib/network-tasks";
 import {
   buildNetworkFocusHref,
   fetchNetworkEntities,
+  getEntityKindLabel,
   type NetworkEntity,
 } from "../lib/api/network-entities";
 import { buildNetworkReportFileName } from "../lib/network-report-export";
@@ -330,6 +332,8 @@ export default function NetworkAnalysisClient() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<NetworkAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<{ href: string; label: string } | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [adjudication, setAdjudication] = useState<NetworkAdjudicationProjection | null>(null);
   const [assemblyGate, setAssemblyGate] = useState<NetworkAssemblyGateProjection | null>(null);
   const [assemblyPlanError, setAssemblyPlanError] = useState<string | null>(null);
@@ -360,6 +364,8 @@ export default function NetworkAnalysisClient() {
     // cannot land on top of the run the reviewer just started.
     activeTaskIdRef.current = null;
     setErrorMessage(null);
+    setErrorHint(null);
+    setInfoMessage(null);
     setResult(null);
     setAdjudication(null);
     setAssemblyGate(null);
@@ -394,11 +400,16 @@ export default function NetworkAnalysisClient() {
           setPhase("completed");
           return;
         }
-      } catch {
+      } catch (error) {
         if (!mountedRef.current) {
           return;
         }
-        setErrorMessage("轮询任务结果失败，请确认后端服务已启动。");
+        if (error instanceof ApiStatusError && error.status === 404) {
+          setErrorMessage("未找到该任务：任务可能不存在、已被删除，或不属于当前环境。");
+          setErrorHint({ href: "/tasks", label: "← 回到我的研究" });
+        } else {
+          setErrorMessage("轮询任务结果失败，请确认后端服务已启动。");
+        }
         setPhase("error");
         return;
       }
@@ -815,17 +826,29 @@ export default function NetworkAnalysisClient() {
     }
     appliedFocusRef.current = focusEntityId;
 
+    // focus 深链只做预填，绝不自动运行：分析任务是显式的写操作，
+    // 点一个实体 chip 不应该静默创建任务，离开页面也不会留下卡在 running 的任务。
     fetchNetworkEntities()
       .then((lookup) => {
         if (!mountedRef.current) {
           return;
         }
         const entity: NetworkEntity | undefined = lookup[focusEntityId];
-        const nextQuery = entity?.name ?? focusEntityId;
-        const nextType: NetworkAnalysisType = entity?.kind === "herb" ? "herb" : "formula";
-        setQuery(nextQuery);
-        setAnalysisType(nextType);
-        void runAnalysis(nextQuery, nextType);
+        if (!entity) {
+          setInfoMessage(`未在网药实体字典中找到「${focusEntityId}」，请直接输入方药名称。`);
+          return;
+        }
+        if (entity.kind === "herb" || entity.kind === "formula") {
+          setQuery(entity.name);
+          setAnalysisType(entity.kind);
+          setInfoMessage(
+            `已按实体预填分析对象「${entity.name}」（${getEntityKindLabel(entity.kind)}），请核对研究协议后点击开始分析。`,
+          );
+          return;
+        }
+        setInfoMessage(
+          `「${entity.name}」是${getEntityKindLabel(entity.kind)}，不作为分析对象；可用链路卡的「查相关文献」「去 RAG 提问」继续。`,
+        );
       })
       .catch(() => {
         if (!mountedRef.current) {
@@ -834,8 +857,7 @@ export default function NetworkAnalysisClient() {
         setErrorMessage("加载网药实体失败，无法解析 focus 参数。");
         setPhase("error");
       });
-    // runAnalysis is stable enough for this one-shot prefill; we intentionally
-    // depend only on focusEntityId so re-renders do not re-submit.
+    // one-shot prefill: depend only on focusEntityId so re-renders do not re-apply.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusEntityId]);
 
@@ -882,6 +904,12 @@ export default function NetworkAnalysisClient() {
             先冻结研究对象、明确 AD 表型、物种、证据策略和查询日期，再运行可审计的网络药理学任务。
           </p>
         </div>
+
+        {infoMessage ? (
+          <div style={{ marginBottom: 16 }}>
+            <StatusPanel message={infoMessage} />
+          </div>
+        ) : null}
 
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 16 }}>
           <label style={{ display: "grid", gap: 8, color: "var(--qiyan-ink)", fontWeight: 700 }}>
@@ -1123,7 +1151,19 @@ export default function NetworkAnalysisClient() {
         </form>
       </section>
 
-      {phase === "error" && errorMessage ? <StatusPanel message={errorMessage} tone="error" /> : null}
+      {phase === "error" && errorMessage ? (
+        <div style={{ display: "grid", gap: 10 }}>
+          <StatusPanel message={errorMessage} tone="error" />
+          {errorHint ? (
+            <a
+              href={errorHint.href}
+              style={{ color: "#0d9488", fontWeight: 700, width: "fit-content" }}
+            >
+              {errorHint.label}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       {phase === "completed" && result ? (
         <section style={getSurfaceSectionStyle()}>

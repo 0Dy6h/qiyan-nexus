@@ -30,6 +30,18 @@ function isInternalApiTarget(input: URL | RequestInfo, internalBaseUrl: string) 
   }
 }
 
+// 带 HTTP 状态码的请求错误：让 UI 能区分 404（资源不存在/不可见）与网络/服务故障，
+// 而不是把所有失败折叠成「后端未启动」。
+export class ApiStatusError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiStatusError";
+    this.status = status;
+  }
+}
+
 export function apiFetch(input: URL | RequestInfo, init: RequestInit = {}): Promise<Response> {
   const headers = buildApiHeaders(init.headers);
   if (typeof window === "undefined") {

@@ -1,4 +1,4 @@
-import { apiFetch, buildApiHeaders } from "./client";
+import { ApiStatusError, apiFetch, buildApiHeaders } from "./client";
 import { getBackendBaseUrl } from "./rag";
 
 export type NetworkAnalysisType = "formula" | "herb";
@@ -521,7 +521,7 @@ export async function fetchNetworkResult(taskId: string): Promise<NetworkResultR
   const response = await apiFetch(buildNetworkResultUrl(taskId));
 
   if (!response.ok) {
-    throw new Error("Network result request failed");
+    throw new ApiStatusError(response.status, "Network result request failed");
   }
 
   return response.json();
@@ -531,7 +531,7 @@ export async function fetchNetworkReportMarkdown(taskId: string): Promise<string
   const response = await apiFetch(buildNetworkReportUrl(taskId));
 
   if (!response.ok) {
-    throw new Error("Network report request failed");
+    throw new ApiStatusError(response.status, "Network report request failed");
   }
 
   return response.text();
@@ -541,7 +541,7 @@ export async function fetchNetworkTasks(): Promise<NetworkTaskListResponse> {
   const response = await apiFetch(buildNetworkTasksUrl());
 
   if (!response.ok) {
-    throw new Error("Network tasks request failed");
+    throw new ApiStatusError(response.status, "Network tasks request failed");
   }
 
   return response.json();
