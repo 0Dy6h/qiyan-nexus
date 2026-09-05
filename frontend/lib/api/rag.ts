@@ -1,4 +1,4 @@
-import { apiFetch, buildApiHeaders } from "./client";
+import { ApiStatusError, apiFetch, buildApiHeaders } from "./client";
 
 export type RagSource = "all" | "cn_literature" | "pubmed";
 
@@ -119,7 +119,7 @@ export async function answerRagQuestion(
   });
 
   if (!response.ok) {
-    throw new Error("RAG answer request failed");
+    throw new ApiStatusError(response.status, "RAG answer request failed");
   }
 
   return response.json();
@@ -135,7 +135,7 @@ export async function fetchRagAnswerMarkdown(answer: RagAnswerResponse): Promise
   });
 
   if (!response.ok) {
-    throw new Error("RAG answer export request failed");
+    throw new ApiStatusError(response.status, "RAG answer export request failed");
   }
 
   return response.text();
@@ -151,7 +151,7 @@ export async function fetchRagAnswerDocx(answer: RagAnswerResponse): Promise<Blo
   });
 
   if (!response.ok) {
-    throw new Error("RAG answer docx export request failed");
+    throw new ApiStatusError(response.status, "RAG answer docx export request failed");
   }
 
   return response.blob();

@@ -412,6 +412,8 @@ export default function NetworkAnalysisClient() {
         if (error instanceof ApiStatusError && error.status === 404) {
           setErrorMessage("未找到该任务：任务可能不存在、已被删除，或不属于当前环境。");
           setErrorHint({ href: "/tasks", label: "← 回到我的研究" });
+        } else if (error instanceof ApiStatusError) {
+          setErrorMessage(`轮询任务结果失败（HTTP ${error.status}），请稍后重试。`);
         } else {
           setErrorMessage("轮询任务结果失败，请确认后端服务已启动。");
         }

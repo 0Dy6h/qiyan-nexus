@@ -14,6 +14,7 @@ import {
   RagAnswerResponse,
   RagSource,
 } from "../lib/api/rag";
+import { ApiStatusError } from "../lib/api/client";
 import { buildPdfDownloadUrl } from "../lib/api/literature";
 import { buildAnswerDocxFileName, buildAnswerMarkdownFileName } from "../lib/rag-export";
 import { getCitationEmptyCopy, getEmptyStateCopy, getStatusCopy } from "../lib/ui/states";
@@ -201,13 +202,16 @@ export default function RagAnswerClient() {
     try {
       const result = await answerRagQuestion(question, source, topK);
       setState({ question, source, topK, result, error: null, isLoading: false });
-    } catch {
+    } catch (error) {
       setState({
         question,
         source,
         topK,
         result: null,
-        error: emptyStateCopy.error,
+        error:
+          error instanceof ApiStatusError
+            ? `生成回答失败（HTTP ${error.status}），请稍后重试或调整检索范围。`
+            : "请求失败，请确认后端服务已启动。",
         isLoading: false,
       });
     }

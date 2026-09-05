@@ -39,7 +39,8 @@ test("network 404 deep links get a distinct message and a recovery link instead 
   assert.match(clientSource, /error instanceof ApiStatusError && error\.status === 404/);
   assert.match(clientSource, /未找到该任务：任务可能不存在、已被删除，或不属于当前环境。/);
   assert.match(clientSource, /\{ href: "\/tasks", label: "← 回到我的研究" \}/);
-  // non-404 failures keep the explicit backend hint
+  // 非 404 的 HTTP 错误带状态码如实呈现；只有真网络故障保留 backend 提示
+  assert.match(clientSource, /轮询任务结果失败（HTTP \$\{error\.status\}），请稍后重试。/);
   assert.match(clientSource, /轮询任务结果失败，请确认后端服务已启动。/);
 });
 
