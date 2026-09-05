@@ -53,6 +53,12 @@ class NetworkResearchProtocol(BaseModel):
     evidence_policy: EvidencePolicy
     query_date: date
 
+    @model_validator(mode="after")
+    def validate_query_date_not_in_future(self) -> Self:
+        if self.query_date > date.today():
+            raise ValueError("query_date cannot be in the future")
+        return self
+
 
 class NetworkDiseaseTargetRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -416,7 +422,7 @@ class NetworkTargetLineage(BaseModel):
 class NetworkAnalyzeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    query: str = Field(min_length=1)
+    query: str = Field(min_length=1, max_length=100)
     analysis_type: AnalysisType = "formula"
     research_protocol: NetworkResearchProtocol
     disease_target_import: NetworkDiseaseTargetImport | None = None

@@ -465,7 +465,7 @@ export async function submitNetworkAnalysis(
   });
 
   if (!response.ok) {
-    throw new Error("Network analyze request failed");
+    throw new ApiStatusError(response.status, "Network analyze request failed");
   }
 
   return response.json();
@@ -490,7 +490,7 @@ export async function verifyNetworkDiseaseImport(
   });
 
   if (!response.ok) {
-    throw new Error("Network disease import verification request failed");
+    throw new ApiStatusError(response.status, "Network disease import verification request failed");
   }
 
   return response.json();
@@ -511,7 +511,7 @@ export async function verifyNetworkCompoundImport(
   });
 
   if (!response.ok) {
-    throw new Error("Network compound import verification request failed");
+    throw new ApiStatusError(response.status, "Network compound import verification request failed");
   }
 
   return response.json();
@@ -564,7 +564,7 @@ export async function submitNetworkAdjudication(
   });
 
   if (!response.ok) {
-    throw new Error("Network adjudication request failed");
+    throw new ApiStatusError(response.status, "Network adjudication request failed");
   }
 
   return response.json();

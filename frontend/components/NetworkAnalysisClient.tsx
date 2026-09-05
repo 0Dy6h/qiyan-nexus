@@ -53,6 +53,10 @@ type NetworkPhase = "idle" | "submitting" | "polling" | "completed" | "error";
 
 const POLL_INTERVAL_MS = 800;
 const MAX_POLL_ATTEMPTS = 10;
+// 与后端 NetworkAnalyzeRequest / NetworkResearchProtocol 字段约束一致（backend/app/schemas/network.py）。
+const NETWORK_QUERY_MAX_LENGTH = 100;
+const NETWORK_PHENOTYPE_MIN_LENGTH = 4;
+const NETWORK_PHENOTYPE_MAX_LENGTH = 200;
 
 function formatScore(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -434,10 +438,31 @@ export default function NetworkAnalysisClient() {
       setPhase("error");
       return;
     }
+    if (trimmedQuery.length > NETWORK_QUERY_MAX_LENGTH) {
+      setErrorMessage(`分析对象过长（上限 ${NETWORK_QUERY_MAX_LENGTH} 字），请缩短后重试。`);
+      setPhase("error");
+      return;
+    }
+    const trimmedPhenotype = phenotype.trim();
+    if (
+      trimmedPhenotype.length < NETWORK_PHENOTYPE_MIN_LENGTH ||
+      trimmedPhenotype.length > NETWORK_PHENOTYPE_MAX_LENGTH
+    ) {
+      setErrorMessage(
+        `研究表型需为 ${NETWORK_PHENOTYPE_MIN_LENGTH}-${NETWORK_PHENOTYPE_MAX_LENGTH} 字，请写明本次研究的 AD 表型或机制边界。`,
+      );
+      setPhase("error");
+      return;
+    }
+    if (queryDate > toLocalDateInputValue(new Date())) {
+      setErrorMessage("查询日期不能晚于今天，请核对后再运行。");
+      setPhase("error");
+      return;
+    }
 
     const researchProtocol: NetworkResearchProtocol = {
       disease: "atopic_dermatitis",
-      phenotype: phenotype.trim(),
+      phenotype: trimmedPhenotype,
       species: "Homo sapiens",
       evidence_policy: evidencePolicy,
       query_date: queryDate,
@@ -692,11 +717,19 @@ export default function NetworkAnalysisClient() {
       setProgress(accepted.progress);
       setPhase("polling");
       await pollUntilCompleted(accepted.task_id);
-    } catch {
+    } catch (error) {
       if (!mountedRef.current) {
         return;
       }
-      setErrorMessage("提交分析任务失败，请确认后端服务已启动。");
+      if (error instanceof ApiStatusError && error.status === 422) {
+        setErrorMessage(
+          "提交被服务端校验拒绝：请核对分析对象与研究表型（4-200 字）、查询日期后重试。",
+        );
+      } else if (error instanceof ApiStatusError) {
+        setErrorMessage(`提交分析任务失败（HTTP ${error.status}），请稍后重试。`);
+      } else {
+        setErrorMessage("提交分析任务失败，请确认后端服务已启动。");
+      }
       setPhase("error");
     }
   }
@@ -919,6 +952,7 @@ export default function NetworkAnalysisClient() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               aria-label="机制线索分析对象"
+              maxLength={NETWORK_QUERY_MAX_LENGTH}
               style={{
                 width: "100%",
                 border: "1px solid var(--qiyan-line)",
@@ -992,6 +1026,7 @@ export default function NetworkAnalysisClient() {
                 <input
                   type="date"
                   value={queryDate}
+                  max={toLocalDateInputValue(new Date())}
                   onChange={(event) => setQueryDate(event.target.value)}
                   aria-label="网络药理学查询日期"
                   style={{ border: "1px solid var(--qiyan-line)", borderRadius: 8, padding: "12px 14px", fontSize: 16 }}

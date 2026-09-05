@@ -143,6 +143,36 @@ def test_network_analyze_endpoint_requires_a_research_protocol():
     assert response.status_code == 422
 
 
+def test_network_analyze_rejects_overlong_query() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/network/analyze",
+        json={
+            "query": "超" * 101,
+            "analysis_type": "formula",
+            "research_protocol": RESEARCH_PROTOCOL,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_network_analyze_rejects_future_query_date() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/network/analyze",
+        json={
+            "query": "消风散",
+            "analysis_type": "formula",
+            "research_protocol": {**RESEARCH_PROTOCOL, "query_date": "2099-01-01"},
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_verify_disease_import_creates_owner_scoped_task_from_raw_artifact() -> None:
     client = TestClient(app)
 
