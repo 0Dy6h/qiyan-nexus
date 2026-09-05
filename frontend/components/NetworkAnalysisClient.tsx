@@ -36,6 +36,7 @@ import {
 } from "../lib/network-adjudication";
 import { ApiStatusError } from "../lib/api/client";
 import { toLocalDateInputValue } from "../lib/format-date";
+import { truncateLabel } from "../lib/format-text";
 import { parseNetworkTaskIdParam } from "../lib/network-tasks";
 import {
   buildNetworkFocusHref,
@@ -1216,10 +1217,13 @@ export default function NetworkAnalysisClient() {
               <h2 style={{ color: "var(--qiyan-ink)", fontSize: 24, margin: 0 }}>
                 {isImportedSnapshotResult ? "冻结靶点快照与派生交集" : "「成分-靶点-通路-疾病」链"}
               </h2>
-              <p style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}>
+              <p
+                title={result.query}
+                style={{ color: "var(--qiyan-muted-2)", margin: 0, lineHeight: 1.6 }}
+              >
                 {isImportedSnapshotResult
-                  ? `分析对象 ${result.query}（${getNetworkAnalysisTypeLabel(result.analysis_type)}）。当前仅展示冻结 lineage 与服务端派生交集；未构建 provider chains、PPI、pathway 或 enrichment。`
-                  : `分析对象 ${result.query}（${getNetworkAnalysisTypeLabel(result.analysis_type)}）共返回 ${visibleChains.length} 条链；分数为${isLiveResult ? "来源置信度或预测分数，需核对下方数据来源与缓存状态。" : "mock 置信度，仅用于 UI 演示。"}`}
+                  ? `分析对象 ${truncateLabel(result.query)}（${getNetworkAnalysisTypeLabel(result.analysis_type)}）。当前仅展示冻结 lineage 与服务端派生交集；未构建 provider chains、PPI、pathway 或 enrichment。`
+                  : `分析对象 ${truncateLabel(result.query)}（${getNetworkAnalysisTypeLabel(result.analysis_type)}）共返回 ${visibleChains.length} 条链；分数为${isLiveResult ? "来源置信度或预测分数，需核对下方数据来源与缓存状态。" : "mock 置信度，仅用于 UI 演示。"}`}
               </p>
             </div>
             <button

@@ -22,3 +22,14 @@ test("literature empty state explains demo-corpus limits and offers hit-tested s
   // 建议词点击后走同一 runSearch 路径，保持来源/排序/分页状态
   assert.match(source, /runSearch\(suggestion, state\.view, 1, state\.pageSize, state\.sort\)/);
 });
+
+test("literature idle state shares the same clickable suggestion chips as the zero-result state", () => {
+  const source = getSource("components/LiteratureSearchClient.tsx");
+
+  // idle 分支有独立引导文案，示例词按钮不再被 hasSearched 条件包死
+  assert.match(source, /还没有检索记录：点下面的示例词直接开始，或输入关键词后检索。/);
+  assert.doesNotMatch(
+    source,
+    /state\.hasSearched \? \(\s*<div style=\{\{ display: "grid", gap: 10 \}\}>\s*<p/,
+  );
+});

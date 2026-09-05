@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { fetchNetworkTasks } from "../lib/api/network";
+import { truncateLabel } from "../lib/format-text";
 import { mapNetworkTasksToRows, type NetworkTaskListRow } from "../lib/network-tasks";
 import { getSurfaceSectionStyle } from "../lib/ui/surfaces";
 import StatusPanel from "./StatusPanel";
@@ -145,7 +146,7 @@ export default function NetworkTaskListClient() {
               <tr key={row.taskId} style={{ borderBottom: "1px solid var(--qiyan-line)" }}>
                 <td style={{ padding: "12px 8px", color: "var(--qiyan-ink)", fontWeight: 800 }}>
                   <div style={{ display: "grid", gap: 4 }}>
-                    <span>{row.query}</span>
+                    <span title={row.query}>{truncateLabel(row.query)}</span>
                     {row.isDerived ? (
                       <span
                         title={`派生自父任务 ${row.sourceTaskId}`}
@@ -194,7 +195,7 @@ export default function NetworkTaskListClient() {
                 <td style={{ padding: "12px 8px" }}>
                   <Link
                     href={row.viewHref}
-                    aria-label={`查看任务 ${row.query}`}
+                    aria-label={`查看任务 ${truncateLabel(row.query)}`}
                     style={{ color: "#0f766e", fontWeight: 700, whiteSpace: "nowrap" }}
                   >
                     查看 →
