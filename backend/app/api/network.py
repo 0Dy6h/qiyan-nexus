@@ -13,7 +13,10 @@ from app.schemas.network import (
     NetworkAdjudicationRequest,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
+    NetworkAssemblyConsumeAccepted,
+    NetworkAssemblyConsumeRequest,
     NetworkAssemblyPlan,
+    NetworkAssemblyPlanAuditView,
     NetworkCompoundTargetVerifyMetadata,
     NetworkDiseaseTargetVerifyMetadata,
     NetworkResultResponse,
@@ -23,13 +26,14 @@ from app.schemas.network import (
 from app.schemas.network_entities import NetworkEntitiesResponse
 from app.schemas.omics import OmicsImportAccepted, OmicsTranscriptomicsManifestV1
 from app.services.network import (
+    build_network_assembly_plan_audit_view,
     build_network_report_markdown,
+    consume_network_assembly_plan,
     create_network_analysis_task,
     create_verified_compound_network_analysis_task,
     create_verified_network_analysis_task,
     get_network_analysis_result,
     get_network_analysis_task,
-    get_network_assembly_plan,
     list_all_entities,
     list_network_analysis_tasks,
     seal_network_assembly_plan,
@@ -424,17 +428,71 @@ def seal_network_assembly_plan_endpoint(
 
 @router.get(
     "/result/{task_id}/assembly-plans/{plan_id}",
-    response_model=NetworkAssemblyPlan,
+    response_model=NetworkAssemblyPlanAuditView,
 )
 def get_network_assembly_plan_endpoint(
     task_id: str,
     plan_id: str,
     reviewer_id: Annotated[str, Depends(require_reviewer_id)],
-) -> NetworkAssemblyPlan:
-    plan = get_network_assembly_plan(task_id, plan_id, reviewer_id)
-    if plan is None:
+) -> NetworkAssemblyPlanAuditView:
+    view = build_network_assembly_plan_audit_view(task_id, plan_id, reviewer_id)
+    if view is None:
         raise HTTPException(status_code=404, detail="Network assembly plan not found")
-    return plan
+    return view
+
+
+@router.post(
+    "/result/{task_id}/assembly-plans/{plan_id}/consume",
+    response_model=NetworkAssemblyConsumeAccepted,
+    status_code=status.HTTP_201_CREATED,
+)
+def consume_network_assembly_plan_endpoint(
+    task_id: str,
+    plan_id: str,
+    response: Response,
+    reviewer_id: Annotated[str, Depends(require_reviewer_id)],
+    request: NetworkAssemblyConsumeRequest = Body(),
+) -> NetworkAssemblyConsumeAccepted:
+    """Writer consumption primitive (writer consumption contract, D1-D9 approved).
+
+    Atomically proves the plan is still the latest revision, then appends the
+    immutable output envelope and the exactly-once consumption record. A
+    successful consume authorizes nothing scientific: ``formal_network_ready``
+    stays false.
+    """
+    state, payload = consume_network_assembly_plan(task_id, plan_id, reviewer_id, request)
+    if state == "not_found":
+        raise HTTPException(status_code=404, detail="Network assembly plan not found")
+    if state == "invalid_request":
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "invalid_consume_request", "checks": payload or []},
+        )
+    if state == "integrity_failed":
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "assembly_integrity_failed", "checks": payload or []},
+        )
+    if state == "broken_parent_link":
+        raise HTTPException(status_code=409, detail={"code": "broken_parent_link"})
+    if state == "already_consumed":
+        raise HTTPException(status_code=409, detail={"code": "plan_already_consumed"})
+    if state == "superseded":
+        raise HTTPException(status_code=409, detail={"code": "plan_superseded"})
+    if state == "conflict":
+        raise HTTPException(status_code=409, detail={"code": "adjudication_changed"})
+    if state == "capacity_exceeded":
+        raise HTTPException(status_code=429, detail={"code": "consumption_limit_reached"})
+    if state == "multi_process_blocked":
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "json_backend_multi_process_blocked"},
+        )
+    if not isinstance(payload, NetworkAssemblyConsumeAccepted):
+        raise HTTPException(status_code=500, detail="Assembly consumption persistence failed")
+    if state == "existing":
+        response.status_code = status.HTTP_200_OK
+    return payload
 
 
 @router.get("/result/{task_id}/report", response_class=PlainTextResponse)

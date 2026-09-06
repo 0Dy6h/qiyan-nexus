@@ -532,3 +532,50 @@ test("getNetworkOmicsVerificationSummary formats candidate count and top symbols
     "候选基因 2 个：FLG、IVL",
   );
 });
+
+test("fetchNetworkResult surfaces the latest plan consumption projection", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    return {
+      ok: true,
+      async json() {
+        return {
+          task_id: "network-abc123",
+          status: "completed",
+          progress: 100,
+          data_mode: "mock",
+          error: null,
+          warnings: [],
+          assembly_gate: {
+            policy_id: "source_bound_network_assembly_v1",
+            state: "assembly_input_ready",
+            blockers: [],
+            latest_plan: {
+              plan_id: "assembly-plan-" + "c".repeat(64),
+              policy_id: "source_bound_network_assembly_v1",
+              canonical_plan_input_sha256: "c".repeat(64),
+              selected_intersection_count: 1,
+              created_at: "2026-09-06T10:00:00+00:00",
+              assembly_input_ready: true,
+              formal_network_ready: false,
+              is_consumed: true,
+            },
+          },
+          result: null,
+        };
+      },
+    } as Response;
+  }) as typeof globalThis.fetch;
+
+  try {
+    const { fetchNetworkResult } = await import(`../lib/api/network?ts=${Date.now()}`);
+    const polled = await fetchNetworkResult("network-abc123");
+
+    const latestPlan = polled.assembly_gate?.latest_plan;
+    assert.ok(latestPlan);
+    assert.equal(latestPlan.is_consumed, true);
+    assert.equal(latestPlan.formal_network_ready, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

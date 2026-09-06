@@ -128,6 +128,32 @@ CREATE TABLE IF NOT EXISTS network_assembly_plans (
 CREATE INDEX IF NOT EXISTS idx_network_assembly_plans_task_owner
     ON network_assembly_plans(task_id, owner_id, plan_sequence);
 
+-- Immutable writer assembly outputs (one per consumed candidate plan)
+CREATE TABLE IF NOT EXISTS network_assembly_outputs (
+    output_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES network_tasks(task_id) ON DELETE CASCADE,
+    owner_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    output_json JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE (task_id, owner_id, plan_id)
+);
+
+-- Append-only plan consumption audit records (exactly-once per plan)
+CREATE TABLE IF NOT EXISTS network_assembly_consumptions (
+    consumption_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES network_tasks(task_id) ON DELETE CASCADE,
+    owner_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    output_id TEXT NOT NULL,
+    consumption_json JSONB NOT NULL,
+    consumed_at TIMESTAMP NOT NULL,
+    UNIQUE (task_id, owner_id, plan_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_network_assembly_consumptions_task_owner
+    ON network_assembly_consumptions(task_id, owner_id, plan_id);
+
 -- Helper function: update updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

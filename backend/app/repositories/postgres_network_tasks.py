@@ -10,11 +10,14 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 from pydantic import TypeAdapter
 
+from app.core.canonical_json import canonical_json_sha256
 from app.repositories.postgres_common import create_postgres_pool, ensure_postgres_schema
 from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyConsumptionRecord,
+    NetworkAssemblyOutput,
     NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
@@ -362,6 +365,145 @@ class PostgresNetworkTaskRepository:
                 )
                 conn.commit()
                 return "created", persisted
+
+    def list_assembly_consumptions(
+        self, task_id: str, owner_id: str
+    ) -> list[NetworkAssemblyConsumptionRecord]:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """SELECT c.consumption_json FROM network_assembly_consumptions c
+                       JOIN network_tasks t ON t.task_id = c.task_id
+                       WHERE c.task_id = %s AND c.owner_id = %s AND t.owner_id = %s
+                       ORDER BY c.consumed_at, c.consumption_id""",
+                    (task_id, owner_id, owner_id),
+                )
+                return [
+                    NetworkAssemblyConsumptionRecord.model_validate(row["consumption_json"])
+                    for row in cur.fetchall()
+                ]
+
+    def consume_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        writer_id: str,
+        plan_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        output: NetworkAssemblyOutput,
+        consumption: NetworkAssemblyConsumptionRecord,
+        record_limit: int,
+    ) -> tuple[str, NetworkAssemblyOutput | None, NetworkAssemblyConsumptionRecord | None]:
+        with self._get_pool().connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """SELECT adjudications, result FROM network_tasks
+                       WHERE task_id = %s AND owner_id = %s FOR UPDATE""",
+                    (task_id, owner_id),
+                )
+                task_row = cur.fetchone()
+                if task_row is None:
+                    conn.rollback()
+                    return "not_found", None, None
+                cur.execute(
+                    """SELECT plan_json FROM network_assembly_plans
+                       WHERE task_id = %s AND owner_id = %s AND plan_id = %s""",
+                    (task_id, owner_id, plan_id),
+                )
+                plan_row = cur.fetchone()
+                if plan_row is None:
+                    conn.rollback()
+                    return "not_found", None, None
+                plan = NetworkAssemblyPlan.model_validate(plan_row["plan_json"])
+                cur.execute(
+                    """SELECT consumption_json FROM network_assembly_consumptions
+                       WHERE task_id = %s AND owner_id = %s AND plan_id = %s""",
+                    (task_id, owner_id, plan_id),
+                )
+                existing_row = cur.fetchone()
+                if existing_row is not None:
+                    existing = NetworkAssemblyConsumptionRecord.model_validate(
+                        existing_row["consumption_json"]
+                    )
+                    if (
+                        existing.writer_id == writer_id
+                        and existing.output_sha256 == output.output_sha256
+                    ):
+                        cur.execute(
+                            """SELECT output_json FROM network_assembly_outputs
+                               WHERE output_id = %s""",
+                            (existing.output_id,),
+                        )
+                        stored_row = cur.fetchone()
+                        stored_output = (
+                            NetworkAssemblyOutput.model_validate(stored_row["output_json"])
+                            if stored_row is not None
+                            else None
+                        )
+                        conn.rollback()
+                        return "existing", stored_output, existing
+                    conn.rollback()
+                    return "already_consumed", None, None
+                cur.execute(
+                    """SELECT COALESCE(MAX(plan_sequence), 0) AS max_sequence
+                       FROM network_assembly_plans WHERE task_id = %s AND owner_id = %s""",
+                    (task_id, owner_id),
+                )
+                if plan.plan_sequence != int(cur.fetchone()["max_sequence"]):
+                    conn.rollback()
+                    return "superseded", None, None
+                current = _ADJUDICATION_LIST_ADAPTER.validate_python(task_row["adjudications"])
+                if tuple(item.adjudication_id for item in current) != expected_adjudication_ids:
+                    conn.rollback()
+                    return "conflict", None, None
+                if task_row["result"] is None:
+                    conn.rollback()
+                    return "integrity_failed", None, None
+                stored_result = NetworkAnalysisResult.model_validate(task_row["result"])
+                if (
+                    canonical_json_sha256(stored_result.target_lineage.model_dump(mode="json"))
+                    != plan.target_lineage_sha256
+                ):
+                    conn.rollback()
+                    return "integrity_failed", None, None
+                cur.execute(
+                    """SELECT COUNT(*) AS total FROM network_assembly_consumptions
+                       WHERE task_id = %s AND owner_id = %s""",
+                    (task_id, owner_id),
+                )
+                if int(cur.fetchone()["total"]) >= record_limit:
+                    conn.rollback()
+                    return "capacity_exceeded", None, None
+                cur.execute(
+                    """INSERT INTO network_assembly_outputs
+                       (output_id, task_id, owner_id, plan_id, output_json, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (
+                        output.output_id,
+                        task_id,
+                        owner_id,
+                        plan_id,
+                        Jsonb(output.model_dump(mode="json")),
+                        output.consumed_at,
+                    ),
+                )
+                cur.execute(
+                    """INSERT INTO network_assembly_consumptions
+                       (consumption_id, task_id, owner_id, plan_id, output_id,
+                        consumption_json, consumed_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        consumption.consumption_id,
+                        task_id,
+                        owner_id,
+                        plan_id,
+                        output.output_id,
+                        Jsonb(consumption.model_dump(mode="json")),
+                        consumption.consumed_at,
+                    ),
+                )
+                conn.commit()
+                return "created", output, consumption
 
     def upsert(
         self,

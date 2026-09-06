@@ -346,6 +346,15 @@ curl.exe -X POST "http://127.0.0.1:8000/api/network/omics-import/verify" `
 
 对已完成、有冻结疾病 lineage 的 task，`GET /api/network/result/{task_id}?omics_verification=true&omics_accession=GSE32924` 显式 opt-in 后在结果信封返回确定性 DEG 候选投影（Welch t-test + 基因层面 BH，只出 `pending_human_confirmation` 候选，不定级）。唯一把某条边的证据等级升到 `omics_validated` 的路径是人工判定：在既有 append-only adjudication 流上提交 `decision="omics_confirmed"` 并携带 `omics` 上下文，服务端在判定时刻重验全部机器条件（候选存在、阈值满足、数据集 Homo sapiens + 特应性皮炎、task lineage 绑定），任一不满足即 fail closed。mock 数据恒为 `mock_inferred`；`omics_validated` 不翻转 `formal_network_ready`。真实 GSE32924 验收记录见 `docs/reports/2026-09-03-gate3-g32-real-data-verification.md`。
 
+writer 消费契约（2026-09-06 落地，契约见 `docs/plans/2026-08-14-writer-consumption-contract-draft.md`）：所有 lineage 行终态判定后 `POST /api/network/result/{task_id}/assembly-plans` 封存候选计划；未来的网络装配 writer 写任何产物前必须走一次性消费原语 `POST /api/network/result/{task_id}/assembly-plans/{plan_id}/consume`——服务端在同一临界区内原子重验 R1-R9（plan 仍是 latest、判定流与冻结 lineage 绑定未变、父子协议成立）并追加不可变输出信封与 exactly-once 消费记录。同 writer 同输出重试返回 `200 existing`（幂等重放）；判定追加未重封存报 `409 adjudication_changed`；已重封存报 `409 plan_superseded`；持久化哈希自相矛盾报 `500 assembly_integrity_failed`；容量上限（env `QIYAN_CONSUMPTION_RECORD_LIMIT`，默认 1000）报 `429`。响应信封如实标注 `backend_fidelity`（JSON=`preview` 仅同进程同实例安全，SQLite/PG=`production`）。消费成功不等于科研就绪：`formal_network_ready` 恒 false，输出只是审计产物。
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/network/result/<task_id>/assembly-plans/<plan_id>/consume" \
+  -H "Content-Type: application/json" \
+  -d '{"writer_id":"assembly-writer-01","output_payload":{"edges":[]}}'
+curl "http://127.0.0.1:8000/api/network/result/<task_id>/assembly-plans/<plan_id>"  # 只读审计视图：is_latest_plan / is_consumed / is_superseded_by
+```
+
 protected mode 直连脚本必须在创建、轮询和报告请求中保持同一个 reviewer id：
 
 ```bash

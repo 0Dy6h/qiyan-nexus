@@ -1,7 +1,11 @@
+import json
 from datetime import UTC, date, datetime
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# Serialized size guard for the writer output payload of a plan consumption.
+_MAX_OUTPUT_PAYLOAD_JSON_CHARS = 256 * 1024
 
 AnalysisType = Literal["formula", "herb"]
 TaskStatus = Literal["queued", "running", "completed", "failed"]
@@ -671,6 +675,121 @@ class NetworkAssemblyPlanSummary(BaseModel):
     created_at: str
     assembly_input_ready: Literal[True] = True
     formal_network_ready: Literal[False] = False
+    # D6 read-only projection: whether a writer has already consumed this plan.
+    # Computed at read time; never persisted onto the frozen plan artifact.
+    is_consumed: bool = False
+
+
+class NetworkAssemblyConsumeRequest(BaseModel):
+    """Writer request to atomically consume one candidate assembly plan.
+
+    The writer only presents the plan handle plus its output payload; it can
+    never submit hashes, readiness or adjudication fields — everything else is
+    recomputed server-side inside the consume critical section. The output
+    payload is opaque to this contract (the assembly computation itself is a
+    later slice); it is canonicalized and hashed server-side so the D5
+    idempotent replay can key on ``output_sha256`` (replay therefore assumes a
+    deterministic writer output).
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    writer_id: str = Field(min_length=1, max_length=64)
+    canonical_plan_input_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    output_payload: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_output_payload_size(self) -> Self:
+        serialized = json.dumps(self.output_payload, ensure_ascii=False)
+        if len(serialized) > _MAX_OUTPUT_PAYLOAD_JSON_CHARS:
+            raise ValueError("output_payload exceeds the 256KB serialized size limit")
+        return self
+
+
+class NetworkAssemblyOutput(BaseModel):
+    """Immutable writer output envelope (append-only assembly artifact).
+
+    Schema-pinned: ``assembly_input_ready`` is always true and
+    ``formal_network_ready`` is always false. Consuming a plan authorizes
+    nothing beyond the audit record; it never expresses scientific readiness.
+    """
+
+    output_id: str = Field(pattern=r"^assembly-output-[0-9a-f]{64}$")
+    task_id: str
+    source_task_id: str
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    plan_sequence: int = Field(ge=1)
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    writer_id: str = Field(min_length=1, max_length=64)
+    consumed_at: str
+    assembly_input_ready: Literal[True] = True
+    formal_network_ready: Literal[False] = False
+    disclaimer: str
+
+
+class NetworkAssemblyConsumptionRecord(BaseModel):
+    """One append-only consumption record (audit stream parallel to plan sealing).
+
+    ``owner_id`` is persisted for owner-scoped audit exactly like the task
+    record, but is never projected back to any API response.
+    """
+
+    consumption_id: str = Field(pattern=r"^assembly-consumption-[0-9a-f]{64}$")
+    task_id: str
+    owner_id: str
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    plan_sequence: int = Field(ge=1)
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output_id: str = Field(pattern=r"^assembly-output-[0-9a-f]{64}$")
+    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    writer_id: str = Field(min_length=1, max_length=64)
+    consumed_at: str
+
+
+class NetworkAssemblyConsumptionProjection(BaseModel):
+    """API projection of one consumption record; owner identity is dropped."""
+
+    consumption_id: str = Field(pattern=r"^assembly-consumption-[0-9a-f]{64}$")
+    plan_id: str = Field(pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    plan_sequence: int = Field(ge=1)
+    canonical_plan_input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output_id: str = Field(pattern=r"^assembly-output-[0-9a-f]{64}$")
+    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    writer_id: str
+    consumed_at: str
+
+
+class NetworkAssemblyConsumeAccepted(BaseModel):
+    """Response envelope for a successful plan consumption.
+
+    ``backend_fidelity`` marks the storage boundary honestly (D7): ``preview``
+    (JSON) only guarantees same-process same-instance exactly-once;
+    ``production`` (SQLite/PostgreSQL) enforces it through database
+    transactions and unique constraints.
+    """
+
+    state: Literal["created", "existing"]
+    backend_fidelity: Literal["preview", "production"]
+    output: NetworkAssemblyOutput
+    consumption: NetworkAssemblyConsumptionProjection
+    preview_boundaries: list[str] = Field(default_factory=list)
+
+
+class NetworkAssemblyPlanAuditView(BaseModel):
+    """Read-only audit projection around one historical plan (D6).
+
+    Readable is not consumable: this view only reports whether the plan is
+    still the latest revision, whether it has been consumed, and by which
+    newer plan it was superseded (today the only supersede cause is a
+    adjudication-stream change that re-sealed a newer plan).
+    """
+
+    plan: NetworkAssemblyPlan
+    is_latest_plan: bool
+    is_consumed: bool
+    is_superseded_by: str | None = Field(default=None, pattern=r"^assembly-plan-[0-9a-f]{64}$")
+    consumption: NetworkAssemblyConsumptionProjection | None = None
 
 
 class NetworkAssemblyGateProjection(BaseModel):

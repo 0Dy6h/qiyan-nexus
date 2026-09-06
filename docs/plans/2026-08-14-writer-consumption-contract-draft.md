@@ -1,7 +1,7 @@
 # Writer 消费契约设计草案（候选装配计划 → 网络装配 writer）
 
 - date: 2026-08-14
-- status: draft（待审草案，未批准，未实施）
+- status: approved（2026-08-16 研究者按决策包逐条拍板 D1-D9 全部接受推荐项 + 附加条件；§7 待批准决定点已全部关闭。2026-09-06 消费原语实现切片落地，见 `docs/plans/2026-09-06-writer-consumption-primitive.md`）
 - branch: `feat/pillar2-real-evidence-ranking`
 - 前置切片：`docs/plans/2026-08-02-source-bound-network-assembly-gate.md`（已实现）与 `docs/handoffs/2026-08-02-source-bound-network-assembly-gate.md`
 - 一句话定位：为「未来的网络装配 writer」定义一条写前原子校验 + 一次性消费契约，使候选装配计划在写前仍保持「当前 task/adjudication revision 的 latest plan」成为可证明、可执行、可审计的工程不变量。

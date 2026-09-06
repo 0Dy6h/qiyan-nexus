@@ -814,7 +814,12 @@ def test_assembly_plan_is_immutable_idempotent_and_never_flips_scientific_readin
 
     historical = client.get(f"/api/network/result/{task_id}/assembly-plans/{plan['plan_id']}")
     assert historical.status_code == 200
-    assert historical.json() == plan
+    historical_view = historical.json()
+    assert historical_view["plan"] == plan
+    assert historical_view["is_latest_plan"] is True
+    assert historical_view["is_consumed"] is False
+    assert historical_view["is_superseded_by"] is None
+    assert historical_view["consumption"] is None
 
     report = client.get(f"/api/network/result/{task_id}/report")
     assert report.status_code == 200
@@ -891,4 +896,8 @@ def test_later_adjudication_event_seals_a_new_plan_without_mutating_the_old_plan
 
     first_read = client.get(f"/api/network/result/{task_id}/assembly-plans/{first_plan['plan_id']}")
     assert first_read.status_code == 200
-    assert first_read.json() == first_plan
+    first_view = first_read.json()
+    assert first_view["plan"] == first_plan
+    assert first_view["is_latest_plan"] is False
+    assert first_view["is_consumed"] is False
+    assert first_view["is_superseded_by"] == second_plan["plan_id"]

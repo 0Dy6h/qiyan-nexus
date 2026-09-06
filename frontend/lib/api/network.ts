@@ -290,7 +290,7 @@ export type NetworkAssemblyGateBlocker = {
   row_ids: string[];
 };
 
-export type NetworkAssemblyPlanSummary = {
+type NetworkAssemblyPlanSummaryBase = {
   plan_id: string;
   policy_id: "source_bound_network_assembly_v1";
   canonical_plan_input_sha256: string;
@@ -300,6 +300,12 @@ export type NetworkAssemblyPlanSummary = {
   formal_network_ready: false;
 };
 
+// Result-envelope projection of the latest plan (D6 read-only consumption
+// marker). The bare seal response does not carry this field.
+export type NetworkAssemblyPlanSummary = NetworkAssemblyPlanSummaryBase & {
+  is_consumed: boolean;
+};
+
 export type NetworkAssemblyGateProjection = {
   policy_id: "source_bound_network_assembly_v1";
   state: "blocked" | "assembly_input_ready";
@@ -307,7 +313,7 @@ export type NetworkAssemblyGateProjection = {
   latest_plan: NetworkAssemblyPlanSummary | null;
 };
 
-export type NetworkAssemblyPlan = NetworkAssemblyPlanSummary & {
+export type NetworkAssemblyPlan = NetworkAssemblyPlanSummaryBase & {
   canonicalization_id: "qiyan_canonical_json_v1";
   task_id: string;
   source_task_id: string;

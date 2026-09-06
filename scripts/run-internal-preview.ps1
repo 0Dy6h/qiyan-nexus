@@ -8,6 +8,9 @@ param(
     # Optional operator-controlled manifest so the verified disease-import flow
     # (POST /api/network/disease-import/verify) is exercisable in the preview.
     [string]$OpenTargetsManifestPath = "",
+    # Optional operator-controlled manifest so the verified compound-import
+    # flow (POST /api/network/compound-import/verify) is exercisable too.
+    [string]$ChEMBLManifestPath = "",
     [switch]$Stop
 )
 
@@ -112,6 +115,12 @@ if ($OpenTargetsManifestPath.Trim()) {
         throw "Open Targets manifest not found at $OpenTargetsManifestPath."
     }
     $backendEnv["NETWORK_OPEN_TARGETS_MANIFEST_PATH"] = (Resolve-Path $OpenTargetsManifestPath).Path
+}
+if ($ChEMBLManifestPath.Trim()) {
+    if (-not (Test-Path $ChEMBLManifestPath)) {
+        throw "ChEMBL manifest not found at $ChEMBLManifestPath."
+    }
+    $backendEnv["NETWORK_CHEMBL_MANIFEST_PATH"] = (Resolve-Path $ChEMBLManifestPath).Path
 }
 
 $frontendEnv = @{

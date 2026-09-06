@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from app.core.canonical_json import canonical_json_sha256
 from app.core.config import get_settings
 from app.repositories.network_entities import NetworkEntityRepository
 from app.repositories.runtime_storage import get_network_task_repository
@@ -23,9 +24,15 @@ from app.schemas.network import (
     NetworkAnalysisResult,
     NetworkAnalyzeAccepted,
     NetworkAnalyzeRequest,
+    NetworkAssemblyConsumeAccepted,
+    NetworkAssemblyConsumeRequest,
+    NetworkAssemblyConsumptionProjection,
+    NetworkAssemblyConsumptionRecord,
     NetworkAssemblyGateBlocker,
     NetworkAssemblyGateProjection,
+    NetworkAssemblyOutput,
     NetworkAssemblyPlan,
+    NetworkAssemblyPlanAuditView,
     NetworkAssemblyPlanSummary,
     NetworkAssemblySelectedIntersection,
     NetworkChain,
@@ -145,13 +152,9 @@ def _now_iso() -> str:
 
 
 def _canonical_sha256(payload: Any) -> str:
-    canonical_payload = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
+    # Shared with the repository backends so write-time and consume-time
+    # recomputation of bound hashes always agree (qiyan_canonical_json_v1).
+    return canonical_json_sha256(payload)
 
 
 def _build_import_snapshot(
@@ -1022,12 +1025,17 @@ def _latest_adjudications(
     return latest_by_row
 
 
-def _assembly_plan_summary(plan: NetworkAssemblyPlan) -> NetworkAssemblyPlanSummary:
+def _assembly_plan_summary(
+    plan: NetworkAssemblyPlan,
+    *,
+    consumed_plan_ids: set[str] | None = None,
+) -> NetworkAssemblyPlanSummary:
     return NetworkAssemblyPlanSummary(
         plan_id=plan.plan_id,
         canonical_plan_input_sha256=plan.canonical_plan_input_sha256,
         selected_intersection_count=len(plan.selected_intersections),
         created_at=plan.created_at,
+        is_consumed=consumed_plan_ids is not None and plan.plan_id in consumed_plan_ids,
     )
 
 
@@ -1148,11 +1156,42 @@ def _assembly_gate_projection(record: NetworkTaskRecord) -> NetworkAssemblyGateP
         else []
     )
     latest = max(plans, key=lambda item: item.plan_sequence) if plans else None
+    consumed_plan_ids = (
+        {item.plan_id for item in repo.list_assembly_consumptions(record.task_id, record.owner_id)}
+        if record.owner_id is not None and plans
+        else set()
+    )
     return NetworkAssemblyGateProjection(
         state="blocked" if blockers else "assembly_input_ready",
         blockers=blockers,
-        latest_plan=_assembly_plan_summary(latest) if latest is not None else None,
+        latest_plan=(
+            _assembly_plan_summary(latest, consumed_plan_ids=consumed_plan_ids)
+            if latest is not None
+            else None
+        ),
     )
+
+
+def _adjudication_latest_snapshot(
+    record: NetworkTaskRecord,
+) -> list[dict[str, Any]]:
+    """Deterministic latest-wins adjudication snapshot bound into plan hashes.
+
+    Sorted by lineage row id; every entry carries its adjudication_id (whose
+    derivation contains a random nonce), so any adjudication append changes
+    the snapshot hash — that is the R6 binding of the consumption contract.
+    """
+    latest = _latest_adjudications(record)
+    return [
+        {
+            "adjudication_id": item.adjudication_id,
+            "lineage_row_id": row_id,
+            "decision": item.decision,
+            "reason": item.reason,
+            "decided_at": item.decided_at,
+        }
+        for row_id, item in sorted(latest.items())
+    ]
 
 
 def _build_assembly_plan(
@@ -1174,17 +1213,7 @@ def _build_assembly_plan(
         or compound_provenance.source_artifact_sha256 is None
     ):
         raise ValueError("assembly plan requires verified source artifacts")
-    latest = _latest_adjudications(record)
-    adjudication_snapshot = [
-        {
-            "adjudication_id": item.adjudication_id,
-            "lineage_row_id": row_id,
-            "decision": item.decision,
-            "reason": item.reason,
-            "decided_at": item.decided_at,
-        }
-        for row_id, item in sorted(latest.items())
-    ]
+    adjudication_snapshot = _adjudication_latest_snapshot(record)
     parent_protocol_hash = _canonical_sha256(parent.research_protocol.model_dump(mode="json"))
     child_protocol_hash = _canonical_sha256(record.research_protocol.model_dump(mode="json"))
     plan_input = {
@@ -1240,12 +1269,256 @@ def seal_network_assembly_plan(
     return state, persisted
 
 
-def get_network_assembly_plan(
+_CONSUMPTION_RECORD_LIMIT_ENV = "QIYAN_CONSUMPTION_RECORD_LIMIT"
+_DEFAULT_CONSUMPTION_RECORD_LIMIT = 1000
+_JSON_PREVIEW_BOUNDARIES = [
+    "JSON 后端仅支持同进程、同实例 writer（preview 语义），不保证跨进程 exactly-once。",
+    "多进程 writer 必须切换到 SQLite/PostgreSQL 后端。",
+]
+
+
+def _consumption_record_limit() -> int:
+    """D8 capacity guard: per-task consumption record limit from env."""
+    raw = os.environ.get(_CONSUMPTION_RECORD_LIMIT_ENV)
+    if raw is None:
+        return _DEFAULT_CONSUMPTION_RECORD_LIMIT
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return _DEFAULT_CONSUMPTION_RECORD_LIMIT
+    return parsed if parsed >= 1 else _DEFAULT_CONSUMPTION_RECORD_LIMIT
+
+
+def _state_backend_fidelity() -> tuple[str, list[str]]:
+    backend = os.environ.get("QIYAN_STATE_BACKEND", "json")
+    if backend == "json":
+        return "preview", list(_JSON_PREVIEW_BOUNDARIES)
+    return "production", []
+
+
+def _consumption_projection(
+    record: NetworkAssemblyConsumptionRecord,
+) -> NetworkAssemblyConsumptionProjection:
+    return NetworkAssemblyConsumptionProjection(
+        consumption_id=record.consumption_id,
+        plan_id=record.plan_id,
+        plan_sequence=record.plan_sequence,
+        canonical_plan_input_sha256=record.canonical_plan_input_sha256,
+        output_id=record.output_id,
+        output_sha256=record.output_sha256,
+        writer_id=record.writer_id,
+        consumed_at=record.consumed_at,
+    )
+
+
+def _build_assembly_output(
+    record: NetworkTaskRecord,
+    plan: NetworkAssemblyPlan,
+    request: NetworkAssemblyConsumeRequest,
+    output_sha256: str,
+    consumed_at: str,
+) -> NetworkAssemblyOutput:
+    output_id = "assembly-output-" + canonical_json_sha256(
+        {
+            "task_id": record.task_id,
+            "source_task_id": record.source_task_id,
+            "plan_id": plan.plan_id,
+            "plan_sequence": plan.plan_sequence,
+            "canonical_plan_input_sha256": plan.canonical_plan_input_sha256,
+            "output_sha256": output_sha256,
+        }
+    )
+    return NetworkAssemblyOutput(
+        output_id=output_id,
+        task_id=record.task_id,
+        source_task_id=record.source_task_id or "",
+        plan_id=plan.plan_id,
+        plan_sequence=plan.plan_sequence,
+        canonical_plan_input_sha256=plan.canonical_plan_input_sha256,
+        output_sha256=output_sha256,
+        writer_id=request.writer_id,
+        consumed_at=consumed_at,
+        disclaimer=DISCLAIMER,
+    )
+
+
+def _build_consumption_record(
+    record: NetworkTaskRecord,
+    plan: NetworkAssemblyPlan,
+    output: NetworkAssemblyOutput,
+    consumed_at: str,
+) -> NetworkAssemblyConsumptionRecord:
+    consumption_id = "assembly-consumption-" + canonical_json_sha256(
+        {
+            "task_id": record.task_id,
+            "plan_id": plan.plan_id,
+            "output_id": output.output_id,
+            "consumed_at": consumed_at,
+            "nonce": uuid4().hex,
+        }
+    )
+    return NetworkAssemblyConsumptionRecord(
+        consumption_id=consumption_id,
+        task_id=record.task_id,
+        owner_id=record.owner_id or "",
+        plan_id=plan.plan_id,
+        plan_sequence=plan.plan_sequence,
+        canonical_plan_input_sha256=plan.canonical_plan_input_sha256,
+        output_id=output.output_id,
+        output_sha256=output.output_sha256,
+        writer_id=output.writer_id,
+        consumed_at=consumed_at,
+    )
+
+
+def consume_network_assembly_plan(
     task_id: str,
     plan_id: str,
     reviewer_id: str,
-) -> NetworkAssemblyPlan | None:
-    return _get_repository().get_assembly_plan(task_id, reviewer_id, plan_id)
+    request: NetworkAssemblyConsumeRequest,
+) -> tuple[str, NetworkAssemblyConsumeAccepted | list[str] | None]:
+    """Writer consumption primitive: atomic write-time validation + exactly-once consume.
+
+    Service pre-checks run in the contract's deterministic failure-code
+    priority (D3: 404 → 422 → R3 → R4 → R6 → R7 → 500 integrity); the
+    repository primitive then re-validates the mutable channels inside the
+    same critical section that appends the output and the consumption record,
+    so there is never a check-then-write gap.
+    """
+    repo = _get_repository()
+    record = repo.get_owned(task_id, reviewer_id)
+    if record is None:
+        return "not_found", None
+    plan = repo.get_assembly_plan(task_id, reviewer_id, plan_id)
+    if plan is None:
+        return "not_found", None
+    # 422: a presented plan-input hash that contradicts the stored plan is a
+    # malformed (or forged) writer request.
+    if (
+        request.canonical_plan_input_sha256 is not None
+        and request.canonical_plan_input_sha256 != plan.canonical_plan_input_sha256
+    ):
+        return "invalid_request", ["canonical_plan_input_sha256_mismatch"]
+    # R3 pre-check: an already-consumed plan is reported first (D3), whatever
+    # happened to the revision afterwards; the repository turns a matching
+    # writer + output hash into an idempotent ``existing`` replay.
+    plan_consumption = next(
+        (
+            item
+            for item in repo.list_assembly_consumptions(task_id, reviewer_id)
+            if item.plan_id == plan_id
+        ),
+        None,
+    )
+    if plan_consumption is None:
+        # R4 pre-check: the plan must still be the latest revision.
+        plans = repo.list_assembly_plans(task_id, reviewer_id)
+        latest_sequence = max(item.plan_sequence for item in plans) if plans else 0
+        if plan.plan_sequence != latest_sequence:
+            return "superseded", None
+        # R6 pre-check: recompute the latest-wins adjudication snapshot
+        # against the plan binding. The repository re-checks the read-to-lock
+        # gap atomically.
+        if canonical_json_sha256(_adjudication_latest_snapshot(record)) != (
+            plan.adjudication_selection_sha256
+        ):
+            return "conflict", None
+    # R7: parent link must still resolve to a completed root task (409).
+    parent = (
+        repo.get_owned(record.source_task_id, reviewer_id)
+        if record.source_task_id is not None
+        else None
+    )
+    if parent is None or parent.source_task_id is not None or parent.status != "completed":
+        return "broken_parent_link", None
+    # 500 bucket: persisted-state contradictions, reported with every failed
+    # check (R9 plan self-consistency, R1 contradiction, R5/R8 lineage and
+    # protocol bindings).
+    failed_checks: list[str] = []
+    if plan.plan_id != f"assembly-plan-{plan.canonical_plan_input_sha256}":
+        failed_checks.append("plan_id_derivation")
+    if plan.assembly_input_ready is not True:
+        failed_checks.append("assembly_input_ready")
+    if plan.formal_network_ready is not False:
+        failed_checks.append("formal_network_ready")
+    if record.status != "completed" or record.result is None:
+        failed_checks.append("task_not_completed")
+    if failed_checks:
+        return "integrity_failed", failed_checks
+    if record.result is not None:
+        lineage_hash = canonical_json_sha256(record.result.target_lineage.model_dump(mode="json"))
+        if lineage_hash != plan.target_lineage_sha256:
+            failed_checks.append("target_lineage_binding")
+    if parent.research_protocol is None or record.research_protocol is None:
+        failed_checks.append("protocol_missing")
+    else:
+        parent_protocol_hash = canonical_json_sha256(
+            parent.research_protocol.model_dump(mode="json")
+        )
+        child_protocol_hash = canonical_json_sha256(
+            record.research_protocol.model_dump(mode="json")
+        )
+        if parent_protocol_hash != plan.parent_protocol_sha256:
+            failed_checks.append("parent_protocol_binding")
+        if child_protocol_hash != plan.child_protocol_sha256:
+            failed_checks.append("child_protocol_binding")
+    if failed_checks:
+        return "integrity_failed", failed_checks
+    output_sha256 = canonical_json_sha256(request.output_payload)
+    consumed_at = _now_iso()
+    output = _build_assembly_output(record, plan, request, output_sha256, consumed_at)
+    consumption = _build_consumption_record(record, plan, output, consumed_at)
+    current_adjudication_ids = tuple(item.adjudication_id for item in record.adjudications)
+    state, stored_output, stored_consumption = repo.consume_assembly_plan(
+        task_id,
+        reviewer_id,
+        request.writer_id,
+        plan_id,
+        current_adjudication_ids,
+        output,
+        consumption,
+        _consumption_record_limit(),
+    )
+    if state not in {"created", "existing"} or stored_output is None or stored_consumption is None:
+        return state, None
+    fidelity, boundaries = _state_backend_fidelity()
+    accepted = NetworkAssemblyConsumeAccepted(
+        state="created" if state == "created" else "existing",
+        backend_fidelity="preview" if fidelity == "preview" else "production",
+        output=stored_output,
+        consumption=_consumption_projection(stored_consumption),
+        preview_boundaries=boundaries,
+    )
+    return state, accepted
+
+
+def build_network_assembly_plan_audit_view(
+    task_id: str,
+    plan_id: str,
+    reviewer_id: str,
+) -> NetworkAssemblyPlanAuditView | None:
+    """D6 read-only audit projection: readable is not consumable."""
+    repo = _get_repository()
+    record = repo.get_owned(task_id, reviewer_id)
+    if record is None:
+        return None
+    plan = repo.get_assembly_plan(task_id, reviewer_id, plan_id)
+    if plan is None:
+        return None
+    plans = repo.list_assembly_plans(task_id, reviewer_id)
+    latest = max(plans, key=lambda item: item.plan_sequence) if plans else None
+    consumptions = {
+        item.plan_id: item for item in repo.list_assembly_consumptions(task_id, reviewer_id)
+    }
+    consumption = consumptions.get(plan.plan_id)
+    is_latest = latest is not None and latest.plan_id == plan.plan_id
+    return NetworkAssemblyPlanAuditView(
+        plan=plan,
+        is_latest_plan=is_latest,
+        is_consumed=consumption is not None,
+        is_superseded_by=None if is_latest or latest is None else latest.plan_id,
+        consumption=(_consumption_projection(consumption) if consumption is not None else None),
+    )
 
 
 def _build_adjudication_id(
@@ -1703,6 +1976,11 @@ def build_network_report_markdown(
         lines.append(f"- 纳入交集：{assembly_gate.latest_plan.selected_intersection_count}")
         lines.append(
             f"- Plan input SHA-256：{assembly_gate.latest_plan.canonical_plan_input_sha256}"
+        )
+        lines.append(
+            "- 消费状态：已被 writer 消费（审计记录见消费流）"
+            if assembly_gate.latest_plan.is_consumed
+            else "- 消费状态：尚未被消费"
         )
     lines.append("")
 

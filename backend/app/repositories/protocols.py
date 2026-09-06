@@ -13,6 +13,8 @@ from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyConsumptionRecord,
+    NetworkAssemblyOutput,
     NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
@@ -124,6 +126,41 @@ class NetworkTaskRepositoryProtocol(Protocol):
         """Atomically seal a plan if the adjudication stream is unchanged.
 
         Returns ``created``, ``existing``, ``conflict``, or ``not_found``.
+        """
+        ...
+
+    def list_assembly_consumptions(
+        self, task_id: str, owner_id: str
+    ) -> list[NetworkAssemblyConsumptionRecord]:
+        """Return all consumption records of one owned task (read-only audit)."""
+        ...
+
+    def consume_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        writer_id: str,
+        plan_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        output: NetworkAssemblyOutput,
+        consumption: NetworkAssemblyConsumptionRecord,
+        record_limit: int,
+    ) -> tuple[str, NetworkAssemblyOutput | None, NetworkAssemblyConsumptionRecord | None]:
+        """Atomically consume one plan: re-validate then write output + record.
+
+        Everything happens in the same critical section/transaction: the task
+        must still exist and belong to ``owner_id``, the plan must still be the
+        latest revision (max ``plan_sequence``), the adjudication stream must
+        still match ``expected_adjudication_ids``, the frozen target lineage
+        must still hash to the plan binding, and no consumption record may
+        exist for ``(task_id, owner_id, plan_id)`` unless it is an idempotent
+        replay (same writer and same ``output_sha256``).
+
+        Returns one of ``created`` / ``existing`` / ``already_consumed`` /
+        ``superseded`` / ``conflict`` / ``integrity_failed`` /
+        ``capacity_exceeded`` / ``multi_process_blocked`` / ``not_found``;
+        the persisted output and consumption record are only returned for
+        ``created`` and ``existing``.
         """
         ...
 

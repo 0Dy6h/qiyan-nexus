@@ -1458,6 +1458,7 @@ export default function NetworkAnalysisClient() {
                 {assemblyGate?.latest_plan ? (
                   <p style={{ color: "var(--qiyan-muted-2)", fontSize: 13, margin: 0, overflowWrap: "anywhere" }}>
                     最新计划：{assemblyGate.latest_plan.plan_id} · 纳入交集 {assemblyGate.latest_plan.selected_intersection_count}
+                    {assemblyGate.latest_plan.is_consumed ? " · 已被 writer 消费（审计记录）" : " · 尚未消费"}
                   </p>
                 ) : null}
                 <div>

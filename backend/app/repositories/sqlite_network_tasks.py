@@ -16,10 +16,13 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from app.core.canonical_json import canonical_json_sha256
 from app.schemas.network import (
     AnalysisType,
     DataMode,
     NetworkAnalysisResult,
+    NetworkAssemblyConsumptionRecord,
+    NetworkAssemblyOutput,
     NetworkAssemblyPlan,
     NetworkCompoundTargetSnapshot,
     NetworkDiseaseTargetSnapshot,
@@ -38,6 +41,9 @@ _COMPOUND_TARGET_SNAPSHOT_ADAPTER: TypeAdapter[NetworkCompoundTargetSnapshot] = 
 _ADJUDICATION_LIST_ADAPTER: TypeAdapter[list[NetworkTargetAdjudication]] = TypeAdapter(
     list[NetworkTargetAdjudication]
 )
+_CONSUMPTION_LIST_ADAPTER: TypeAdapter[list[NetworkAssemblyConsumptionRecord]] = TypeAdapter(
+    list[NetworkAssemblyConsumptionRecord]
+)
 
 _CREATE_ASSEMBLY_PLAN_TABLE_SQL = """\
 CREATE TABLE IF NOT EXISTS network_assembly_plan (
@@ -50,6 +56,31 @@ CREATE TABLE IF NOT EXISTS network_assembly_plan (
     created_at TEXT NOT NULL,
     UNIQUE (task_id, owner_id, canonical_plan_input_sha256),
     UNIQUE (task_id, owner_id, plan_sequence)
+)
+"""
+
+_CREATE_ASSEMBLY_OUTPUT_TABLE_SQL = """\
+CREATE TABLE IF NOT EXISTS network_assembly_output (
+    output_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    output_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (task_id, owner_id, plan_id)
+)
+"""
+
+_CREATE_ASSEMBLY_CONSUMPTION_TABLE_SQL = """\
+CREATE TABLE IF NOT EXISTS network_assembly_consumption (
+    consumption_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    output_id TEXT NOT NULL,
+    consumption_json TEXT NOT NULL,
+    consumed_at TEXT NOT NULL,
+    UNIQUE (task_id, owner_id, plan_id)
 )
 """
 
@@ -187,6 +218,8 @@ class SqliteNetworkTaskRepository:
                 self._conn.execute("PRAGMA journal_mode=WAL")
                 self._conn.execute(_CREATE_TABLE_SQL)
                 self._conn.execute(_CREATE_ASSEMBLY_PLAN_TABLE_SQL)
+                self._conn.execute(_CREATE_ASSEMBLY_OUTPUT_TABLE_SQL)
+                self._conn.execute(_CREATE_ASSEMBLY_CONSUMPTION_TABLE_SQL)
                 self._ensure_columns()
                 self._conn.commit()
 
@@ -568,6 +601,157 @@ class SqliteNetworkTaskRepository:
                 )
                 self._conn.commit()
                 return "created", persisted
+            except BaseException:
+                self._conn.rollback()
+                raise
+
+    def list_assembly_consumptions(
+        self, task_id: str, owner_id: str
+    ) -> list[NetworkAssemblyConsumptionRecord]:
+        with self._lock:
+            owned = self._conn.execute(
+                "SELECT 1 FROM network_task WHERE task_id = ? AND owner_id = ?",
+                (task_id, owner_id),
+            ).fetchone()
+            if owned is None:
+                return []
+            rows = self._conn.execute(
+                """SELECT consumption_json FROM network_assembly_consumption
+                   WHERE task_id = ? AND owner_id = ?
+                   ORDER BY consumed_at, consumption_id""",
+                (task_id, owner_id),
+            ).fetchall()
+            return [
+                NetworkAssemblyConsumptionRecord.model_validate_json(row["consumption_json"])
+                for row in rows
+            ]
+
+    def consume_assembly_plan(
+        self,
+        task_id: str,
+        owner_id: str,
+        writer_id: str,
+        plan_id: str,
+        expected_adjudication_ids: tuple[str, ...],
+        output: NetworkAssemblyOutput,
+        consumption: NetworkAssemblyConsumptionRecord,
+        record_limit: int,
+    ) -> tuple[str, NetworkAssemblyOutput | None, NetworkAssemblyConsumptionRecord | None]:
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                task_row = self._conn.execute(
+                    """SELECT adjudications, result FROM network_task
+                       WHERE task_id = ? AND owner_id = ?""",
+                    (task_id, owner_id),
+                ).fetchone()
+                if task_row is None:
+                    self._conn.rollback()
+                    return "not_found", None, None
+                plan_row = self._conn.execute(
+                    """SELECT plan_json FROM network_assembly_plan
+                       WHERE task_id = ? AND owner_id = ? AND plan_id = ?""",
+                    (task_id, owner_id, plan_id),
+                ).fetchone()
+                if plan_row is None:
+                    self._conn.rollback()
+                    return "not_found", None, None
+                plan = NetworkAssemblyPlan.model_validate_json(plan_row["plan_json"])
+                # R3: exactly-once with D5 idempotent replay keyed on the
+                # writer identity and the output content hash.
+                existing_row = self._conn.execute(
+                    """SELECT consumption_json FROM network_assembly_consumption
+                       WHERE task_id = ? AND owner_id = ? AND plan_id = ?""",
+                    (task_id, owner_id, plan_id),
+                ).fetchone()
+                if existing_row is not None:
+                    existing = NetworkAssemblyConsumptionRecord.model_validate_json(
+                        existing_row["consumption_json"]
+                    )
+                    if (
+                        existing.writer_id == writer_id
+                        and existing.output_sha256 == output.output_sha256
+                    ):
+                        stored_output_row = self._conn.execute(
+                            "SELECT output_json FROM network_assembly_output WHERE output_id = ?",
+                            (existing.output_id,),
+                        ).fetchone()
+                        stored_output = (
+                            NetworkAssemblyOutput.model_validate_json(
+                                stored_output_row["output_json"]
+                            )
+                            if stored_output_row is not None
+                            else None
+                        )
+                        self._conn.rollback()
+                        return "existing", stored_output, existing
+                    self._conn.rollback()
+                    return "already_consumed", None, None
+                # R4: the plan must still be the latest revision.
+                sequence_row = self._conn.execute(
+                    """SELECT COALESCE(MAX(plan_sequence), 0) AS max_sequence
+                       FROM network_assembly_plan WHERE task_id = ? AND owner_id = ?""",
+                    (task_id, owner_id),
+                ).fetchone()
+                if plan.plan_sequence != int(sequence_row["max_sequence"]):
+                    self._conn.rollback()
+                    return "superseded", None, None
+                # R6 gap guard: the adjudication stream must be unchanged since
+                # the service read it.
+                current = _ADJUDICATION_LIST_ADAPTER.validate_json(task_row["adjudications"])
+                if tuple(item.adjudication_id for item in current) != expected_adjudication_ids:
+                    self._conn.rollback()
+                    return "conflict", None, None
+                # R5 recomputed inside the write transaction: the frozen
+                # lineage must still hash to the plan binding.
+                if task_row["result"] is None:
+                    self._conn.rollback()
+                    return "integrity_failed", None, None
+                stored_result = NetworkAnalysisResult.model_validate_json(task_row["result"])
+                if (
+                    canonical_json_sha256(stored_result.target_lineage.model_dump(mode="json"))
+                    != plan.target_lineage_sha256
+                ):
+                    self._conn.rollback()
+                    return "integrity_failed", None, None
+                capacity_row = self._conn.execute(
+                    """SELECT COUNT(*) AS total FROM network_assembly_consumption
+                       WHERE task_id = ? AND owner_id = ?""",
+                    (task_id, owner_id),
+                ).fetchone()
+                if int(capacity_row["total"]) >= record_limit:
+                    self._conn.rollback()
+                    return "capacity_exceeded", None, None
+                self._conn.execute(
+                    """INSERT INTO network_assembly_output
+                       (output_id, task_id, owner_id, plan_id, output_json, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        output.output_id,
+                        task_id,
+                        owner_id,
+                        plan_id,
+                        output.model_dump_json(),
+                        output.consumed_at,
+                    ),
+                )
+                self._conn.execute(
+                    """INSERT INTO network_assembly_consumption
+                       (consumption_id, task_id, owner_id, plan_id, output_id,
+                        consumption_json, consumed_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        consumption.consumption_id,
+                        task_id,
+                        owner_id,
+                        plan_id,
+                        output.output_id,
+                        consumption.model_dump_json(),
+                        consumption.consumed_at,
+                    ),
+                )
+                self._conn.commit()
+                return "created", output, consumption
             except BaseException:
                 self._conn.rollback()
                 raise
