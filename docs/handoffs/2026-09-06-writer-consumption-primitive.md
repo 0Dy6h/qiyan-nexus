@@ -16,9 +16,9 @@
 
 ## 测试与门禁状态
 
-- 后端 913 → **950 passed + 1 skipped**（新增 32：repo 级 `test_network_assembly_consumption_repo.py` 21 个——json/sqlite 参数化 created/existing/already_consumed/superseded/conflict/integrity/capacity/not_found + 双 writer 并发 + JSON token + 写失败回滚；API 级 `test_network_assembly_consumption_api.py` 11 个——全失败码 + 重放 + 判定追加/重封存 + 文件篡改 500/409 + sqlite production fidelity）。
+- 后端 918 → **950 passed + 1 skipped**（+32：repo 级 `test_network_assembly_consumption_repo.py` 21 个——json/sqlite 参数化 created/existing/already_consumed/superseded/conflict/integrity/capacity/not_found + 双 writer 并发 + JSON token + 写失败回滚；API 级 `test_network_assembly_consumption_api.py` 11 个——全失败码 + 重放 + 判定追加/重封存 + 文件篡改 500/409 + sqlite production fidelity）。
 - **变异验证**（AGENTS.md 硬约束）：分别移除 JSON 仓储锁内 R3/R4/R6 守卫，对应测试全部变红后还原；守卫真实可观测。
-- 前端 **302 tests** + typecheck + build；`verify-local.ps1` 全绿（111.4s）；`verify-local.ps1 -IncludeE2E -E2eBackendPort 8010 -E2eFrontendPort 3000` 全绿（backend 950 + E2E 4 passed）。
+- 前端 **301 → 302 tests**（+1 信封投影断言）+ typecheck + build；`verify-local.ps1` 全绿（111.4s）；`verify-local.ps1 -IncludeE2E -E2eBackendPort 8010 -E2eFrontendPort 3000` 全绿（backend 950 + E2E 4 passed）。
 - 隔离预览 smoke 全过；并用真实 verified 双侧导入 → 全行判定 → seal → consume → replay → 他者 409 → 三处投影核验的完整 curl 走查（8010/3000），全部符合契约。
 
 ## 实现要点（下会话改这块前必读）
