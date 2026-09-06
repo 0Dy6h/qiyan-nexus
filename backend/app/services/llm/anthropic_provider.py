@@ -157,7 +157,14 @@ class AnthropicProvider:
         )
         return self._fallback.generate_answer(question, citations)
 
-    def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
+    def generate_answer(
+        self,
+        question: str,
+        citations: list[CitationCard],
+        *,
+        entity_matched: bool | None = None,
+    ) -> AnswerDraft:
+        """``entity_matched`` 仅由确定性/模拟提供方消费；真实 LLM 的措辞由提示词工程负责。"""
         settings = get_settings()
 
         if not citations:

@@ -472,3 +472,63 @@ test("fetchNetworkReportMarkdown throws when the response is not ok", async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test("buildNetworkResultUrl appends omics verification params when requested", () => {
+  const url = new URL(
+    buildNetworkResultUrl("network-abc123", { omicsVerification: true, omicsAccession: "GSE16161" }),
+  );
+  assert.equal(url.pathname, "/api/network/result/network-abc123");
+  assert.equal(url.searchParams.get("omics_verification"), "true");
+  assert.equal(url.searchParams.get("omics_accession"), "GSE16161");
+  // 不带选项时保持默认路径（既有契约）
+  assert.equal(
+    buildNetworkResultUrl("network-abc123"),
+    "http://127.0.0.1:8000/api/network/result/network-abc123",
+  );
+});
+
+test("getNetworkOmicsVerificationSummary formats candidate count and top symbols", async () => {
+  const { getNetworkOmicsVerificationSummary } = await import("../lib/api/network");
+  const projection = {
+    policy_id: "omics_transcriptomics_deg_v1",
+    snapshot_id: "omics-snapshot-abc",
+    accession: "GSE16161",
+    comparison: "AD vs control",
+    case_group: "case",
+    control_group: "control",
+    significance_threshold: 0.05,
+    log2fc_abs_threshold: 1,
+    analyzed_probe_count: 10,
+    analyzed_gene_count: 8,
+    passing_gene_count: 2,
+    sample_groups_used: { case: 3, control: 3 },
+    symbol_mapping_rule: "ortho",
+    candidates: [
+      {
+        canonical_symbol: "FLG",
+        lineage_row_ids: ["r1"],
+        mean_case: 2,
+        mean_control: 1,
+        log2fc: 1,
+        p_value: 0.01,
+        adj_p_value: 0.03,
+        status: "pending_human_confirmation" as const,
+      },
+      {
+        canonical_symbol: "IVL",
+        lineage_row_ids: ["r2"],
+        mean_case: 1.5,
+        mean_control: 1,
+        log2fc: 0.6,
+        p_value: 0.02,
+        adj_p_value: 0.04,
+        status: "pending_human_confirmation" as const,
+      },
+    ],
+    formal_network_ready: false as const,
+  };
+  assert.equal(
+    getNetworkOmicsVerificationSummary(projection),
+    "候选基因 2 个：FLG、IVL",
+  );
+});

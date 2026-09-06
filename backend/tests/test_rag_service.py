@@ -325,7 +325,7 @@ def test_answer_question_estimates_cost_from_tokens_and_env_prices(monkeypatch):
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text=(
                 '{"claims":[{"text":"肠道微生态失衡与特应性皮炎存在可解释关联。",'
                 f'"evidence_refs":["{citations[0].chunk_id or citations[0].literature_id}"]}}]'
@@ -356,7 +356,7 @@ def test_answer_question_leaves_cost_null_when_prices_unset(monkeypatch):
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text=(
                 '{"claims":[{"text":"肠道微生态失衡与特应性皮炎存在可解释关联。",'
                 f'"evidence_refs":["{citations[0].chunk_id or citations[0].literature_id}"]}}]'
@@ -388,7 +388,7 @@ def test_answer_question_swaps_to_opencode_go_provider_via_env(monkeypatch):
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text=(
                 '{"claims":[{"text":"肠道微生态失衡与皮肤屏障异常、神经免疫调节紊乱在特应性皮炎中存在可解释关联",'
                 f'"evidence_refs":["{citations[0].chunk_id}"]}}]'
@@ -435,7 +435,7 @@ def test_answer_question_uses_opencode_go_native_tool_claims(monkeypatch):
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text="raw opencode text must not be shown",
             provider_name=self.name,
             input_tokens=30,
@@ -482,7 +482,7 @@ def test_answer_question_uses_anthropic_native_tool_claims(monkeypatch):
     monkeypatch.setattr(
         anthropic_provider.AnthropicProvider,
         "generate_answer",
-        lambda self, question, citations: anthropic_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: anthropic_provider.AnswerDraft(
             text="raw text must not be shown",
             provider_name=self.name,
             input_tokens=22,
@@ -528,7 +528,7 @@ def test_answer_question_hard_blocks_anthropic_native_tool_name_mismatch(monkeyp
     monkeypatch.setattr(
         anthropic_provider.AnthropicProvider,
         "generate_answer",
-        lambda self, question, citations: anthropic_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: anthropic_provider.AnswerDraft(
             text="raw text must not be shown",
             provider_name=self.name,
             input_tokens=22,
@@ -565,7 +565,7 @@ def test_answer_question_semantic_gate_blocks_hallucinated_claim_on_valid_ref(mo
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text="raw opencode text must not be shown",
             provider_name=self.name,
             input_tokens=18,
@@ -604,7 +604,7 @@ def test_answer_question_semantic_gate_disabled_by_threshold_env(monkeypatch):
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text="raw opencode text must not be shown",
             provider_name=self.name,
             input_tokens=18,
@@ -659,7 +659,7 @@ def test_answer_question_hard_blocks_external_provider_answer_without_evidence_r
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text="opencode answer without evidence ref",
             provider_name=self.name,
             input_tokens=12,
@@ -689,7 +689,7 @@ def test_answer_question_hard_blocks_external_provider_answer_with_uncited_claim
     monkeypatch.setattr(
         opencode_go_provider.OpenCodeGoProvider,
         "generate_answer",
-        lambda self, question, citations: opencode_go_provider.AnswerDraft(
+        lambda self, question, citations, *, entity_matched=None: opencode_go_provider.AnswerDraft(
             text='{"claims":[{"text":"第一条证据句","evidence_refs":[]}]}',
             provider_name=self.name,
             input_tokens=12,

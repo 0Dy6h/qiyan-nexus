@@ -113,7 +113,14 @@ install_access_token_middleware(app)
 app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    # 3000 为主前端端口；3100 为内部预览/换端口试用场景（run-internal-preview.ps1
+    # 文档化 -FrontendPort 3100）。仅本机回环地址，不放宽到其他来源。
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3100",
+        "http://127.0.0.1:3100",
+    ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

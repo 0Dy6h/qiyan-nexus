@@ -337,6 +337,37 @@ export type NetworkTaskListResponse = {
   tasks: NetworkTaskSummary[];
 };
 
+// ADR-0018 Gate 3：确定性组学 DEG 候选投影（G3-2）。只出候选——不带证据等级、
+// 不改就绪状态；唯一升级路径是 append-only 的人工判定流。
+export type NetworkOmicsDegCandidate = {
+  canonical_symbol: string;
+  lineage_row_ids: string[];
+  mean_case: number;
+  mean_control: number;
+  log2fc: number;
+  p_value: number;
+  adj_p_value: number;
+  status: "pending_human_confirmation";
+};
+
+export type NetworkOmicsDegProjection = {
+  policy_id: string;
+  snapshot_id: string;
+  accession: string;
+  comparison: string;
+  case_group: string;
+  control_group: string;
+  significance_threshold: number;
+  log2fc_abs_threshold: number;
+  analyzed_probe_count: number;
+  analyzed_gene_count: number;
+  passing_gene_count: number;
+  sample_groups_used: Record<string, number>;
+  symbol_mapping_rule: string;
+  candidates: NetworkOmicsDegCandidate[];
+  formal_network_ready: false;
+};
+
 export type NetworkResultResponse = {
   task_id: string;
   status: NetworkTaskStatus;
@@ -350,6 +381,8 @@ export type NetworkResultResponse = {
   adjudication?: NetworkAdjudicationProjection | null;
   // Candidate assembly input projection. This remains separate from scientific readiness.
   assembly_gate?: NetworkAssemblyGateProjection | null;
+  // 组学 DEG 候选投影：仅在显式携带 omics 查询参数时由后端计算，默认路径永不触发。
+  omics_verification?: NetworkOmicsDegProjection | null;
 };
 
 export function buildNetworkAnalyzeUrl() {
@@ -364,8 +397,21 @@ export function buildNetworkCompoundImportVerifyUrl() {
   return new URL("/api/network/compound-import/verify", getBackendBaseUrl()).toString();
 }
 
-export function buildNetworkResultUrl(taskId: string) {
-  return new URL(`/api/network/result/${encodeURIComponent(taskId)}`, getBackendBaseUrl()).toString();
+export function buildNetworkResultUrl(
+  taskId: string,
+  options?: { omicsVerification?: boolean; omicsAccession?: string },
+) {
+  const url = new URL(
+    `/api/network/result/${encodeURIComponent(taskId)}`,
+    getBackendBaseUrl(),
+  );
+  if (options?.omicsVerification) {
+    url.searchParams.set("omics_verification", "true");
+    if (options.omicsAccession) {
+      url.searchParams.set("omics_accession", options.omicsAccession);
+    }
+  }
+  return url.toString();
 }
 
 export function buildNetworkReportUrl(taskId: string) {
@@ -525,6 +571,30 @@ export async function fetchNetworkResult(taskId: string): Promise<NetworkResultR
   }
 
   return response.json();
+}
+
+export async function fetchNetworkOmicsVerification(
+  taskId: string,
+  omicsAccession: string,
+): Promise<NetworkResultResponse> {
+  const response = await apiFetch(
+    buildNetworkResultUrl(taskId, { omicsVerification: true, omicsAccession }),
+  );
+
+  if (!response.ok) {
+    throw new ApiStatusError(response.status, "Network omics verification request failed");
+  }
+
+  return response.json();
+}
+
+export function getNetworkOmicsVerificationSummary(projection: NetworkOmicsDegProjection): string {
+  const symbols = projection.candidates
+    .map((candidate) => candidate.canonical_symbol)
+    .slice(0, 6)
+    .join("、");
+  const suffix = projection.candidates.length > 6 ? " 等" : "";
+  return `候选基因 ${projection.candidates.length} 个` + (symbols ? `：${symbols}${suffix}` : "");
 }
 
 export async function fetchNetworkReportMarkdown(taskId: string): Promise<string> {

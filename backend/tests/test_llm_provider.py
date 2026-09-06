@@ -47,6 +47,35 @@ def test_deterministic_provider_falls_back_when_no_citations():
     assert "没有检索到足够匹配的证据片段" in draft.text
 
 
+def test_deterministic_provider_admits_entity_miss_instead_of_claiming_hits():
+    """UX issue 05：实体零命中时（entity_matched=False）不得宣称“检索到相关证据片段”。"""
+    provider = DeterministicProvider()
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS, entity_matched=False)
+
+    assert "未检索到与所问实体直接对应的证据片段" in draft.text
+    assert "邻近证据片段" in draft.text
+    assert "对应性未经证实" in draft.text
+    # 诚实话术同样保留确定性来源标记与免责尾注
+    assert "deterministic retrieval" in draft.text
+    # 命中场景的宣称句不得出现在落空场景
+    assert "条相关证据片段，按相关度排序" not in draft.text
+
+
+def test_deterministic_provider_keeps_hit_wording_when_entity_matched():
+    provider = DeterministicProvider()
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS, entity_matched=True)
+
+    assert "检索到 2 条相关证据片段，按相关度排序" in draft.text
+    assert "deterministic retrieval" in draft.text
+
+
+def test_mock_claude_provider_notes_entity_miss():
+    provider = MockClaudeProvider()
+    draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS, entity_matched=False)
+
+    assert "未检索到与所问实体直接对应的证据片段" in draft.text
+
+
 def test_mock_claude_provider_marks_text_with_mock_prefix():
     provider = MockClaudeProvider()
     draft = provider.generate_answer(_QUESTION, _SAMPLE_CITATIONS)

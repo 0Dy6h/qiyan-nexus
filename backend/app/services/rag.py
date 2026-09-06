@@ -177,6 +177,9 @@ def answer_question(
 
     available_citation_count: int
     selected: list[ScoredCandidate]
+    # UX issue 05：问题实体在检索候选中零命中时，引用池回退为「邻近证据」——
+    # 该信号传给提供方，让答案措辞如实说明“未直接命中”，而非宣称“检索到相关”。
+    entity_matched: bool | None = None
     if _query_has_topical_signal(normalized_question, ranked):
         query_tokens = set(tokenize_query(normalized_question))
         entity_tokens = _query_entity_tokens(query_tokens)
@@ -184,6 +187,8 @@ def answer_question(
         entity_ranked = [
             c for c in positive_ranked if _candidate_matches_query_entity(c, entity_tokens)
         ]
+        if entity_tokens:
+            entity_matched = bool(entity_ranked)
         citation_pool = entity_ranked or positive_ranked
         available_citation_count = len(citation_pool)
         if available_citation_count == 0:
@@ -254,7 +259,7 @@ def answer_question(
 
     provider = select_provider(llm_provider_name)
     provider_started = time.perf_counter()
-    draft = provider.generate_answer(normalized_question, citations)
+    draft = provider.generate_answer(normalized_question, citations, entity_matched=entity_matched)
     provider_latency_ms = int((time.perf_counter() - provider_started) * 1000)
     settings = get_settings()
     configured_threshold = settings.grounding_semantic_threshold

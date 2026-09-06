@@ -72,7 +72,18 @@ class AnswerDraft(BaseModel):
 class LLMProvider(Protocol):
     name: str
 
-    def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft: ...
+    def generate_answer(
+        self,
+        question: str,
+        citations: list[CitationCard],
+        *,
+        entity_matched: bool | None = None,
+    ) -> AnswerDraft: ...
+
+    # entity_matched 由 rag.answer_question 计算：问题携带实体词且检索候选中
+    # 存在实体命中 → True；实体词存在但全部落空（引用为按相关度回退的邻近证据）
+    # → False（提供方必须如实说明「未直接命中」，不得宣称“检索到相关证据片段”）；
+    # 问题未携带实体词或离题 → None（维持常规措辞）。
 
 
 def collect_topic_phrases(citations: list[CitationCard]) -> list[str]:
@@ -91,7 +102,13 @@ def collect_topic_phrases(citations: list[CitationCard]) -> list[str]:
 class DeterministicProvider:
     name = "deterministic"
 
-    def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
+    def generate_answer(
+        self,
+        question: str,
+        citations: list[CitationCard],
+        *,
+        entity_matched: bool | None = None,
+    ) -> AnswerDraft:
         question_trim = question.strip()
         if not citations:
             return AnswerDraft(
@@ -113,14 +130,28 @@ class DeterministicProvider:
         evidence_block = "\n".join(evidence_lines)
         topics = collect_topic_phrases(citations)
         topics_text = "、".join(topics) if topics else "暂无主题映射"
-        text = (
-            f"{lead}在当前样本文献中检索到 {len(citations)} 条相关证据片段，按相关度排序：\n"
-            f"{evidence_block}\n"
-            f"涉及主题：{topics_text}。"
-            f"以上为系统检索命中的原文证据片段，未经真实模型综合改写"
-            f"（deterministic retrieval）；请结合引用来源逐条核对，"
-            f"相关结论仍属非诊断结论、需结合临床。"
-        )
+        if entity_matched is False:
+            # UX issue 05：问题实体在证据库无命中时不得宣称“检索到相关证据片段”。
+            # 如实说明落空，并把引用降格为“邻近证据、对应性未证实”。
+            text = (
+                f"{lead}在当前样本文献中未检索到与所问实体直接对应的证据片段；"
+                f"以下为按相关度排列的 {len(citations)} 条邻近证据片段，"
+                f"与所问问题的对应性未经证实，仅供横向参考：\n"
+                f"{evidence_block}\n"
+                f"涉及主题：{topics_text}。"
+                f"以上为按相关度排列的样本文献原文片段，未经真实模型综合改写"
+                f"（deterministic retrieval）；请结合引用来源逐条核对，"
+                f"相关结论仍属非诊断结论、需结合临床。"
+            )
+        else:
+            text = (
+                f"{lead}在当前样本文献中检索到 {len(citations)} 条相关证据片段，按相关度排序：\n"
+                f"{evidence_block}\n"
+                f"涉及主题：{topics_text}。"
+                f"以上为系统检索命中的原文证据片段，未经真实模型综合改写"
+                f"（deterministic retrieval）；请结合引用来源逐条核对，"
+                f"相关结论仍属非诊断结论、需结合临床。"
+            )
         return AnswerDraft(text=text, provider_name=self.name)
 
 
@@ -133,7 +164,13 @@ class MockClaudeProvider:
 
     name = "mock_claude"
 
-    def generate_answer(self, question: str, citations: list[CitationCard]) -> AnswerDraft:
+    def generate_answer(
+        self,
+        question: str,
+        citations: list[CitationCard],
+        *,
+        entity_matched: bool | None = None,
+    ) -> AnswerDraft:
         question_trim = question.strip()
         if not citations:
             text = (
@@ -146,8 +183,14 @@ class MockClaudeProvider:
         titles = "、".join(f"《{citation.title}》" for citation in citations[:2])
         topics = collect_topic_phrases(citations)
         topics_text = "、".join(topics) if topics else "暂未映射主题"
+        entity_note = (
+            "注意：未检索到与所问实体直接对应的证据片段，以下为邻近文献；"
+            if entity_matched is False
+            else ""
+        )
         text = (
             f"【模拟 Claude 草稿】围绕「{question_trim}」的证据综述要点："
+            f"{entity_note}"
             f"代表性文献包括 {titles}；"
             f"涉及主题：{topics_text}。"
             f"请逐条对照引用卡片核验来源；本回答由 MockClaudeProvider 产生，"

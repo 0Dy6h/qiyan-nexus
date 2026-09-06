@@ -6,7 +6,9 @@ import { useSearchParams } from "next/navigation";
 
 import {
   fetchNetworkReportMarkdown,
+  fetchNetworkOmicsVerification,
   fetchNetworkResult,
+  getNetworkOmicsVerificationSummary,
   getNetworkAnalysisTypeLabel,
   getNetworkDataModeLabel,
   getNetworkEvidenceLevelLabel,
@@ -347,6 +349,11 @@ export default function NetworkAnalysisClient() {
   const [adjudicationBusyRowIds, setAdjudicationBusyRowIds] = useState<ReadonlySet<string>>(
     () => new Set<string>(),
   );
+  // 组学验证（omics DEG 投影）入口状态：登录号 + 请求态 + 结果摘要/诚实反馈。
+  const [omicsAccession, setOmicsAccession] = useState("");
+  const [omicsBusy, setOmicsBusy] = useState(false);
+  const [omicsSummary, setOmicsSummary] = useState<string | null>(null);
+  const [omicsMessage, setOmicsMessage] = useState<string | null>(null);
   const adjudicationBusyRowIdsRef = useRef<ReadonlySet<string>>(new Set<string>());
   // Identifies the task the user is currently looking at, so a late response from a
   // superseded task can never paint its lineage or decisions over the current one.
@@ -904,6 +911,43 @@ export default function NetworkAnalysisClient() {
       : `运行中... ${progress}%`
     : "开始分析";
   const resultDataMode = result?.data_mode ?? "mock";
+
+  async function runOmicsVerification(event: FormEvent) {
+    event.preventDefault();
+    const taskId = result?.task_id;
+    const accession = omicsAccession.trim();
+    if (!taskId || !accession) return;
+    setOmicsBusy(true);
+    setOmicsMessage(null);
+    setOmicsSummary(null);
+    try {
+      const payload = await fetchNetworkOmicsVerification(taskId, accession);
+      const projection = payload.omics_verification;
+      if (!projection) {
+        setOmicsMessage("后端未返回组学投影（任务可能尚未完成），请稍后重试。");
+        return;
+      }
+      setOmicsSummary(
+        `快照 ${projection.accession}（${projection.comparison}）：${getNetworkOmicsVerificationSummary(projection)}`,
+      );
+    } catch (error) {
+      if (error instanceof ApiStatusError) {
+        if (error.status === 404) {
+          setOmicsMessage(`未找到 ${accession} 对应的组学快照：请先完成组学导入核验（快照冻结）再试。`);
+        } else if (error.status === 409) {
+          setOmicsMessage("组学验证需要一个已完成的分析任务，请等当前任务跑完再试。");
+        } else if (error.status === 422) {
+          setOmicsMessage("组学核验未通过或参数不完整（快照未通过核验/登录号格式不合法），请核对导入核验记录。");
+        } else {
+          setOmicsMessage(`组学验证请求失败（HTTP ${error.status}）。`);
+        }
+      } else {
+        setOmicsMessage(error instanceof Error ? error.message : "组学验证请求失败。");
+      }
+    } finally {
+      setOmicsBusy(false);
+    }
+  }
   const isLiveResult = resultDataMode === "live";
   const isImportedSnapshotResult =
     Boolean(result?.source_task_id) || Boolean(result?.target_lineage.compound_import_provenance);
@@ -2062,6 +2106,51 @@ export default function NetworkAnalysisClient() {
           <p style={{ color: "var(--qiyan-muted-2)", marginTop: 16, marginBottom: 0, lineHeight: 1.6 }}>
             {result.disclaimer}
           </p>
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--qiyan-line)" }}>
+            <h3 style={{ color: "var(--qiyan-ink)", fontSize: 18, margin: "0 0 8px" }}>组学验证（omics DEG 投影）</h3>
+            <p style={{ color: "var(--qiyan-muted-2)", margin: "0 0 12px", lineHeight: 1.6 }}>
+              对已冻结的组学快照按 GSE 登录号做确定性 DEG 投影：只输出谱系匹配的候选基因
+              （待人工确认），不改就绪状态、不写谱系。快照需先经组学导入核验冻结；
+              无对应快照或未通过核验时，后端会如实拒绝本次请求。
+            </p>
+            <form
+              onSubmit={runOmicsVerification}
+              style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+            >
+              <input
+                value={omicsAccession}
+                onChange={(event) => setOmicsAccession(event.target.value)}
+                placeholder="GSE 登录号，如 GSE16161"
+                aria-label="组学快照 GSE 登录号"
+              />
+              <button
+                type="submit"
+                disabled={omicsBusy || !omicsAccession.trim()}
+                style={{
+                  border: 0,
+                  borderRadius: 8,
+                  background: omicsBusy ? "#94a3b8" : "#0d9488",
+                  color: "white",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "10px 16px",
+                  minHeight: 44,
+                }}
+              >
+                {omicsBusy ? "投影计算中..." : "核验并投影"}
+              </button>
+            </form>
+            {omicsSummary ? (
+              <p style={{ color: "var(--qiyan-ink)", marginTop: 12, marginBottom: 0 }}>
+                {omicsSummary}
+              </p>
+            ) : null}
+            {omicsMessage ? (
+              <p style={{ color: "var(--qiyan-muted-2)", marginTop: 12, marginBottom: 0 }}>
+                {omicsMessage}
+              </p>
+            ) : null}
+          </div>
         </section>
       ) : phase === "idle" ? (
         <StatusPanel message="输入复方或单味中药名称开始分析，系统会返回「成分-靶点-通路-疾病」机制线索链（当前为演示数据，非正式网络药理学结论）。例如：消风散、黄芪。" />
