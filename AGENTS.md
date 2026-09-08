@@ -38,7 +38,7 @@
 
 后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。
 
-**端口事实（2026-09-04 起）**：本机 8000 被另一项目常驻占用，全程不可触碰。下方涉及 8000 的命令仅作写法参考，本项目实际一律走 isolated runtime 预览的隔离端口（后端 8010 / 前端 3000，CORS 固定 3000）。
+**端口事实（2026-09-04 起）**：本机 8000 被另一项目常驻占用，全程不可触碰。下方涉及 8000 的命令仅作写法参考，本项目实际一律走 isolated runtime 预览的隔离端口（后端 8010 / 前端 3000；CORS 自 2026-09-06 起允许本机回环 3000 与 3100，3100 供内部预览换端口场景）。
 
 ```powershell
 # 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
@@ -106,8 +106,8 @@ pnpm preview:stop
 ## 改代码前必看的硬约束（测试会卡）
 
 - 后端严格分层：`api/` → `services/` → `repositories/` → `schemas/`，不许跨层（router 不直接读 JSON，service 不 import FastAPI）。router 在 `app/main.py` 接线。
-- CORS 限定 `localhost:3000`/`127.0.0.1:3000`，仅 `GET, POST`；加 `PUT`/`DELETE` 路由要改 `app/main.py` 中间件。
-- 免责声明字符串 `非诊断结论、需结合临床。` 是 load-bearing，被后端测试、eval、前端断言引用，必须逐字节一致，不要改写 `services/rag.py` 的 `DISCLAIMER`。
+- CORS 仅放行本机回环 `localhost`/`127.0.0.1` 的 3000 与 3100（3100 对应 `run-internal-preview.ps1 -FrontendPort 3100` 换端口场景），仅 `GET, POST`；加来源或 `PUT`/`DELETE` 路由要改 `app/main.py` 中间件，并同步 `test_cors.py` 的放行+拒绝契约测试。
+- 免责声明字符串 `非诊断结论、需结合临床。` 是 load-bearing，被后端测试、eval、前端断言引用，必须逐字节一致，不要改写 `services/rag.py` 的 `DISCLAIMER`。同族还有 RAG 实体零命中话术：`entity_matched is False` 时输出「未检索到与所问实体直接对应的证据片段」开头（`services/llm/provider.py`，`test_llm_provider.py` 断言），改话术要同步改测试，且不得顺手调检索排序/eval 预期。
 - RAG 契约：`/api/rag/answer` 返回的每个 `citations[*].literature_id` 必须能被 `/api/literature/{id}` 解析（`test_rag_literature_contract.py`）。
 - runtime 状态写在 `backend/data/runtime/`（gitignored），是本地开发态，不要回写 seed fixture，也不要把 runtime state / 上传的 PDF 当 fixture 提交。
 - reviewer identity 只能来自 access token 验证后的 request state；受保护部署由可信 nginx 覆盖写入 `X-Qiyan-Reviewer`。禁止信任浏览器或任意客户端直传的 reviewer header，后端 8000 必须保持 loopback。
@@ -119,7 +119,7 @@ pnpm preview:stop
 - source-bound 装配门禁只证明「装配输入已封存」，不生成网络结论、不授权任何 writer、不翻转 `formal_network_ready`：`POST /api/network/result/{task_id}/assembly-plans` 产出不可变候选装配计划（确定性 plan_id + 协议/父子任务/双侧 artifact/冻结 lineage/判定快照全量绑定 hash），计划封存与判定流在 repository 锁内原子绑定（评估期间追加判定返回 `conflict`）；旧计划 append-only 默认不可执行，写前强制由下一条的消费原语执行。独立 validator `backend/scripts/validate_network_assembly_plan.py` 与 producer 零共享代码，改 plan 结构时必须让它对每一种篡改继续拒绝。
 - writer 消费契约已落地（2026-09-06，契约 `docs/plans/2026-08-14-writer-consumption-contract-draft.md` status: approved，决策包 D1-D9 已拍板）：任何网络装配 writer 写产物前必须走 `POST /api/network/result/{task_id}/assembly-plans/{plan_id}/consume` 一次性消费原语——服务层按 D3 固定优先级预检（404 → 422 → R3 已消费/重放 → R4 superseded → R6 adjudication_changed → R7 broken_parent_link → 500 integrity），仓储层在同一临界区内重验可变通道（判定流元组、lineage 重算 hash、latest sequence、exactly-once）后才写输出+消费记录；去掉任一锁内守卫，`test_network_assembly_consumption_repo.py` 必须变红（变异验证过）。exactly-once 键为 `UNIQUE(task_id, owner_id, plan_id)`；同 writer+同 `output_sha256` 是 D5 幂等重放（返回原记录），否则 `plan_already_consumed`。JSON 后端响应标注 `backend_fidelity="preview"` 且输出/消费文件记录进程 token——检出异进程写入即 `multi_process_blocked` fail closed，JSON 永不承诺跨进程 exactly-once；消费记录容量 env `QIYAN_CONSUMPTION_RECORD_LIMIT`（默认 1000）触发 429。消费是审计不是推进：不回写冻结字段、`formal_network_ready` 恒 false，读取侧投影（`is_latest_plan`/`is_consumed`/`is_superseded_by`）与前端 `NetworkAssemblyPlanSummary.is_consumed` 两侧各有断言。canonical hash 由 `app/core/canonical_json.py` 供 service 与三仓储共用——改 canonicalization 必须三侧同步，独立 validator 的零共享副本另行同步。
 - omics 端点全部显式 opt-in，默认路径不可见：omics manifest 冻结导入 `POST /api/network/omics-import/verify`（`app/api/network.py`）客户端 manifest `extra="forbid"`，sha256/frozen_at/frozen_by/provenance 等封存字段只能服务端写；multipart strict allowlist（manifest/file/annotation_file）；同 accession 不同内容 409、同输入幂等。omics 投影（DEG 候选、证据 overlay）只挂结果响应信封（`?omics_verification=true&omics_accession=...` 显式 opt-in），不写入 `NetworkAnalysisResult`、不回写 lineage row，重算必须逐字节一致。独立 validator `backend/scripts/validate_omics_import.py` 与 producer 零共享代码（含 platform_annotation 第二 raw artifact 封存校验），改 omics 结构时必须让它对篡改继续拒绝。
-- `omics_validated` 是唯一需要 HITL 的证据等级：`derive_chain_evidence_level` 永不产出该等级——跳过人工判定没有任何路径让边显示它；唯一升级路径是 `decision="omics_confirmed"` 的 append-only 判定，服务端在判定时刻重验机器条件（row/symbol 绑定、冻结快照存在、候选存在、阈值满足、数据集 Homo sapiens + AD），任一失败 fail closed。证据等级表与前端 `NetworkEvidenceLevel` / `getNetworkEvidenceLevelLabel`（`frontend/lib/api/network.ts`）两侧必须同步、两侧各有断言。
+- `omics_validated` 是唯一需要 HITL 的证据等级：`derive_chain_evidence_level` 永不产出该等级——跳过人工判定没有任何路径让边显示它；唯一升级路径是 `decision="omics_confirmed"` 的 append-only 判定，服务端在判定时刻重验机器条件（row/symbol 绑定、冻结快照存在、候选存在、阈值满足、数据集 Homo sapiens + AD），任一失败 fail closed。证据等级表与前端 `NetworkEvidenceLevel` / `getNetworkEvidenceLevelLabel`（`frontend/lib/api/network.ts`）两侧必须同步、两侧各有断言。客户端只能展示服务端投影传来的等级：`components/NetworkAnalysisClient.tsx` 源码里禁止出现 `"omics_validated"` 字面量（类型与 label 定义只在 `lib/api/network.ts`，`network-evidence-grading-ui.test.ts` 双向断言）。
 - SQLite network-task repository 的锁按 canonical DB path 在单进程内共享；literature/chunk 仍是实例级锁。两者都不提供多 worker exactly-once；若引入多进程，必须先设计数据库 claim/lease 或等价原子协议。共享行上任何新增 read-modify-write 必须复用邻近方法已有的 CAS + 重试（`advance()`、`append_adjudication()` 即例），同文件已有的守卫就是需求；并发测试必须能观测到它声称覆盖的竞态——同进程两个 repository 实例共享 path lock，去掉守卫后仍会通过，必须显式制造交错并做变异验证。
 - 写操作与其后用于刷新界面的读取必须分开捕获错误。共用一个 `catch` 会把已落库的写报成失败，在 append-only 审计域里会诱导重试并污染历史。
 - 前端 fetcher 对非 2xx 一律抛 `ApiStatusError`（GET/POST 同规，`lib/api/*.ts` 全覆盖），UI catch 必须按错误类型分层：HTTP 状态码与服务端校验失败如实进文案，「请确认后端服务已启动」只允许出现在真网络故障（非 ApiStatusError）分支。该「错误折叠成 backend-down」家族在 2026-09-04/09-05 已回归三处（轮询 GET、network POST、rag POST），新增接口直接照 `network-input-boundaries.test.ts` / `rag-empty-state.test.ts` 的断言写。
@@ -127,7 +127,7 @@ pnpm preview:stop
 - 门禁全红时先排除工具链再改代码：pnpm 写绝对 symlink，仓库目录一旦移动，前端依赖全部悬空、前端门禁全红且与 diff 无关，需 `rm -rf frontend/node_modules && pnpm install --frozen-lockfile`；`.next` 缓存同样含迁移前绝对路径，目录移动后 dev/E2E 会出现与 diff 无关的间歇性失败（如 Playwright `networkidle` 超时），需一并 `rm -rf frontend/.next`；`pnpm build` 还会在 dev/build 间来回改写 `frontend/next-env.d.ts` 的 routes 类型路径，build 后树变脏时 `git checkout -- frontend/next-env.d.ts` 即可，不是代码问题。判断某条失败是否既有，用 `git stash` 清空改动后复跑确认，且复跑必须处于干净工具链（已重装依赖、已清缓存），不要凭印象归因。
 - 启动外部进程时传结构化 argv，禁止拼接 `PowerShell -Command` 或 curl config/header 字符串；端口和凭证参数必须先校验。
 - PDF 流分两步：`POST /api/uploads/pdf` 只落盘并置 `pending`，要单独调 `POST /api/uploads/pdf/auto-parse` 才推进到 `parsed`/`failed`；upload endpoint 不做重解析。
-- 前端测试套件（`frontend/tests/`，40+ 个测试文件）里有 4 个源码断言测试（`pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航或可见 meta 文案时最容易挂这几个。
+- 前端测试套件（`frontend/tests/`，45 个测试文件）里有 23 个源码断言测试（`grep -l '\.tsx' frontend/tests/*.test.ts` 可列全，如 `pdf-upload-status`、`literature-detail-meta`、`client-section-consistency`、`page-shell-consistency`、`network-evidence-grading-ui` 等）用 `readFileSync` 对 `.tsx` 源码做正则断言；改页面壳、导航、可见 meta 文案或组件内嵌逻辑时最容易挂这批。
 - 后端 mypy `strict=true` 仅作用于 `app/`（tests 排除）；`B008` 全局忽略，因为 FastAPI 用 `Body()`/`Form()`/`File()`/`Query()` 当默认值。
 - eval 数据集是 50 题（`backend/data/evals/rag_ad_eval_questions.json`），不要按历史文档里的 20 题口径规划。
 - 检索排序预期是调参产物，不是随手可修的失败：改 `services/retrieval/provider.py` 评分（字段加权 title=3/keywords=2/abstract=1、IDF 加权、多字术语词典）、`backend/data/retrieval/cjk_medical_terms.json` 或 `cross_lingual_terms.json` 会改变 citation 排序；`test_rag_service.py`、`test_rag_api.py`、`test_cross_lingual_eval.py` 的预期顺序对应 Track A/A+ 实测基线（MRR@5 0.268）——该基线对应 seed fixture 上的确定性检索，扩展语料只存在于 gitignored runtime state，不进测试语料，测试预期不受 v6 数字影响——调整时必须说明对基线的影响，不得为过测试而抹平排序。
