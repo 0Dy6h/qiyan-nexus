@@ -1,7 +1,7 @@
 # Writer 装配计算逻辑切片计划（2026-09-11 研究者拍板）
 
 - date: 2026-09-11
-- status: planned（已拍板规则，待实现；夜班可开工）
+- status: implemented（2026-09-11 夜班切片落地，提交 `bfff01d`；拍板 #7 研究者抽样目视验收待日间执行）
 - 依据：消费契约 `docs/plans/2026-08-14-writer-consumption-contract-decision-pack.md`（D1-D9，2026-08-16 拍板）§1.3 排除项 + `docs/current-state.md`「未完成边界」；前序切片 `docs/plans/2026-09-06-writer-consumption-primitive.md`（已 implemented）。
 - 边界：实现 writer 的装配计算逻辑本身；不翻转 `formal_network_ready`；不扩展独立 validator（D9=B，后续切片 2）；不做 PG 活库 parity（后续切片 3）。
 
