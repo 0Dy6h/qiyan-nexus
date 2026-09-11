@@ -23,9 +23,9 @@
   - 三行全部 `evidence_origin=mock`、`source_database=qiyan_sample_network`（样例数据）
 - 平台自身警告：「当前任务使用 mock 数据，不能进入正式网络药理学研究」；`readiness.blocking_reasons` 亦如此表述。
 
-### 处置建议（小蒜香出具，待研究者复核）
+### 处置建议（小蒜香出具；研究者 2026-09-11 确认：同意不判 mock 样例行）
 1. **对 mock 样例行不做 included/excluded 判定**——判定没有生物学意义，签了反而会在审计链留下「有人判定过」的虚假印象。
 2. 保持 `adjudication_status=pending` 不动；等真实双侧 verified 导入（Open Targets + ChEMBL，`server_verified_raw_artifact`）落地后，再对真实行做逐行 adjudication（届时行数另行核实）。
 3. 本记录未写入任何 runtime adjudication 数据。
 
-*本记录为事实存档；未经研究者复核确认前，第二节「处置建议」不视为已拍板。*
+*研究者已于 2026-09-11 复核确认，第二节「处置建议」即拍板结论：mock 样例行不判定，保持 pending；等真实双侧 verified 导入后再按行 adjudication。*
