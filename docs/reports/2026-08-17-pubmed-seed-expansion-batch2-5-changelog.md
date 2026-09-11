@@ -44,5 +44,8 @@ v6 0.400/0.744（693 语料，零结果 0 题）。
 ## 诚实边界（不得删）
 1. 标签为工程侧协助标注 + 对抗性审查，v2 题集 provenance 仍为 engineering draft 待真人
    domain reviewer 接受；在真人数字出现前不声称检索有效。
+   （2026-09-11 研究者已复核接受、节点关闭，接受口径见
+   `docs/reports/2026-09-11-track-a-acceptance-and-adjudication.md`；口径为「AI 辅助 +
+   研究者复核接受」，不是独立真人盲标。）
 2. v3→v6 提升是语料扩展与跨语言术语补充（commit 1624862）的合并效果，未做单因素拆分。
 3. batch1 changelog 与 metrics 原件在 .tmp（gitignored），本文件是唯一版本化记录。
