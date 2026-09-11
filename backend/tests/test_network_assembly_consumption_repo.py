@@ -26,6 +26,7 @@ from app.schemas.network import (
     NetworkAssemblyConsumptionRecord,
     NetworkAssemblyOutput,
     NetworkAssemblyPlan,
+    NetworkChain,
     NetworkTargetAdjudication,
     NetworkTargetIntersectionRow,
     NetworkTargetLineage,
@@ -191,6 +192,7 @@ def _output(
     writer_id: str,
     output_sha256: str,
     consumed_at: str = "2026-09-06T11:00:00+00:00",
+    chains: list[NetworkChain] | None = None,
 ) -> NetworkAssemblyOutput:
     output_id = "assembly-output-" + canonical_json_sha256(
         {
@@ -211,6 +213,7 @@ def _output(
         output_sha256=output_sha256,
         writer_id=writer_id,
         consumed_at=consumed_at,
+        chains=chains if chains is not None else [],
         disclaimer=DISCLAIMER,
     )
 
@@ -323,6 +326,61 @@ class TestConsumeHappyPath:
         assert replayed_consumption.consumption_id == created_consumption.consumption_id
         assert replayed_consumption.consumed_at == created_consumption.consumed_at
         assert len(repo.list_assembly_consumptions(plan.task_id, "reviewer-a")) == 1
+
+    def test_consume_roundtrips_assembled_chains(self, repo: NetworkTaskRepositoryProtocol) -> None:
+        """The server-derived chains (2026-09-11 拍板) survive the output round trip.
+
+        The D5 replay reads the persisted envelope back from disk, so the
+        replayed ``chains`` equality proves both backends persist the new
+        envelope fields verbatim instead of only the hash receipt.
+        """
+        plan, expected_ids = _seed_task_with_plan(repo)
+        chains = [
+            NetworkChain(
+                herb="",
+                formula=None,
+                compound="CHEMBL1",
+                target="IL6",
+                pathway="Cytokine-cytokine receptor interaction",
+                disease="Atopic dermatitis",
+                score=0.64,
+                related_entity_ids=["intersection-row-1", "disease-row-1", "compound-row-1"],
+                target_evidence_type="predicted",
+                evidence_level="predicted",
+            )
+        ]
+        output = _output(plan, "writer-1", _payload_sha(OUTPUT_PAYLOAD), chains=chains)
+        consumption = _consumption(plan, output)
+
+        state, created_output, _ = repo.consume_assembly_plan(
+            plan.task_id,
+            "reviewer-a",
+            "writer-1",
+            plan.plan_id,
+            expected_ids,
+            output,
+            consumption,
+            record_limit=1000,
+        )
+        assert state == "created"
+        assert created_output is not None
+        assert created_output.chains == chains
+        assert created_output.warnings == []
+
+        replay_output = _output(plan, "writer-1", _payload_sha(OUTPUT_PAYLOAD), chains=chains)
+        replay_state, replayed_output, _ = repo.consume_assembly_plan(
+            plan.task_id,
+            "reviewer-a",
+            "writer-1",
+            plan.plan_id,
+            expected_ids,
+            replay_output,
+            _consumption(plan, replay_output),
+            record_limit=1000,
+        )
+        assert replay_state == "existing"
+        assert replayed_output is not None
+        assert replayed_output.chains == chains
 
     def test_second_writer_or_new_output_is_already_consumed(
         self, repo: NetworkTaskRepositoryProtocol

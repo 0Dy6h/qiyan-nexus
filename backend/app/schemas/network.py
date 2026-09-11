@@ -710,8 +710,11 @@ class NetworkAssemblyOutput(BaseModel):
     """Immutable writer output envelope (append-only assembly artifact).
 
     Schema-pinned: ``assembly_input_ready`` is always true and
-    ``formal_network_ready`` is always false. Consuming a plan authorizes
-    nothing beyond the audit record; it never expresses scientific readiness.
+    ``formal_network_ready`` is always false. ``chains`` and ``warnings`` are
+    derived server-side from the plan's selected intersections (2026-09-11
+    拍板), so they are deliberately not part of ``output_sha256`` (which keys
+    the writer payload only). Consuming a plan authorizes nothing beyond the
+    audit record; it never expresses scientific readiness.
     """
 
     output_id: str = Field(pattern=r"^assembly-output-[0-9a-f]{64}$")
@@ -725,6 +728,8 @@ class NetworkAssemblyOutput(BaseModel):
     consumed_at: str
     assembly_input_ready: Literal[True] = True
     formal_network_ready: Literal[False] = False
+    chains: list[NetworkChain] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     disclaimer: str
 
 

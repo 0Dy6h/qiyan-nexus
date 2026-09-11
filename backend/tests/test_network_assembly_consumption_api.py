@@ -309,6 +309,64 @@ def test_consume_creates_output_and_consumption_atomically() -> None:
     assert "消费状态：已被 writer 消费" in report.text
 
 
+def test_consume_output_envelope_carries_assembled_chains() -> None:
+    """2026-09-11 拍板: consume derives compound×target chains server-side.
+
+    Fixture facts: Open Targets IL6 (0.91) + EGFR (0.78) × ChEMBL IL6
+    (pChEMBL 6.4 → CHEMBL1792) + EGFR (6.1 → CHEMBL203) → exactly two chains,
+    graded ``predicted`` (real verified sources, no literature refs — never
+    experimental), pathway filled from the local KEGG dictionary, honest empty
+    herb/formula layer.
+    """
+    client = TestClient(app)
+    task_id, payload = _create_completed_compound_child_task(client)
+    _adjudicate_all_rows(client, task_id, payload)
+    plan = _seal(client, task_id)
+
+    response = _consume(client, task_id, plan["plan_id"])
+
+    assert response.status_code == 201
+    output = response.json()["output"]
+    chains = output["chains"]
+    assert len(chains) == 2
+    by_target = {chain["target"]: chain for chain in chains}
+    assert set(by_target) == {"IL6", "EGFR"}
+
+    il6 = by_target["IL6"]
+    assert il6["compound"] == "CHEMBL1792"
+    assert il6["score"] == 0.64  # pChEMBL 6.4 / 10 — same口径 as provider chains
+    assert il6["pathway"] == "Cytokine-cytokine receptor interaction"  # hsa04060 首命中
+    egfr = by_target["EGFR"]
+    assert egfr["compound"] == "CHEMBL203"
+    assert egfr["score"] == 0.61
+    assert egfr["pathway"] == "MAPK signaling pathway"  # hsa04010 首命中
+    for chain in chains:
+        # 拍板 #4:冻结协议/计划无药材复方信息 → 诚实留空。
+        assert chain["herb"] == ""
+        assert chain["formula"] is None
+        assert chain["disease"] == "Atopic dermatitis"
+        assert chain["evidence_refs"] == []
+        # 拍板 #2:真实 verified 来源、无文献引用 → 恒 predicted,不上浮 experimental。
+        assert chain["target_evidence_type"] == "predicted"
+        assert chain["evidence_level"] == "predicted"
+        # 完整引用交叉行 + 两侧 lineage row。
+        assert len(chain["related_entity_ids"]) == 3
+
+    # 拍板 #6:信封钉死字段与诚实 warnings。
+    assert output["assembly_input_ready"] is True
+    assert output["formal_network_ready"] is False
+    assert output["disclaimer"] == DISCLAIMER
+    warnings = output["warnings"]
+    assert any("herb/formula 层诚实留空" in warning for warning in warnings)
+    assert any("不执行富集分析" in warning for warning in warnings)
+    assert not any("pathway 留空" in warning for warning in warnings)  # 两符号均命中字典
+
+    # 链不进 writer payload hash 域:D5 重放比较的仍是 output_sha256。
+    replayed = _consume(client, task_id, plan["plan_id"])
+    assert replayed.status_code == 200
+    assert replayed.json()["output"]["chains"] == chains
+
+
 def test_replay_returns_existing_with_original_record() -> None:
     client = TestClient(app)
     task_id, payload = _create_completed_compound_child_task(client)

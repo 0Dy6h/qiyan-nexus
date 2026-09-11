@@ -1311,12 +1311,151 @@ def _consumption_projection(
     )
 
 
+_DISEASE_SCOPE_LABELS: dict[str, str] = {"atopic_dermatitis": "Atopic dermatitis"}
+
+_ASSEMBLY_HERB_FORMULA_WARNING = (
+    "冻结协议与装配计划不携带药材/复方信息，装配链的 herb/formula 层诚实留空。"
+)
+_ASSEMBLY_ENRICHMENT_WARNING = (
+    "装配切片不执行富集分析（研究者拍板：既有 mock 超几何结果不构成科研结论）。"
+)
+
+
+def _normalize_assembly_score(row: NetworkTargetLineageRow) -> float:
+    """Clamp a frozen lineage row score into the chain score domain [0, 1].
+
+    ChEMBL verified rows carry the raw pChEMBL value in ``source_score``; the
+    /10 normalization mirrors ``network_connectors._pchembl_to_score`` so the
+    assembled chain keeps the same 0-1口径 as provider-derived chains.
+    """
+    if row.source_score is None:
+        return 0.0
+    if row.score_name == "pchembl_value":
+        return max(0.0, min(row.source_score / 10, 1.0))
+    return max(0.0, min(row.source_score, 1.0))
+
+
+def _assemble_chains_from_plan(
+    record: NetworkTaskRecord,
+    plan: NetworkAssemblyPlan,
+) -> tuple[list[NetworkChain], list[str]]:
+    """Deterministically derive compound×target chains from a sealed plan (2026-09-11 拍板).
+
+    One chain per (compound lineage row × selected intersection symbol); rows
+    of the same canonical symbol are never merged. Selected rows must resolve
+    against the frozen lineage (hash-bound by the plan) — an unresolvable id is
+    a persisted-state contradiction and raises for the integrity bucket.
+    """
+    result = record.result
+    if result is None or record.research_protocol is None:
+        raise ValueError("assembly input is missing the task result or protocol")
+    lineage = result.target_lineage
+    disease_rows = {
+        row.lineage_row_id: row for row in lineage.disease_targets if row.lineage_row_id is not None
+    }
+    compound_rows = {
+        row.lineage_row_id: row
+        for row in lineage.compound_targets
+        if row.lineage_row_id is not None
+    }
+    pathway_by_symbol: dict[str, str] = {}
+    for pathway in _load_kegg_pathways():
+        if not isinstance(pathway, dict):
+            continue
+        name = str(pathway.get("name") or "")
+        genes = pathway.get("genes")
+        if not name or not isinstance(genes, list):
+            continue
+        for gene in genes:
+            pathway_by_symbol.setdefault(str(gene), name)
+
+    disease_label = _DISEASE_SCOPE_LABELS.get(
+        record.research_protocol.disease, record.research_protocol.disease
+    )
+
+    def _resolve_selection(
+        selection: NetworkAssemblySelectedIntersection,
+    ) -> tuple[list[NetworkTargetLineageRow], list[NetworkTargetLineageRow]]:
+        """Resolve + validate one selection's backing rows against the frozen lineage."""
+        try:
+            disease = [
+                disease_rows[row_id] for row_id in selection.selected_disease_lineage_row_ids
+            ]
+            compound = [
+                compound_rows[row_id] for row_id in selection.selected_compound_lineage_row_ids
+            ]
+        except KeyError as exc:
+            raise ValueError(
+                f"selected lineage row cannot be resolved for {selection.lineage_row_id}: {exc}"
+            ) from exc
+        for row in compound:
+            if row.canonical_symbol != selection.canonical_symbol:
+                raise ValueError(
+                    f"compound lineage row {row.lineage_row_id} does not match "
+                    f"selected symbol {selection.canonical_symbol}"
+                )
+        return disease, compound
+
+    resolved = [
+        (selection, *_resolve_selection(selection)) for selection in plan.selected_intersections
+    ]
+    # 防御分支：mock 行无法通过装配门禁（双侧 verified provenance 才可 seal），
+    # 但任何 mock 行都把整批装配链压回 mock 档，宁低不高。
+    uses_mock_rows = any(
+        row.evidence_origin == "mock"
+        for _, disease, compound in resolved
+        for row in [*disease, *compound]
+    )
+    chains: list[NetworkChain] = []
+    missing_pathway_count = 0
+    for selection, _disease, compound in resolved:
+        for compound_row in compound:
+            pathway = pathway_by_symbol.get(selection.canonical_symbol, "")
+            if not pathway:
+                missing_pathway_count += 1
+            chains.append(
+                NetworkChain(
+                    herb="",
+                    formula=None,
+                    compound=compound_row.raw_identifier,
+                    target=selection.canonical_symbol,
+                    pathway=pathway,
+                    disease=disease_label,
+                    score=_normalize_assembly_score(compound_row),
+                    related_entity_ids=[
+                        selection.lineage_row_id,
+                        *selection.selected_disease_lineage_row_ids,
+                        compound_row.lineage_row_id or "",
+                    ],
+                    evidence_refs=[],
+                    # 拍板规则 2（宁低不高）：ChEMBL known_activity 行也不上浮 experimental，
+                    # 无文献引用的装配链一律压为 predicted；mock 行保持 mock 档。
+                    target_evidence_type="mock" if uses_mock_rows else "predicted",
+                )
+            )
+    # 证据分级按行 provenance 而非任务 data_mode：verified 导入任务的 data_mode 只是
+    # provider 开关（默认仍为 mock），行的真实性由封存快照决定；mock 行走 ADR-0015
+    # 原口径恒 mock_inferred。
+    graded = grade_chains_evidence(
+        chains,
+        data_mode="live" if not uses_mock_rows else record.data_mode,
+    )
+    warnings = [_ASSEMBLY_HERB_FORMULA_WARNING, _ASSEMBLY_ENRICHMENT_WARNING]
+    if missing_pathway_count:
+        warnings.append(
+            f"{missing_pathway_count}/{len(graded)} 条装配链未命中本地通路字典，pathway 留空。"
+        )
+    return graded, warnings
+
+
 def _build_assembly_output(
     record: NetworkTaskRecord,
     plan: NetworkAssemblyPlan,
     request: NetworkAssemblyConsumeRequest,
     output_sha256: str,
     consumed_at: str,
+    chains: list[NetworkChain],
+    warnings: list[str],
 ) -> NetworkAssemblyOutput:
     output_id = "assembly-output-" + canonical_json_sha256(
         {
@@ -1338,6 +1477,8 @@ def _build_assembly_output(
         output_sha256=output_sha256,
         writer_id=request.writer_id,
         consumed_at=consumed_at,
+        chains=chains,
+        warnings=warnings,
         disclaimer=DISCLAIMER,
     )
 
@@ -1466,7 +1607,15 @@ def consume_network_assembly_plan(
         return "integrity_failed", failed_checks
     output_sha256 = canonical_json_sha256(request.output_payload)
     consumed_at = _now_iso()
-    output = _build_assembly_output(record, plan, request, output_sha256, consumed_at)
+    try:
+        chains, assembly_warnings = _assemble_chains_from_plan(record, plan)
+    except ValueError:
+        # Selected rows are hash-bound to the frozen lineage; an unresolvable
+        # row here is a persisted-state contradiction (500 integrity bucket).
+        return "integrity_failed", ["assembly_input_unresolvable"]
+    output = _build_assembly_output(
+        record, plan, request, output_sha256, consumed_at, chains, assembly_warnings
+    )
     consumption = _build_consumption_record(record, plan, output, consumed_at)
     current_adjudication_ids = tuple(item.adjudication_id for item in record.adjudications)
     state, stored_output, stored_consumption = repo.consume_assembly_plan(
