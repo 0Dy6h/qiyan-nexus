@@ -27,6 +27,7 @@
 | 最近交接 | `docs/handoffs/` | 越新的 handoff 越接近当前事实，用于跨会话续接 |
 | 开发计划 | `docs/plans/` | 已落地或待执行的纵向切片计划 |
 | 质量 | `docs/quality-score.md` | 各领域质量评分 |
+| 验证报告 | `docs/reports/` | Gate/切片真实数据验收与检索盲评补记（如 2026-09-03 Gate 3、2026-08-17 种子扩展）；正文引用的验收数字以此为准 |
 | 历史归档 | `docs/archive/pre-dev-planning/` | 早期需求、任务、设计、Word 文档与 HTML 原型，仅作追溯参考 |
 | Agent 约定 | `docs/agents/` | 领域文档消费规则、本地 Markdown issue tracker（`.scratch/<feature-slug>/`）、triage 中文标签映射 |
 
