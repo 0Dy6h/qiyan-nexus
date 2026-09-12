@@ -1,7 +1,7 @@
 param(
     [string]$RuntimeRoot = ".tmp/internal-preview",
     [ValidateRange(1, 65535)]
-    [int]$BackendPort = 8000,
+    [int]$BackendPort = 8010,
     [ValidateRange(1, 65535)]
     [int]$FrontendPort = 3000,
     [string]$AccessToken = "",
@@ -16,6 +16,15 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# 本机 8000 被另一项目常驻占用，全程不可触碰：任何路径（含显式传参）都 fail closed。
+if ($BackendPort -eq 8000) {
+    throw (
+        "Backend port 8000 is permanently reserved by another project on this machine " +
+        "and must never be bound. Use the isolated preview default (-BackendPort 8010) " +
+        "or another free port."
+    )
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $runtimePath = Join-Path $repoRoot $RuntimeRoot

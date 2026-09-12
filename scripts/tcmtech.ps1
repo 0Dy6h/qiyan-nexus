@@ -1,3 +1,6 @@
+# CmdletBinding 是硬约束：未知参数必须显式报错。没有它，-Stop 之类的参数会被
+# 静默吞进 $args，脚本照常启动——用户想停服务却得到一次重启。
+[CmdletBinding()]
 param(
     # 本机 8000 被另一项目常驻占用，默认必须走隔离端口（CORS 固定 3000）
     [ValidateRange(1, 65535)]
@@ -10,7 +13,9 @@ param(
     [string]$AccessToken = "",
     [string]$OpenTargetsManifestPath = "",
     # 自动打开默认浏览器；自动化/无头场景加 -NoBrowser
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    # 直接停止预览（等价 pnpm preview:stop），不启动新服务
+    [switch]$Stop
 )
 
 Set-StrictMode -Version Latest
@@ -32,6 +37,11 @@ if ($AccessToken.Trim()) {
 }
 if ($OpenTargetsManifestPath.Trim()) {
     $startArgs["OpenTargetsManifestPath"] = $OpenTargetsManifestPath
+}
+
+if ($Stop) {
+    & $previewScript @stopArgs -Stop
+    return
 }
 
 # 复用内部预览脚本：隔离 runtime、端口占用预检、健康检查、processes.json 进程登记

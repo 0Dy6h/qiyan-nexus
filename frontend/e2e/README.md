@@ -33,10 +33,10 @@ Repo-level equivalent:
 ```
 
 `playwright.config.ts` `webServer` starts:
-- backend: `node ./e2e/start-backend.mjs`, which prefers `../backend/.uv-test-venv` and falls back to `.venv` / `python`; it runs uvicorn on `127.0.0.1:8000` with isolated temp runtime paths and explicitly sets `QIYAN_ACCESS_TOKENS=''`.
+- backend: `node ./e2e/start-backend.mjs`, which prefers `../backend/.uv-test-venv` and falls back to `.venv` / `python`; it runs uvicorn on `127.0.0.1:8010` (`QIYAN_E2E_BACKEND_PORT`; loopback 8000 is permanently reserved by another project on this machine) with isolated temp runtime paths and explicitly sets `QIYAN_ACCESS_TOKENS=''`.
 - frontend: `pnpm dev` on port 3000 with only the non-secret `NEXT_PUBLIC_API_BASE_URL` override.
 
-If a dev server is already running on 3000 / 8000, local runs can reuse it outside CI. Browser E2E is intentionally open-mode: the frontend never receives a backend token. Backend token middleware remains covered by backend tests and direct API smoke; cloud Basic Auth is an nginx deployment boundary and must be validated against the deployed proxy.
+If a dev server is already running on 3000 / 8010, local runs can reuse it outside CI. Browser E2E is intentionally open-mode: the frontend never receives a backend token. Backend token middleware remains covered by backend tests and direct API smoke; cloud Basic Auth is an nginx deployment boundary and must be validated against the deployed proxy.
 
 ## Scope
 

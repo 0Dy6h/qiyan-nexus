@@ -39,7 +39,7 @@
 
 后端 venv 是 `backend/.uv-test-venv`（不是 `.venv`），必须走 `Scripts\python.exe`。
 
-**端口事实（2026-09-04 起）**：本机 8000 被另一项目常驻占用，全程不可触碰。下方涉及 8000 的命令仅作写法参考，本项目实际一律走 isolated runtime 预览的隔离端口（后端 8010 / 前端 3000；CORS 自 2026-09-06 起允许本机回环 3000 与 3100，3100 供内部预览换端口场景）。
+**端口事实（2026-09-04 起）**：本机 8000 被另一项目常驻占用，全程不可触碰。下方涉及 8000 的命令仅作写法参考，本项目实际一律走 isolated runtime 预览的隔离端口（后端 8010 / 前端 3000；CORS 自 2026-09-06 起允许本机回环 3000 与 3100，3100 供内部预览换端口场景）。2026-09-12 起该禁区在脚本层 fail closed：`run-internal-preview.ps1` / `verify-local.ps1`（E2E）/ `smoke-internal-preview.ps1`（回环 URL）显式传 8000 一律 throw，预览与 E2E 默认值即 8010；`frontend/lib/api/*.ts` 的浏览器默认 base URL 仍是 8000（历史 dev 组合流，preview 路径已显式注入 `NEXT_PUBLIC_API_BASE_URL`，改动需单独切片）。
 
 ```powershell
 # 推荐：统一本地门禁（默认跑 backend 4 项 + frontend test/typecheck/build）
@@ -96,6 +96,8 @@ pnpm preview:stop
 
 # 全局终端命令 tcmtech（= scripts\tcmtech.ps1，shim 在 %LOCALAPPDATA%\Microsoft\WindowsApps\tcmtech.cmd
 # 与 C:\Users\12035\bin\tcmtech[.cmd]）：起 8010/3000 + 开浏览器 + 前台阻塞，Ctrl+C 触发 finally 调 -Stop；
+# 停止也可用 tcmtech -Stop（等价 pnpm preview:stop）。脚本带 CmdletBinding：未知/拼错的参数显式报错，
+# 不得移除（移除会恢复「静默吞参照常启动」故障，-Stop 曾中招）。
 # runtime 用默认 .tmp\internal-preview，所以 pnpm preview:stop 也能停它。重跑 tcmtech 会先自动停掉上一次服务。
 # cmd shim 是 GBK (cp936) 编码（编辑器里中文显示为乱码属正常），勿按 UTF-8 重写；详见 docs/handoffs/2026-09-04-tcmtech-command.md
 ```

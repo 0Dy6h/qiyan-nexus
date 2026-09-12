@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$BackendUrl = "http://127.0.0.1:8000",
+    [string]$BackendUrl = "http://127.0.0.1:8010",
     [ValidatePattern('^[A-Za-z0-9._~-]*$')]
     [string]$AccessToken = "",
     [ValidatePattern('^[a-z0-9][a-z0-9._-]{0,63}$')]
@@ -13,6 +13,11 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# 本机回环 8000 被另一项目常驻占用：smoke 会写入 runtime state，打过去等于污染对方系统。
+if ($BackendUrl -match '^https?://(127\.0\.0\.1|localhost):8000($|/)') {
+    throw "Loopback port 8000 is permanently reserved by another project on this machine. Point -BackendUrl at the isolated preview backend (default http://127.0.0.1:8010)."
+}
 
 function New-UnicodeString {
     param([int[]]$CodePoints)

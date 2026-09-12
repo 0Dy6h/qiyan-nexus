@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const backendDir = resolve(currentDir, "../../backend");
-const port = process.env.QIYAN_E2E_BACKEND_PORT ?? "8000";
+// Loopback 8000 is permanently reserved by another project on this machine.
+const port = process.env.QIYAN_E2E_BACKEND_PORT ?? "8010";
 
 const candidates =
   process.platform === "win32"
@@ -45,7 +46,7 @@ const child = spawn(
 const forwardSignal = (signal) => {
   // On POSIX, signals propagate to the child group naturally.
   // On Windows, `child.kill()` only signals the immediate uvicorn process;
-  // its multiprocessing.spawn worker that actually owns :8000 is orphaned.
+  // its multiprocessing.spawn worker that actually owns the backend port is orphaned.
   // `taskkill /T /F /PID` walks the process tree and kills descendants too.
   if (process.platform === "win32" && child.pid) {
     spawn("taskkill", ["/T", "/F", "/PID", String(child.pid)], {

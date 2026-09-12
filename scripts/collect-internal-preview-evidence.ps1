@@ -1,7 +1,7 @@
 param(
     [string]$OutputRoot = ".tmp/internal-preview-evidence",
     [string]$AccessToken = "trial-token",
-    [string]$BackendPort = "8000",
+    [string]$BackendPort = "8010",
     [string]$FrontendPort = "3000",
     [string]$PdfPath = "local-review-pdfs\健脾养血祛风法治疗特应性皮炎临床疗效及对皮肤屏障功能的影响_杨雪松.pdf",
     [switch]$SkipTokenProfile,

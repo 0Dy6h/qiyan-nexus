@@ -19,7 +19,7 @@ test("internal preview run script exposes isolated open/token profiles and stop 
   const source = getRepoSource("scripts/run-internal-preview.ps1");
 
   assert.match(source, /\[string\]\$RuntimeRoot\s*=\s*"\.tmp\/internal-preview"/);
-  assert.match(source, /\[ValidateRange\(1,\s*65535\)\]\s*\[int\]\$BackendPort\s*=\s*8000/);
+  assert.match(source, /\[ValidateRange\(1,\s*65535\)\]\s*\[int\]\$BackendPort\s*=\s*8010/);
   assert.match(source, /\[ValidateRange\(1,\s*65535\)\]\s*\[int\]\$FrontendPort\s*=\s*3000/);
   assert.match(source, /\[string\]\$AccessToken\s*=\s*""/);
   assert.match(source, /\[switch\]\$Stop/);
@@ -44,7 +44,7 @@ test("internal preview smoke script covers core API flows and token header", () 
   assert.equal(repoFileExists("scripts/smoke-internal-preview.ps1"), true);
   const source = getRepoSource("scripts/smoke-internal-preview.ps1");
 
-  assert.match(source, /\[string\]\$BackendUrl\s*=\s*"http:\/\/127\.0\.0\.1:8000"/);
+  assert.match(source, /\[string\]\$BackendUrl\s*=\s*"http:\/\/127\.0\.0\.1:8010"/);
   assert.match(source, /\[string\]\$AccessToken\s*=\s*""/);
   assert.match(source, /\[string\]\$ReviewerId\s*=\s*"preview-smoke"/);
   assert.match(source, /\[string\]\$ProfileName\s*=\s*""/);

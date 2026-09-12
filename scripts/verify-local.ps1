@@ -2,9 +2,9 @@ param(
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
     [switch]$IncludeE2E,
-    # E2E-only: lets the Playwright webServers run on non-default ports when a
-    # dev server or another app already occupies 3000/8000.
-    [int]$E2eBackendPort = $(if ($env:QIYAN_E2E_BACKEND_PORT) { [int]$env:QIYAN_E2E_BACKEND_PORT } else { 8000 }),
+    # E2E-only: lets the Playwright webServers run on other ports when a dev
+    # server or another app already occupies 3000/8010.
+    [int]$E2eBackendPort = $(if ($env:QIYAN_E2E_BACKEND_PORT) { [int]$env:QIYAN_E2E_BACKEND_PORT } else { 8010 }),
     [int]$E2eFrontendPort = $(if ($env:QIYAN_E2E_FRONTEND_PORT) { [int]$env:QIYAN_E2E_FRONTEND_PORT } else { 3000 })
 )
 
@@ -13,6 +13,11 @@ $ErrorActionPreference = "Stop"
 
 if ($BackendOnly -and $FrontendOnly) {
     throw "BackendOnly and FrontendOnly cannot be used together."
+}
+
+# 本机 8000 被另一项目常驻占用，全程不可触碰：E2E 后端入口同样 fail closed。
+if ($E2eBackendPort -eq 8000) {
+    throw "E2E backend port 8000 is permanently reserved by another project on this machine. Pass -E2eBackendPort 8010 or set QIYAN_E2E_BACKEND_PORT."
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
